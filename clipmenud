@@ -13,6 +13,6 @@ while sleep 1; do
         md5=$(md5sum <<< "$data")
         md5=${md5%% *}
 
-        cat > "$cache_dir/$md5" <<< "$data"
+        printf '%s' "$data" > "$cache_dir/$md5"
     done
 done
