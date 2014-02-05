@@ -3,12 +3,17 @@
 cache_dir=/tmp/clipmenu/
 mkdir -p "$cache_dir"
 
+declare -A last_data
+
 while sleep 1; do
     for selection in clipboard primary; do
         data=$(xsel --"$selection"; printf x)
         data=${data%x}
 
         [[ $data ]] || continue
+
+        [[ ${last_data[$selection]} == "$data" ]] && continue
+        last_data[$selection]=$data
 
         md5=$(md5sum <<< "$data")
         md5=${md5%% *}
