@@ -1,0 +1,20 @@
+#!/bin/bash
+
+dmenu_lines=8
+
+declare -A selections
+
+for file in /tmp/clipmenu/*; do
+    first_line=$(sed -n '1{p;q}' "$file")
+
+    lines=$(wc -l "$file")
+    lines=${lines%% *}
+
+    if (( lines > 1 )); then
+        first_line+=" ($lines lines)"
+    fi
+
+    selections[$first_line]=$file
+done
+
+printf '%s\n' "${!selections[@]}" | dmenu -l "$dmenu_lines"
