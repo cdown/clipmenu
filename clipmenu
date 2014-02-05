@@ -21,4 +21,6 @@ chosen_line=$(printf '%s\n' "${!selections[@]}" | dmenu -l "$dmenu_lines")
 
 [[ $chosen_line ]] || exit 1
 
-xclip < "${selections[$chosen_line]}"
+for selection in clipboard primary; do
+    xsel --"$selection" < "${selections[$chosen_line]}"
+done
