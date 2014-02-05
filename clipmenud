@@ -1,15 +1,15 @@
 #!/bin/bash
 
-selection=${1-clipboard}
 cache_dir=/tmp/clipmenu/
-
 mkdir -p "$cache_dir"
 
 while sleep 1; do
-    data=$(xsel --"$selection"; printf x)
-    data=${data%x}
-    md5=$(md5sum <<< "$data")
-    md5=${md5%% *}
+    for selection in clipboard primary; do
+        data=$(xsel --"$selection"; printf x)
+        data=${data%x}
+        md5=$(md5sum <<< "$data")
+        md5=${md5%% *}
 
-    cat > "$cache_dir/$md5" <<< "$data"
+        cat > "$cache_dir/$md5" <<< "$data"
+    done
 done
