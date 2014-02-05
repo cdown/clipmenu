@@ -17,4 +17,8 @@ for file in /tmp/clipmenu/*; do
     selections[$first_line]=$file
 done
 
-printf '%s\n' "${!selections[@]}" | dmenu -l "$dmenu_lines"
+chosen_line=$(printf '%s\n' "${!selections[@]}" | dmenu -l "$dmenu_lines")
+
+[[ $chosen_line ]] || exit 1
+
+xclip < "${selections[$chosen_line]}"
