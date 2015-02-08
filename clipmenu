@@ -22,5 +22,9 @@ chosen_line=$(printf '%s\n' "${!selections[@]}" | dmenu -l "$dmenu_lines" "$@")
 [[ $chosen_line ]] || exit 1
 
 for selection in clipboard primary; do
-    xsel --"$selection" < "${selections[$chosen_line]}"
+    if type -p xsel >/dev/null 2>&1; then
+        xsel --"$selection" < "${selections[$chosen_line]}"
+    else
+        xclip -sel "$selection" < "${selections[$chosen_line]}"
+    fi
 done
