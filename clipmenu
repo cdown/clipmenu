@@ -1,6 +1,6 @@
 #!/bin/bash
 
-dmenu_lines=8
+dmenu_lines=${CLIPMENU_LINES-8}
 
 declare -A selections
 
