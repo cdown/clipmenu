@@ -2,7 +2,7 @@
 
 LC_COLLATE=C
 
-dmenu_lines=${CLIPMENU_LINES-8}
+dmenu_lines=${CLIPMENU_LINES:-8}
 
 declare -A selections
 ordered_selections=()
