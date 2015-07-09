@@ -1,0 +1,15 @@
+#!/bin/bash
+
+LC_COLLATE=C
+
+files=(/tmp/clipmenu/*)
+
+for (( i=${#files[@]}-1; i>=0; i-- )); do
+	file=${files[$i]}
+	if url=$(grep --only-matching --perl-regexp "http(s?):\/\/[^ \"\(\)\<\>\]]*" "$file")
+	then
+		break
+	fi
+done
+
+xdg-open $url

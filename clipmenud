@@ -15,7 +15,7 @@ while sleep 1; do
 
         data=${data%x}
 
-        [[ $data ]] || continue
+        [[ $data == *[^[:space:]]* ]] || continue
 
         [[ ${last_data[$selection]} == "$data" ]] && continue
         last_data[$selection]=$data
@@ -23,6 +23,6 @@ while sleep 1; do
         md5=$(md5sum <<< "$data")
         md5=${md5%% *}
 
-        printf '%s' "$data" > "$cache_dir/$md5"
+        printf '%s' "$data" > "$cache_dir/$(LC_ALL=C date +%F-%H-%M-%S)-$md5"
     done
 done
