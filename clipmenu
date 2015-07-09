@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# added an extra variable to add dmenu options
+dmenu_config="-nb #252527 -sb #404E5E -fn CamingoCode-9 -h 46"
 dmenu_lines=${CLIPMENU_LINES-8}
 
 declare -A selections
@@ -17,13 +19,17 @@ for file in /tmp/clipmenu/*; do
     selections[$first_line]=$file
 done
 
-chosen_line=$(printf '%s\n' "${!selections[@]}" | dmenu -l "$dmenu_lines" "$@")
+chosen_line=$(printf '%s\n' "${!selections[@]}" | dmenu $dmenu_config -l "$dmenu_lines" "$@")
 
 [[ $chosen_line ]] || exit 1
 
 for selection in clipboard primary; do
     if type -p xsel >/dev/null 2>&1; then
         xsel --"$selection" < "${selections[$chosen_line]}"
+	echo 'paste'
+	# So far this like is pasting the selection on the X application
+	# but it's doing it twice...
+	#xdotool keydown Control key V keyup Control
     else
         xclip -sel "$selection" < "${selections[$chosen_line]}"
     fi
