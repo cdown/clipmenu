@@ -1,6 +1,6 @@
 #!/bin/bash
 
-cache_dir=/tmp/clipmenu/
+cache_dir=/tmp/clipmenu.$USER/
 mkdir -p "$cache_dir"
 
 declare -A last_data

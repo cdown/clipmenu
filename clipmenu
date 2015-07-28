@@ -4,7 +4,7 @@ dmenu_lines=${CLIPMENU_LINES-8}
 
 declare -A selections
 
-for file in /tmp/clipmenu/*; do
+for file in /tmp/clipmenu.$USER/*; do
     first_line=$(sed -n '/./{p;q}' "$file")
 
     lines=$(wc -l "$file")
