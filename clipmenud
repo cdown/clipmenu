@@ -15,7 +15,7 @@ while sleep 1; do
 
         data=${data%x}
 
-        [[ $data ]] || continue
+        [[ $data == *[^[:blank:]]* ]] || continue
 
         [[ ${last_data[$selection]} == "$data" ]] && continue
         last_data[$selection]=$data
