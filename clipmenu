@@ -34,7 +34,7 @@ chosen_line=$(
 
 for selection in clipboard primary; do
     if type -p xsel >/dev/null 2>&1; then
-        xsel --"$selection" < "${selections[$chosen_line]}"
+        xsel -i --"$selection" < "${selections[$chosen_line]}"
     else
         xclip -sel "$selection" < "${selections[$chosen_line]}"
     fi
