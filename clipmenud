@@ -1,7 +1,7 @@
 #!/bin/bash
 
-cache_dir=/tmp/clipmenu/
-mkdir -p "$cache_dir"
+cache_dir=/tmp/clipmenu.$USER/
+mkdir -p -m0700 "$cache_dir"
 
 declare -A last_data
 
@@ -13,9 +13,12 @@ while sleep 1; do
             data=$(xclip -o -sel "$selection"; printf x)
         fi
 
+        # We add and remove the x so that trailing newlines are not stripped.
+        # Otherwise, they would be stripped by the very nature of how POSIX
+        # defines command substitution.
         data=${data%x}
 
-        [[ $data ]] || continue
+        [[ $data == *[^[:blank:]]* ]] || continue
 
         [[ ${last_data[$selection]} == "$data" ]] && continue
         last_data[$selection]=$data
@@ -23,6 +26,6 @@ while sleep 1; do
         md5=$(md5sum <<< "$data")
         md5=${md5%% *}
 
-        printf '%s' "$data" > "$cache_dir/$md5"
+        printf '%s' "$data" > "$cache_dir/$(LC_ALL=C date +%F-%H-%M-%S)-$md5"
     done
 done

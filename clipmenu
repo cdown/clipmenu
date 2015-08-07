@@ -1,10 +1,17 @@
 #!/bin/bash
 
+LC_COLLATE=C
+
 dmenu_lines=${CLIPMENU_LINES-8}
 
 declare -A selections
+ordered_selections=()
 
-for file in /tmp/clipmenu/*; do
+files=("/tmp/clipmenu.$USER/"*)
+
+for (( i=${#files[@]}-1; i>=0; i-- )); do
+    file=${files[$i]}
+
     first_line=$(sed -n '/./{p;q}' "$file")
 
     lines=$(wc -l "$file")
@@ -14,10 +21,14 @@ for file in /tmp/clipmenu/*; do
         first_line+=" ($lines lines)"
     fi
 
+    ordered_selections+=("$first_line")
     selections[$first_line]=$file
 done
 
-chosen_line=$(printf '%s\n' "${!selections[@]}" | dmenu -l "$dmenu_lines" "$@")
+chosen_line=$(
+    printf '%s\n' "${ordered_selections[@]}" |
+        awk '!x[$0]++' | dmenu -l "$dmenu_lines" "$@"
+)
 
 [[ $chosen_line ]] || exit 1
 
