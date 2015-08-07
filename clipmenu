@@ -2,8 +2,6 @@
 
 LC_COLLATE=C
 
-dmenu_lines=${CLIPMENU_LINES-8}
-
 declare -A selections
 ordered_selections=()
 
@@ -26,8 +24,7 @@ for (( i=${#files[@]}-1; i>=0; i-- )); do
 done
 
 chosen_line=$(
-    printf '%s\n' "${ordered_selections[@]}" |
-        awk '!x[$0]++' | dmenu -l "$dmenu_lines" "$@"
+    printf '%s\n' "${ordered_selections[@]}" | awk '!x[$0]++' | dmenu "$@"
 )
 
 [[ $chosen_line ]] || exit 1
