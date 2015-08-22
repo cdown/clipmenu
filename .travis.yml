@@ -1,0 +1,17 @@
+language: haskell
+
+install:
+  - cabal install shellcheck
+
+before_script:
+  - export PATH=$PATH:$HOME/.cabal/bin/
+
+script:
+  - shellcheck -s bash clipmenu clipmenud
+
+matrix:
+  fast_finish: true
+
+# Enable container based Travis CI infrastructure
+# http://docs.travis-ci.com/user/migrating-from-legacy/
+sudo: false
