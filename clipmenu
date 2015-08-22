@@ -1,5 +1,7 @@
 #!/bin/bash
 
+shopt -s nullglob
+
 LC_COLLATE=C
 
 # Some people copy/paste huge swathes of text that could slow down dmenu
