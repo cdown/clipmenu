@@ -2,6 +2,9 @@
 
 LC_COLLATE=C
 
+# Some people copy/paste huge swathes of text that could slow down dmenu
+line_length_limit=500
+
 declare -A selections
 ordered_selections=()
 
@@ -10,7 +13,7 @@ files=("/tmp/clipmenu.$USER/"*)
 for (( i=${#files[@]}-1; i>=0; i-- )); do
     file=${files[$i]}
 
-    first_line=$(sed -n '/./{p;q}' "$file")
+    first_line=$(sed -n '/./{p;q}' "$file" | cut -c1-"$line_length_limit")
 
     lines=$(wc -l "$file")
     lines=${lines%% *}
