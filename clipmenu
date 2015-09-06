@@ -29,7 +29,7 @@ for (( i=${#files[@]}-1; i>=0; i-- )); do
 done
 
 chosen_line=$(
-    printf '%s\n' "${ordered_selections[@]}" | awk '!x[$0]++' | dmenu -l 8 "$@"
+    printf '%s\n' "${ordered_selections[@]}" | dmenu -l 8 "$@"
 )
 
 [[ $chosen_line ]] || exit 1
