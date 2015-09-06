@@ -5,7 +5,7 @@ mkdir -p -m0700 "$cache_dir"
 
 declare -A last_data
 
-while sleep 1; do
+while sleep "${CLIPMENUD_SLEEP:-0.5}"; do
     for selection in clipboard primary; do
         if type -p xsel >/dev/null 2>&1; then
             data=$(xsel --"$selection"; printf x)
