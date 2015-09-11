@@ -9,8 +9,10 @@ while sleep "${CLIPMENUD_SLEEP:-0.5}"; do
     for selection in clipboard primary; do
         if type -p xsel >/dev/null 2>&1; then
             data=$(xsel --"$selection"; printf x)
+            xsel --"$selection" | xsel -i --"$selection"
         else
             data=$(xclip -o -sel "$selection"; printf x)
+            xclip -o -sel "$selection" | xclip -i -sel "$selection"
         fi
 
         # We add and remove the x so that trailing newlines are not stripped.
