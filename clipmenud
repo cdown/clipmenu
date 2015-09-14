@@ -9,15 +9,23 @@ while sleep "${CLIPMENUD_SLEEP:-0.5}"; do
     for selection in clipboard primary; do
         if type -p xsel >/dev/null 2>&1; then
             data=$(xsel --"$selection"; printf x)
-            # Take ownership of clipboard, in case the original application is
-            # unable to serve the clipboard request
-            # Exclude primary from this behavior in order not to mess with the owner
-            [[ $selection != "primary" ]] && xsel --"$selection" | xsel -i --"$selection"
+            # Take ownership of the clipboard, in case the original application
+            # is unable to serve the clipboard request (due to being suspended,
+            # etc).
+            #
+            # Primary is excluded from the change of ownership as applications
+            # sometimes act up if clipboard focus is taken away from them --
+            # for example, urxvt will unhilight text, which is undesirable.
+            if [[ $selection != primary ]]; then
+                xsel --"$selection" | xsel -i --"$selection"
+            fi
         else
             data=$(xclip -o -sel "$selection"; printf x)
-            # See above
-            [[ $selection != "primary" ]] && xclip -o -sel "$selection" | \
-                xclip -i -sel "$selection"
+            # See above comments about taking ownership of the clipboard for
+            # context.
+            if [[ $selection != primary ]]; then
+                xclip -o -sel "$selection" | xclip -i -sel "$selection"
+            fi
         fi
 
         # We add and remove the x so that trailing newlines are not stripped.
