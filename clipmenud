@@ -4,6 +4,7 @@ cache_dir=/tmp/clipmenu.$USER/
 mkdir -p -m0700 "$cache_dir"
 
 declare -A last_data
+declare -A last_filename
 
 while sleep "${CLIPMENUD_SLEEP:-0.5}"; do
     for selection in clipboard primary; do
@@ -36,11 +37,21 @@ while sleep "${CLIPMENUD_SLEEP:-0.5}"; do
         [[ $data == *[^[:blank:]]* ]] || continue
 
         [[ ${last_data[$selection]} == "$data" ]] && continue
-        last_data[$selection]=$data
+
+        # If we were in the middle of doing a selection when the previous poll
+        # ran, then we may have got a partial clip.
+        possible_partial=${last_data[$selection]}
+        if [[ $possible_partial && $data == "$possible_partial"* ]]; then
+            rm -- "${last_filename[$selection]}"
+        fi
 
         md5=$(md5sum <<< "$data")
         md5=${md5%% *}
+        filename="$cache_dir/$(LC_ALL=C date +%F-%H-%M-%S)-$md5"
 
-        printf '%s' "$data" > "$cache_dir/$(LC_ALL=C date +%F-%H-%M-%S)-$md5"
+        last_data[$selection]=$data
+        last_filename[$selection]=$filename
+
+        printf '%s' "$data" > "$filename"
     done
 done
