@@ -52,6 +52,7 @@ while sleep "${CLIPMENUD_SLEEP:-0.5}"; do
         last_data[$selection]=$data
         last_filename[$selection]=$filename
 
+        rm -f "$cache_dir"/*-$md5
         printf '%s' "$data" > "$filename"
     done
 done
