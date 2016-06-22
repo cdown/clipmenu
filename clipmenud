@@ -1,6 +1,9 @@
 #!/bin/bash
 
 cache_dir=/tmp/clipmenu.$USER/
+
+# It's ok that this only applies to the final directory.
+# shellcheck disable=SC2174
 mkdir -p -m0700 "$cache_dir"
 
 declare -A last_data
