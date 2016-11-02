@@ -1,5 +1,42 @@
 #!/bin/bash
 
+hr_msg() {
+    printf -- '\n--- %s ---\n\n' "$1" >&2
+}
+
+debug() {
+    if (( DEBUG )); then
+        printf '%s\n' "$@" >&2
+    fi
+}
+
+print_debug_info() {
+    # DEBUG comes from the environment
+    if ! (( DEBUG )); then
+        return
+    fi
+
+    local msg="${1?}"
+
+    hr_msg "$msg"
+
+    hr_msg Environment
+    env | LC_ALL=C sort >&2
+
+    cgroup_path=/proc/$$/cgroup
+
+    if [[ -f $cgroup_path ]]; then
+        hr_msg cgroup
+        cat "$cgroup_path" >&2
+    else
+        hr_msg 'NO CGROUP'
+    fi
+
+    hr_msg 'Finished debug info'
+}
+
+print_debug_info 'Initialising'
+
 cache_dir=/tmp/clipmenu.$USER/
 
 # It's ok that this only applies to the final directory.
@@ -10,8 +47,13 @@ declare -A last_data
 declare -A last_filename
 
 while sleep "${CLIPMENUD_SLEEP:-0.5}"; do
+    print_debug_info 'About to run selection'
+
     for selection in clipboard primary; do
+        print_debug_info "About to do selection for '$selection'"
+
         if type -p xsel >/dev/null 2>&1; then
+            debug 'Using xsel'
             data=$(xsel --"$selection"; printf x)
             # Take ownership of the clipboard, in case the original application
             # is unable to serve the clipboard request (due to being suspended,
@@ -24,6 +66,7 @@ while sleep "${CLIPMENUD_SLEEP:-0.5}"; do
                 xsel --"$selection" | xsel -i --"$selection"
             fi
         else
+            debug 'Using xclip'
             data=$(xclip -o -sel "$selection"; printf x)
             # See above comments about taking ownership of the clipboard for
             # context.
@@ -32,19 +75,31 @@ while sleep "${CLIPMENUD_SLEEP:-0.5}"; do
             fi
         fi
 
+        debug "Data before stripping: $data"
+
         # We add and remove the x so that trailing newlines are not stripped.
         # Otherwise, they would be stripped by the very nature of how POSIX
         # defines command substitution.
         data=${data%x}
 
-        [[ $data == *[^[:blank:]]* ]] || continue
+        debug "Data after stripping: $data"
 
-        [[ ${last_data[$selection]} == "$data" ]] && continue
+        if [[ $data == *[^[:blank:]]* ]]; then
+            debug "Skipping as clipboard is only blank"
+            continue
+        fi
+
+        if [[ ${last_data[$selection]} == "$data" ]]; then
+            debug 'Skipping as last selection is the same as this one'
+            continue
+        fi
 
         # If we were in the middle of doing a selection when the previous poll
         # ran, then we may have got a partial clip.
         possible_partial=${last_data[$selection]}
         if [[ $possible_partial && $data == "$possible_partial"* ]]; then
+            debug "$possible_partial is a possible partial of $data"
+            debug "Removing ${last_filename[$selection]}"
             rm -- "${last_filename[$selection]}"
         fi
 
@@ -53,6 +108,7 @@ while sleep "${CLIPMENUD_SLEEP:-0.5}"; do
         last_data[$selection]=$data
         last_filename[$selection]=$filename
 
+        debug "Writing $data to $filename"
         printf '%s' "$data" > "$filename"
     done
 done
