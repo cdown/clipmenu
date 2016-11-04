@@ -39,7 +39,7 @@ done
 # whether `-l` is also in "$@", because the way that dmenu works allows a later
 # argument to override an earlier one. That is, if the user passes in `-l`, our
 # one will be ignored.
-chosen_line=$(printf '%s\n' "${ordered_selections[@]}" | dmenu -l 8 "$@")
+chosen_line=$(printf '%s\n' "${ordered_selections[@]}" | uniq | dmenu -l 8 "$@")
 
 [[ $chosen_line ]] || exit 1
 
