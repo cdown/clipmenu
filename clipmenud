@@ -54,7 +54,7 @@ while sleep "${CLIPMENUD_SLEEP:-0.5}"; do
 
         if type -p xsel >/dev/null 2>&1; then
             debug 'Using xsel'
-            data=$(xsel --"$selection"; printf x)
+            data=$(xsel -o --"$selection"; printf x)
             # Take ownership of the clipboard, in case the original application
             # is unable to serve the clipboard request (due to being suspended,
             # etc).
@@ -63,7 +63,7 @@ while sleep "${CLIPMENUD_SLEEP:-0.5}"; do
             # sometimes act up if clipboard focus is taken away from them --
             # for example, urxvt will unhilight text, which is undesirable.
             if [[ $selection != primary ]]; then
-                xsel --"$selection" | xsel -i --"$selection"
+                xsel -o --"$selection" | xsel -i --"$selection"
             fi
         else
             debug 'Using xclip'
