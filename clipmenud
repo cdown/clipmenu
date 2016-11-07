@@ -84,7 +84,7 @@ while sleep "${CLIPMENUD_SLEEP:-0.5}"; do
 
         debug "Data after stripping: $data"
 
-        if [[ $data != *[^[:blank:]]* ]]; then
+        if [[ $data != *[^[:space:]]* ]]; then
             debug "Skipping as clipboard is only blank"
             continue
         fi
