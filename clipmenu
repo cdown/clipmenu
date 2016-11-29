@@ -45,7 +45,7 @@ chosen_line=$(printf '%s\n' "${ordered_selections[@]}" | uniq | dmenu -l 8 "$@")
 
 for selection in clipboard primary; do
     if type -p xsel >/dev/null 2>&1; then
-        xsel -i --"$selection" < "${selections[$chosen_line]}"
+        xsel --logfile /dev/null -i --"$selection" < "${selections[$chosen_line]}"
     else
         xclip -sel "$selection" < "${selections[$chosen_line]}"
     fi

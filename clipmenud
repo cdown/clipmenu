@@ -54,7 +54,7 @@ while sleep "${CLIPMENUD_SLEEP:-0.5}"; do
 
         if type -p xsel >/dev/null 2>&1; then
             debug 'Using xsel'
-            data=$(xsel -o --"$selection"; printf x)
+            data=$(xsel --logfile /dev/null -o --"$selection"; printf x)
         else
             debug 'Using xclip'
             data=$(xclip -o -sel "$selection"; printf x)
@@ -109,7 +109,7 @@ while sleep "${CLIPMENUD_SLEEP:-0.5}"; do
             # https://github.com/cdown/clipmenu/issues/34 requires knowing if
             # we would skip first.
             if type -p xsel >/dev/null 2>&1; then
-                xsel -o --"$selection" | xsel -i --"$selection"
+                xsel --logfile /dev/null -o --"$selection" | xsel -i --"$selection"
             else
                 xclip -o -sel "$selection" | xclip -i -sel "$selection"
             fi
