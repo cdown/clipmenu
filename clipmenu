@@ -21,7 +21,6 @@ if ! [[ -f "$file" ]]; then
     exit 2
 fi
 
-
 for selection in clipboard primary; do
     if type -p xsel >/dev/null 2>&1; then
         xsel -i --"$selection" < "$file"

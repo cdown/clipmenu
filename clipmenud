@@ -31,42 +31,11 @@ get_first_line() {
         }' <<< "$data"
 }
 
-hr_msg() {
-    printf -- '\n--- %s ---\n\n' "$1" >&2
-}
-
 debug() {
     if (( DEBUG )); then
         printf '%s\n' "$@" >&2
     fi
 }
-
-print_debug_info() {
-    # DEBUG comes from the environment
-    if ! (( DEBUG )); then
-        return
-    fi
-
-    local msg="${1?}"
-
-    hr_msg "$msg"
-
-    hr_msg Environment
-    env | LC_ALL=C sort >&2
-
-    cgroup_path=/proc/$$/cgroup
-
-    if [[ -f $cgroup_path ]]; then
-        hr_msg cgroup
-        cat "$cgroup_path" >&2
-    else
-        hr_msg 'NO CGROUP'
-    fi
-
-    hr_msg 'Finished debug info'
-}
-
-print_debug_info 'Initialising'
 
 cache_dir=/tmp/clipmenu.$USER/
 cache_file=$cache_dir/line_cache
@@ -79,11 +48,8 @@ declare -A last_data
 declare -A last_filename
 
 while sleep "${CLIPMENUD_SLEEP:-0.5}"; do
-    print_debug_info 'About to run selection'
 
     for selection in clipboard primary; do
-        print_debug_info "About to do selection for '$selection'"
-
         if type -p xsel >/dev/null 2>&1; then
             debug 'Using xsel'
             data=$(xsel -o --"$selection"; printf x)
@@ -119,7 +85,6 @@ while sleep "${CLIPMENUD_SLEEP:-0.5}"; do
             debug "Removing ${last_filename[$selection]}"
             rm -- "${last_filename[$selection]}"
         fi
-
 
         last_data[$selection]=$data
         last_filename[$selection]=$filename
