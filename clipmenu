@@ -17,7 +17,7 @@ file=$cache_dir/$(cksum <<< "$chosen_line")
 
 if ! [[ -f "$file" ]]; then
     # We didn't find this in cache
-    printf 'FATAL: %s not in cache, run clipmenu-fsck\n' "$chosen_line" >&2
+    printf 'FATAL: %s not in cache\n' "$chosen_line" >&2
     exit 2
 fi
 
