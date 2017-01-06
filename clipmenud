@@ -1,7 +1,34 @@
 #!/bin/bash
 
-hr_msg() {
-    printf -- '\n--- %s ---\n\n' "$1" >&2
+get_first_line() {
+    # Args:
+    # - $1, the file or data
+    # - $2, optional, the line length limit
+
+    data=${1?}
+    line_length_limit=${2-300}
+
+    # We look for the first line matching regex /./ here because we want the
+    # first line that can provide reasonable context to the user. That is, if
+    # you have 5 leading lines of whitespace, displaying " (6 lines)" is much
+    # less useful than displaying "foo (6 lines)", where "foo" is the first
+    # line in the entry with actionable context.
+    awk -v limit="$line_length_limit" '
+        BEGIN { printed = 0; }
+
+        printed == 0 && NF {
+            $0 = substr($0, 0, limit);
+            printf("%s", $0);
+            printed = 1;
+        }
+
+        END {
+            if (NR > 1) {
+                print " (" NR " lines)";
+            } else {
+                printf("\n");
+            }
+        }' <<< "$data"
 }
 
 debug() {
@@ -10,34 +37,8 @@ debug() {
     fi
 }
 
-print_debug_info() {
-    # DEBUG comes from the environment
-    if ! (( DEBUG )); then
-        return
-    fi
-
-    local msg="${1?}"
-
-    hr_msg "$msg"
-
-    hr_msg Environment
-    env | LC_ALL=C sort >&2
-
-    cgroup_path=/proc/$$/cgroup
-
-    if [[ -f $cgroup_path ]]; then
-        hr_msg cgroup
-        cat "$cgroup_path" >&2
-    else
-        hr_msg 'NO CGROUP'
-    fi
-
-    hr_msg 'Finished debug info'
-}
-
-print_debug_info 'Initialising'
-
 cache_dir=/tmp/clipmenu.$USER/
+cache_file=$cache_dir/line_cache
 
 # It's ok that this only applies to the final directory.
 # shellcheck disable=SC2174
@@ -47,11 +48,8 @@ declare -A last_data
 declare -A last_filename
 
 while sleep "${CLIPMENUD_SLEEP:-0.5}"; do
-    print_debug_info 'About to run selection'
 
     for selection in clipboard primary; do
-        print_debug_info "About to do selection for '$selection'"
-
         if type -p xsel >/dev/null 2>&1; then
             debug 'Using xsel'
             data=$(xsel --logfile /dev/null -o --"$selection"; printf x)
@@ -88,13 +86,16 @@ while sleep "${CLIPMENUD_SLEEP:-0.5}"; do
             rm -- "${last_filename[$selection]}"
         fi
 
-        filename="$cache_dir/$(LC_ALL=C date +%F-%T.%N)"
-
         last_data[$selection]=$data
         last_filename[$selection]=$filename
 
+        first_line=$(get_first_line "$data")
+        filename="$cache_dir/$(cksum <<< "$first_line")"
         debug "Writing $data to $filename"
         printf '%s' "$data" > "$filename"
+
+        debug "Writing $first_line to $cache_file"
+        printf '%s\n' "$first_line" >> "$cache_file"
 
         if ! (( NO_OWN_CLIPBOARD )) && [[ $selection != primary ]]; then
             # Take ownership of the clipboard, in case the original application
