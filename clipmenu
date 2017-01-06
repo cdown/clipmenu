@@ -6,13 +6,11 @@ shopt -s nullglob
 LC_COLLATE=C
 
 declare -A selections
-ordered_selections=()
 
 cache_file=/tmp/clipmenu.$USER/line_cache
 
 # We use tac since we want newest to oldest, and we append in clipmenud
 while IFS='|' read -r full_file first_line; do
-    ordered_selections+=("$first_line")
     selections[$first_line]=$full_file
 done < <(tac "$cache_file")
 
@@ -20,7 +18,7 @@ done < <(tac "$cache_file")
 # whether `-l` is also in "$@", because the way that dmenu works allows a later
 # argument to override an earlier one. That is, if the user passes in `-l`, our
 # one will be ignored.
-chosen_line=$(printf '%s\n' "${ordered_selections[@]}" | uniq | dmenu -l 8 "$@")
+chosen_line=$(sed 's/^[^|]\+|//' "$cache_file" | tac | uniq | dmenu -l 8 "$@")
 
 [[ $chosen_line ]] || exit 1
 
