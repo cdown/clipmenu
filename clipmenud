@@ -1,5 +1,36 @@
 #!/bin/bash
 
+get_first_line() {
+    # Args:
+    # - $1, the file or data
+    # - $2, optional, the line length limit
+
+    data=${1?}
+    line_length_limit=${2-300}
+
+    # We look for the first line matching regex /./ here because we want the
+    # first line that can provide reasonable context to the user. That is, if
+    # you have 5 leading lines of whitespace, displaying " (6 lines)" is much
+    # less useful than displaying "foo (6 lines)", where "foo" is the first
+    # line in the entry with actionable context.
+    awk -v limit="$line_length_limit" '
+        BEGIN { printed = 0; }
+
+        printed == 0 && NF {
+            $0 = substr($0, 0, limit);
+            printf("%s", $0);
+            printed = 1;
+        }
+
+        END {
+            if (NR > 1) {
+                print " (" NR " lines)";
+            } else {
+                printf("\n");
+            }
+        }' <<< "$data"
+}
+
 hr_msg() {
     printf -- '\n--- %s ---\n\n' "$1" >&2
 }
@@ -38,6 +69,7 @@ print_debug_info() {
 print_debug_info 'Initialising'
 
 cache_dir=/tmp/clipmenu.$USER/
+cache_file=$cache_dir/line_cache
 
 # It's ok that this only applies to the final directory.
 # shellcheck disable=SC2174
@@ -95,6 +127,10 @@ while sleep "${CLIPMENUD_SLEEP:-0.5}"; do
 
         debug "Writing $data to $filename"
         printf '%s' "$data" > "$filename"
+
+        debug "Writing new entry to $cache_file"
+        printf '%s|%s\n' \
+            "$filename" "$(get_first_line "$data")" >> "$cache_file"
 
         if ! (( NO_OWN_CLIPBOARD )) && [[ $selection != primary ]]; then
             # Take ownership of the clipboard, in case the original application

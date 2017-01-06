@@ -5,35 +5,16 @@ shopt -s nullglob
 # We use this to make sure the cache files are sorted bytewise
 LC_COLLATE=C
 
-# Some people copy/paste huge swathes of text that could slow down dmenu
-line_length_limit=500
-
 declare -A selections
 ordered_selections=()
 
-files=("/tmp/clipmenu.$USER/"*)
+cache_file=/tmp/clipmenu.$USER/line_cache
 
-# We can't use `for ... in` here because we need to add files to
-# ordered_selections from last to first -- that is, newest to oldest. Incoming
-# clipboard entries have a ISO datetime prefixed to the front to aid in this.
-for (( i=${#files[@]}-1; i>=0; i-- )); do
-    file=${files[$i]}
-
-    # We look for the first line matching regex /./ here because we want the
-    # first line that can provide reasonable context to the user. That is, if
-    # you have 5 leading lines of whitespace, displaying " (6 lines)" is much
-    # less useful than displaying "foo (6 lines)", where "foo" is the first
-    # line in the entry with actionable context.
-    first_line=$(sed -n '/./{p;q}' "$file" | cut -c1-"$line_length_limit")
-    lines=$(wc -l < "$file")
-
-    if (( lines > 1 )); then
-        first_line+=" ($lines lines)"
-    fi
-
+# We use tac since we want newest to oldest, and we append in clipmenud
+while IFS='|' read -r full_file first_line; do
     ordered_selections+=("$first_line")
-    selections[$first_line]=$file
-done
+    selections[$first_line]=$full_file
+done < <(tac "$cache_file")
 
 # It's okay to hardcode `-l 8` here as a sensible default without checking
 # whether `-l` is also in "$@", because the way that dmenu works allows a later
