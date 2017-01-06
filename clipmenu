@@ -2,35 +2,20 @@
 
 shopt -s nullglob
 
-# We use this to make sure the cache files are sorted bytewise
-export LC_COLLATE=C
-
-cache_file=/tmp/clipmenu.$USER/line_cache
+cache_dir=/tmp/clipmenu.$USER
+cache_file=$cache_dir/line_cache
 
 # It's okay to hardcode `-l 8` here as a sensible default without checking
 # whether `-l` is also in "$@", because the way that dmenu works allows a later
 # argument to override an earlier one. That is, if the user passes in `-l`, our
 # one will be ignored.
-chosen_line=$(sed 's/^[^|]\+|//' "$cache_file" | tac | uniq | dmenu -l 8 "$@")
+chosen_line=$(tac "$cache_file" | uniq | dmenu -l 8 "$@")
 
 [[ $chosen_line ]] || exit 1
 
-# Naive, but performant path, only follow expensive path if it doesn't work
-out_line=$(grep -F "|$chosen_line" "$cache_file")
-out_length=$(wc -l <<< "$out_line")
+file=$cache_dir/$(cksum <<< "$chosen_line")
 
-if (( out_length == 1 )); then
-    # Cheap path succeded
-    file=${out_line%%|*}
-elif (( out_length > 1 )); then
-    # Cheap path failed
-    while IFS='|' read -r full_file first_line; do
-        if [[ $first_line == "$chosen_line" ]]; then
-            file=$full_file
-            break
-        fi
-    done <<< "$out_line"
-else
+if ! [[ -f "$file" ]]; then
     # We didn't find this in cache
     printf 'FATAL: %s not in cache, run clipmenu-fsck\n' "$chosen_line" >&2
     exit 2

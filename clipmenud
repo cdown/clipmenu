@@ -120,17 +120,17 @@ while sleep "${CLIPMENUD_SLEEP:-0.5}"; do
             rm -- "${last_filename[$selection]}"
         fi
 
-        filename="$cache_dir/$(LC_ALL=C date +%F-%T.%N)"
 
         last_data[$selection]=$data
         last_filename[$selection]=$filename
 
+        first_line=$(get_first_line "$data")
+        filename="$cache_dir/$(cksum <<< "$first_line")"
         debug "Writing $data to $filename"
         printf '%s' "$data" > "$filename"
 
-        debug "Writing new entry to $cache_file"
-        printf '%s|%s\n' \
-            "$filename" "$(get_first_line "$data")" >> "$cache_file"
+        debug "Writing $first_line to $cache_file"
+        printf '%s\n' "$first_line" >> "$cache_file"
 
         if ! (( NO_OWN_CLIPBOARD )) && [[ $selection != primary ]]; then
             # Take ownership of the clipboard, in case the original application
