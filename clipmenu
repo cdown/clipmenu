@@ -9,7 +9,7 @@ cache_file=$cache_dir/line_cache
 # whether `-l` is also in "$@", because the way that dmenu works allows a later
 # argument to override an earlier one. That is, if the user passes in `-l`, our
 # one will be ignored.
-chosen_line=$(tac "$cache_file" | uniq | dmenu -l 8 "$@")
+chosen_line=$(tac "$cache_file" | awk '!seen[$0]++' | dmenu -l 8 "$@")
 
 [[ $chosen_line ]] || exit 1
 
