@@ -1,5 +1,8 @@
 #!/bin/bash
 
+cache_dir=/tmp/clipmenu.$USER/
+cache_file=$cache_dir/line_cache
+
 get_first_line() {
     # Args:
     # - $1, the file or data
@@ -36,9 +39,6 @@ debug() {
         printf '%s\n' "$@" >&2
     fi
 }
-
-cache_dir=/tmp/clipmenu.$USER/
-cache_file=$cache_dir/line_cache
 
 # It's ok that this only applies to the final directory.
 # shellcheck disable=SC2174
