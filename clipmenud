@@ -2,6 +2,8 @@
 
 cache_dir=/tmp/clipmenu.$USER/
 cache_file=$cache_dir/line_cache
+version=2.0.0
+version_file=$cache_dir/version
 
 get_first_line() {
     # Args:
@@ -44,11 +46,14 @@ debug() {
 # shellcheck disable=SC2174
 mkdir -p -m0700 "$cache_dir"
 
+# We currently don't do anything with this, but in future we can use this
+# version for the fabled clipmenu-fsck, or other migration logic.
+printf '%s\n' "$version" > "$version_file"
+
 declare -A last_data
 declare -A last_filename
 
 while sleep "${CLIPMENUD_SLEEP:-0.5}"; do
-
     for selection in clipboard primary; do
         if type -p xsel >/dev/null 2>&1; then
             debug 'Using xsel'
