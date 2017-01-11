@@ -1,0 +1,10 @@
+[Unit]
+Description=Clipboard manager
+
+[Service]
+Environment=DISPLAY=:0
+#Environment=DEBUG=1
+ExecStart=/usr/bin/clipmenud
+
+[Install]
+WantedBy=default.target suspend.target
