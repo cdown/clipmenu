@@ -9,7 +9,7 @@ All args passed to clipmenu are transparently dispatched to dmenu. That is, if
 you usually call dmenu with args to set colours and other properties, you can
 invoke clipmenu in exactly the same way to get the same effect, like so:
 
-    clipmenu -i -fn Terminus:size=8 -nb #002b36 -nf #839496 -sb #073642 -sf #93a1a1
+    clipmenu -i -fn Terminus:size=8 -nb '#002b36' -nf '#839496' -sb '#073642' -sf '#93a1a1'
 
 # How does it work?
 
