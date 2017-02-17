@@ -1,6 +1,7 @@
 #!/bin/bash
 
-cache_dir=/tmp/clipmenu.$USER/
+major_version=3
+cache_dir=/tmp/clipmenu.$major_version.$USER/
 cache_file=$cache_dir/line_cache
 version=2.0.0
 version_file=$cache_dir/version

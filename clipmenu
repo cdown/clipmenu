@@ -1,8 +1,10 @@
 #!/bin/bash
 
+major_version=3
+
 shopt -s nullglob
 
-cache_dir=/tmp/clipmenu.$USER
+cache_dir=/tmp/clipmenu.$major_version.$USER
 cache_file=$cache_dir/line_cache
 
 # It's okay to hardcode `-l 8` here as a sensible default without checking

@@ -3,7 +3,8 @@
 set -e
 set -o pipefail
 
-dir=/tmp/clipmenu.$USER
+major_version=3
+dir=/tmp/clipmenu.$major_version.$USER
 cache_file=$dir/line_cache
 
 if [[ $0 == /* ]]; then
@@ -59,18 +60,19 @@ EOF
 
 output=$(/tmp/clipmenu --foo bar 2>&1)
 
-printf '%s\n' "$output" > /tmp/qq
+temp=$(mktemp)
+printf '%s\n' "$output" > "$temp"
 
 # Arguments are transparently passed to dmenu
-grep -Fxq 'dmenu args: -l 8 --foo bar' <<< "$output"
+grep -Fxq 'dmenu args: -l 8 --foo bar' "$temp"
 
 # Output from cache file should get to dmenu, reversed
-grep -Fxq 'dmenu line 1 stdin: Selected text 2. (2 lines)' <<< "$output"
-grep -Fxq 'dmenu line 2 stdin: Selected text. (2 lines)' <<< "$output"
+grep -Fxq 'dmenu line 1 stdin: Selected text 2. (2 lines)' "$temp"
+grep -Fxq 'dmenu line 2 stdin: Selected text. (2 lines)' "$temp"
 
 # xsel should copy both to clipboard *and* primary
-grep -Fxq 'xsel args: --logfile /dev/null -i --clipboard' <<< "$output"
-grep -Fxq 'xsel args: --logfile /dev/null -i --primary' <<< "$output"
+grep -Fxq 'xsel args: --logfile /dev/null -i --clipboard' "$temp"
+grep -Fxq 'xsel args: --logfile /dev/null -i --primary' "$temp"
 
-grep -Fxq 'xsel line 1 stdin: Selected text.' <<< "$output"
-grep -Fxq "xsel line 2 stdin: Yes, it's selected text." <<< "$output"
+grep -Fxq 'xsel line 1 stdin: Selected text.' "$temp"
+grep -Fxq "xsel line 2 stdin: Yes, it's selected text." "$temp"
