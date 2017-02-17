@@ -1,5 +1,6 @@
 #!/bin/bash
 
+set -x
 set -e
 set -o pipefail
 
@@ -61,6 +62,8 @@ EOF
 output=$(/tmp/clipmenu --foo bar 2>&1)
 
 temp=$(mktemp)
+trap 'rm -f -- "$temp"' EXIT
+
 printf '%s\n' "$output" > "$temp"
 
 # Arguments are transparently passed to dmenu
