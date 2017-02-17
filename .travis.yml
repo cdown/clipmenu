@@ -8,6 +8,7 @@ before_script:
 
 script:
   - shellcheck -s bash clipmenu clipmenud
+  - tests/test-clipmenu
 
 matrix:
   fast_finish: true

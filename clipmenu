@@ -1,15 +1,17 @@
 #!/bin/bash
 
+major_version=3
+
 shopt -s nullglob
 
-cache_dir=/tmp/clipmenu.$USER
+cache_dir=/tmp/clipmenu.$major_version.$USER
 cache_file=$cache_dir/line_cache
 
 # It's okay to hardcode `-l 8` here as a sensible default without checking
 # whether `-l` is also in "$@", because the way that dmenu works allows a later
 # argument to override an earlier one. That is, if the user passes in `-l`, our
 # one will be ignored.
-chosen_line=$(tac "$cache_file" | uniq | dmenu -l 8 "$@")
+chosen_line=$(tac "$cache_file" | awk '!seen[$0]++' | dmenu -l 8 "$@")
 
 [[ $chosen_line ]] || exit 1
 
@@ -22,9 +24,5 @@ if ! [[ -f "$file" ]]; then
 fi
 
 for selection in clipboard primary; do
-    if type -p xsel >/dev/null 2>&1; then
-        xsel --logfile /dev/null -i --"$selection" < "$file"
-    else
-        xclip -sel "$selection" < "$file"
-    fi
+    xsel --logfile /dev/null -i --"$selection" < "$file"
 done

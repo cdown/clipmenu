@@ -1,0 +1,81 @@
+#!/bin/bash
+
+set -x
+set -e
+set -o pipefail
+
+major_version=3
+dir=/tmp/clipmenu.$major_version.$USER
+cache_file=$dir/line_cache
+
+if [[ $0 == /* ]]; then
+    location=${0%/*}
+else
+    location=$PWD/${0#./}
+    location=${location%/*}
+fi
+
+cat - "$location/../clipmenu" > /tmp/clipmenu << 'EOF'
+#!/bin/bash
+
+shopt -s expand_aliases
+
+shim() {
+    printf '%s args:' "$1" >&2
+    printf ' %q' "${@:2}" >&2
+    printf '\n' >&2
+
+    i=0
+
+    while IFS= read -r line; do
+        let i++
+        printf '%s line %d stdin: %s\n' "$1" "$i" "$line" >&2
+    done
+
+    if [[ -v SHIM_STDOUT ]]; then
+        printf '%s\n' "$SHIM_STDOUT"
+    fi
+}
+
+alias dmenu='SHIM_STDOUT="Selected text. (2 lines)" shim dmenu'
+alias xsel='shim xsel'
+alias xclip='shim xclip'
+EOF
+
+chmod a+x /tmp/clipmenu
+
+rm -rf "$dir"
+mkdir -p "$dir"
+
+cat > "$cache_file" << 'EOF'
+Selected text. (2 lines)
+Selected text 2. (2 lines)
+EOF
+
+cat > "$dir/$(cksum <<< 'Selected text. (2 lines)')" << 'EOF'
+Selected text.
+Yes, it's selected text.
+EOF
+
+### TESTS ###
+
+output=$(/tmp/clipmenu --foo bar 2>&1)
+
+temp=$(mktemp)
+trap 'rm -f -- "$temp"' EXIT
+
+printf '%s\n' "$output" > "$temp"
+
+# Arguments are transparently passed to dmenu
+grep -Fxq 'dmenu args: -l 8 --foo bar' "$temp"
+
+# Output from cache file should get to dmenu, reversed
+grep -Fxq 'dmenu line 1 stdin: Selected text 2. (2 lines)' "$temp"
+grep -Fxq 'dmenu line 2 stdin: Selected text. (2 lines)' "$temp"
+
+# xsel should copy both to clipboard *and* primary
+grep -Fxq 'xsel args: --logfile /dev/null -i --clipboard' "$temp"
+grep -Fxq 'xsel args: --logfile /dev/null -i --primary' "$temp"
+
+grep -Fxq 'xsel line 1 stdin: Selected text.' "$temp"
+grep -Fxq "xsel line 2 stdin: Yes, it's selected text." "$temp"

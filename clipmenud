@@ -1,5 +1,9 @@
 #!/bin/bash
 
+major_version=3
+cache_dir=/tmp/clipmenu.$major_version.$USER/
+cache_file=$cache_dir/line_cache
+
 get_first_line() {
     # Args:
     # - $1, the file or data
@@ -37,9 +41,6 @@ debug() {
     fi
 }
 
-cache_dir=/tmp/clipmenu.$USER/
-cache_file=$cache_dir/line_cache
-
 # It's ok that this only applies to the final directory.
 # shellcheck disable=SC2174
 mkdir -p -m0700 "$cache_dir"
@@ -48,15 +49,8 @@ declare -A last_data
 declare -A last_filename
 
 while sleep "${CLIPMENUD_SLEEP:-0.5}"; do
-
     for selection in clipboard primary; do
-        if type -p xsel >/dev/null 2>&1; then
-            debug 'Using xsel'
-            data=$(xsel --logfile /dev/null -o --"$selection"; printf x)
-        else
-            debug 'Using xclip'
-            data=$(xclip -o -sel "$selection"; printf x)
-        fi
+        data=$(xsel --logfile /dev/null -o --"$selection"; printf x)
 
         debug "Data before stripping: $data"
 
@@ -109,11 +103,7 @@ while sleep "${CLIPMENUD_SLEEP:-0.5}"; do
             # We can't colocate this with the above copying code because
             # https://github.com/cdown/clipmenu/issues/34 requires knowing if
             # we would skip first.
-            if type -p xsel >/dev/null 2>&1; then
-                xsel --logfile /dev/null -o --"$selection" | xsel -i --"$selection"
-            else
-                xclip -o -sel "$selection" | xclip -i -sel "$selection"
-            fi
+            xsel --logfile /dev/null -o --"$selection" | xsel -i --"$selection"
         fi
     done
 done
