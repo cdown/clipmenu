@@ -22,9 +22,5 @@ if ! [[ -f "$file" ]]; then
 fi
 
 for selection in clipboard primary; do
-    if type -p xsel >/dev/null 2>&1; then
-        xsel --logfile /dev/null -i --"$selection" < "$file"
-    else
-        xclip -sel "$selection" < "$file"
-    fi
+    xsel --logfile /dev/null -i --"$selection" < "$file"
 done

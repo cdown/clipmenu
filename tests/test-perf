@@ -35,7 +35,6 @@ shopt -s expand_aliases
 
 alias dmenu=:
 alias xsel=:
-alias xclip=:
 
 EOF
 
