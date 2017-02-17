@@ -1,0 +1,31 @@
+[Unit]
+Description=Clipmenu daemon
+
+[Service]
+ExecStart=/usr/bin/clipmenud
+Restart=always
+RestartSec=0
+Environment=DISPLAY=:0
+
+SystemCallFilter=@basic-io @default @io-event @ipc @network-io @process \
+                 brk fadvise64 getegid geteuid getgid getgroups getpgrp \
+                 getpid getppid getrlimit getuid ioctl mprotect rt_sigaction \
+                 rt_sigprocmask setitimer setsid sysinfo umask uname wait4
+
+# @file-system will handle this once v233 is released, see
+# http://bit.ly/2l1r8Ah for more details.
+SystemCallFilter=access chdir close faccessat fcntl fstat getcwd mkdir mmap \
+                 munmap open stat statfs unlink
+
+MemoryDenyWriteExecute=yes
+NoNewPrivileges=yes
+ProtectControlGroups=yes
+ProtectKernelTunables=yes
+RestrictAddressFamilies=
+RestrictRealtime=yes
+
+ProtectSystem=strict
+ReadWritePaths=/tmp
+
+[Install]
+WantedBy=default.target

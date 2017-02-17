@@ -5,6 +5,9 @@ clipmenu is a simple clipboard manager using [dmenu][] and [xsel][].
 Start `clipmenud`, then run `clipmenu` to select something to put on the
 clipboard.
 
+A systemd user service for starting clipmenud is included at
+[init/clipmenud.service](https://github.com/cdown/clipmenu/blob/develop/init/clipmenud.service).
+
 All args passed to clipmenu are transparently dispatched to dmenu. That is, if
 you usually call dmenu with args to set colours and other properties, you can
 invoke clipmenu in exactly the same way to get the same effect, like so:
