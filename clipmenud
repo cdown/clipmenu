@@ -54,9 +54,14 @@ exec {lock_fd}> "$lock_file"
 
 while sleep "${CLIPMENUD_SLEEP:-0.5}"; do
     if ! flock -x -w "$lock_timeout" "$lock_fd"; then
-        printf 'ERROR: %s\n' \
-            'Timed out waiting for lock, skipping this run' >&2
-        continue
+        if (( ONESHOT )); then
+            printf 'ERROR: %s\n' 'Timed out waiting for lock' >&2
+            exit 1
+        else
+            printf 'ERROR: %s\n' \
+                'Timed out waiting for lock, skipping this run' >&2
+            continue
+        fi
     fi
 
     for selection in clipboard primary; do
@@ -118,4 +123,9 @@ while sleep "${CLIPMENUD_SLEEP:-0.5}"; do
     done
 
     flock -u "$lock_fd"
+
+    if (( ONESHOT )); then
+        debug 'Oneshot mode enabled, exiting'
+        break
+    fi
 done
