@@ -3,6 +3,8 @@
 major_version=3
 cache_dir=/tmp/clipmenu.$major_version.$USER/
 cache_file=$cache_dir/line_cache
+lock_file=$cache_dir/lock
+lock_timeout=2
 
 get_first_line() {
     # Args:
@@ -48,7 +50,15 @@ mkdir -p -m0700 "$cache_dir"
 declare -A last_data
 declare -A last_filename
 
+exec {lock_fd}> "$lock_file"
+
 while sleep "${CLIPMENUD_SLEEP:-0.5}"; do
+    if ! flock -x -w "$lock_timeout" "$lock_fd"; then
+        printf 'ERROR: %s\n' \
+            'Timed out waiting for lock, skipping this run' >&2
+        continue
+    fi
+
     for selection in clipboard primary; do
         data=$(xsel --logfile /dev/null -o --"$selection"; printf x)
 
@@ -106,4 +116,6 @@ while sleep "${CLIPMENUD_SLEEP:-0.5}"; do
             xsel --logfile /dev/null -o --"$selection" | xsel -i --"$selection"
         fi
     done
+
+    flock -u "$lock_fd"
 done
