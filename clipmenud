@@ -118,7 +118,7 @@ while sleep "${CLIPMENUD_SLEEP:-0.5}"; do
             # We can't colocate this with the above copying code because
             # https://github.com/cdown/clipmenu/issues/34 requires knowing if
             # we would skip first.
-            xsel --logfile /dev/null -o --"$selection" | xsel -i --"$selection"
+            xsel --logfile /dev/null -o --"$selection" | xsel --logfile /dev/null -i --"$selection"
         fi
     done
 
