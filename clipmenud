@@ -6,6 +6,10 @@ cache_file=$cache_dir/line_cache
 lock_file=$cache_dir/lock
 lock_timeout=2
 
+_xsel() {
+    xsel --logfile /dev/null "$@"
+}
+
 get_first_line() {
     # Args:
     # - $1, the file or data
@@ -65,7 +69,7 @@ while sleep "${CLIPMENUD_SLEEP:-0.5}"; do
     fi
 
     for selection in clipboard primary; do
-        data=$(xsel --logfile /dev/null -o --"$selection"; printf x)
+        data=$(_xsel -o --"$selection"; printf x)
 
         debug "Data before stripping: $data"
 
@@ -118,7 +122,7 @@ while sleep "${CLIPMENUD_SLEEP:-0.5}"; do
             # We can't colocate this with the above copying code because
             # https://github.com/cdown/clipmenu/issues/34 requires knowing if
             # we would skip first.
-            xsel --logfile /dev/null -o --"$selection" | xsel --logfile /dev/null -i --"$selection"
+            _xsel -o --"$selection" | _xsel -i --"$selection"
         fi
     done
 
