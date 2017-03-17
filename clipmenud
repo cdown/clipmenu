@@ -3,6 +3,12 @@
 major_version=3
 cache_dir=/tmp/clipmenu.$major_version.$USER/
 cache_file=$cache_dir/line_cache
+lock_file=$cache_dir/lock
+lock_timeout=2
+
+_xsel() {
+    timeout 1 xsel --logfile /dev/null "$@"
+}
 
 get_first_line() {
     # Args:
@@ -48,9 +54,22 @@ mkdir -p -m0700 "$cache_dir"
 declare -A last_data
 declare -A last_filename
 
+exec {lock_fd}> "$lock_file"
+
 while sleep "${CLIPMENUD_SLEEP:-0.5}"; do
+    if ! flock -x -w "$lock_timeout" "$lock_fd"; then
+        if (( ONESHOT )); then
+            printf 'ERROR: %s\n' 'Timed out waiting for lock' >&2
+            exit 1
+        else
+            printf 'ERROR: %s\n' \
+                'Timed out waiting for lock, skipping this run' >&2
+            continue
+        fi
+    fi
+
     for selection in clipboard primary; do
-        data=$(xsel --logfile /dev/null -o --"$selection"; printf x)
+        data=$(_xsel -o --"$selection"; printf x)
 
         debug "Data before stripping: $data"
 
@@ -103,7 +122,14 @@ while sleep "${CLIPMENUD_SLEEP:-0.5}"; do
             # We can't colocate this with the above copying code because
             # https://github.com/cdown/clipmenu/issues/34 requires knowing if
             # we would skip first.
-            xsel --logfile /dev/null -o --"$selection" | xsel -i --"$selection"
+            _xsel -o --"$selection" | _xsel -i --"$selection"
         fi
     done
+
+    flock -u "$lock_fd"
+
+    if (( ONESHOT )); then
+        debug 'Oneshot mode enabled, exiting'
+        break
+    fi
 done
