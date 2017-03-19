@@ -1,6 +1,10 @@
 clipmenu is a simple clipboard manager using [dmenu][] (or [rofi][]) and
 [xsel][].
 
+# Demo
+
+![Demo](https://cloud.githubusercontent.com/assets/660663/24079784/6f76da94-0c88-11e7-8251-40b1f02ebf3c.gif)
+
 # Usage
 
 Start `clipmenud`, then run `clipmenu` to select something to put on the
