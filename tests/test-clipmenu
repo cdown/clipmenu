@@ -37,7 +37,11 @@ shim() {
     fi
 }
 
-alias dmenu='SHIM_STDOUT="Selected text. (2 lines)" shim dmenu'
+# Cannot be an alias due to expansion order with $CM_LAUNCHER
+dmenu() {
+    SHIM_STDOUT="Selected text. (2 lines)" shim dmenu
+}
+
 alias xsel='shim xsel'
 alias xclip='shim xclip'
 EOF
