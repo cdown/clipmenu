@@ -67,12 +67,10 @@ EOF
 
 ### TESTS ###
 
-output=$(/tmp/clipmenu --foo bar 2>&1)
-
 temp=$(mktemp)
 trap 'rm -f -- "$temp"' EXIT
 
-printf '%s\n' "$output" > "$temp"
+/tmp/clipmenu --foo bar > "$temp" 2>&1
 
 # Arguments are transparently passed to dmenu
 grep -Fxq 'dmenu args: -l 8 --foo bar' "$temp"
@@ -82,8 +80,13 @@ grep -Fxq 'dmenu line 1 stdin: Selected text 2. (2 lines)' "$temp"
 grep -Fxq 'dmenu line 2 stdin: Selected text. (2 lines)' "$temp"
 
 # xsel should copy both to clipboard *and* primary
-grep -Fxq 'xsel args: --logfile /dev/null -i --clipboard' "$temp"
-grep -Fxq 'xsel args: --logfile /dev/null -i --primary' "$temp"
+grep -Fxq 'xsel args: --logfile /dev/stderr -i --clipboard' "$temp"
+grep -Fxq 'xsel args: --logfile /dev/stderr -i --primary' "$temp"
 
 grep -Fxq 'xsel line 1 stdin: Selected text.' "$temp"
 grep -Fxq "xsel line 2 stdin: Yes, it's selected text." "$temp"
+
+CM_LAUNCHER=rofi /tmp/clipmenu --foo bar > "$temp" 2>&1
+
+# We have a special case to add -dmenu for rofi
+grep -Fxq 'rofi args: -l 8 -dmenu --foo bar' "$temp"
