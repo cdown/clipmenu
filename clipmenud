@@ -103,6 +103,10 @@ while sleep "${CLIPMENUD_SLEEP:-0.5}"; do
         last_filename[$selection]=$filename
 
         first_line=$(get_first_line "$data")
+
+        printf 'New clipboard entry on %s selection: "%s"\n' \
+            "$selection" "$first_line"
+
         filename="$cache_dir/$(cksum <<< "$first_line")"
         debug "Writing $data to $filename"
         printf '%s' "$data" > "$filename"
