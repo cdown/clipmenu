@@ -22,8 +22,8 @@ there, but it basically works like this:
 ## clipmenud
 
 1. `clipmenud` polls the clipboard every 0.5 seconds (or another interval as
-   configured with the `CLIPMENUD_SLEEP` environment variable). Unfortunately
-   there's no interface to subscribe for changes in X11, so we must poll.
+   configured with the `CM_SLEEP` environment variable). Unfortunately there's
+   no interface to subscribe for changes in X11, so we must poll.
 2. If `clipmenud` detects changes to the clipboard contents, it writes them out
    to the cache directory.
 

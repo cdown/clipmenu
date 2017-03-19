@@ -7,7 +7,7 @@ shopt -s nullglob
 cache_dir=/tmp/clipmenu.$major_version.$USER
 cache_file=$cache_dir/line_cache
 
-: "${CM_LAUNCHER:-dmenu}"
+: "${CM_LAUNCHER=dmenu}"
 
 # It's okay to hardcode `-l 8` here as a sensible default without checking
 # whether `-l` is also in "$@", because the way that dmenu works allows a later
