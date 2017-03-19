@@ -39,7 +39,11 @@ shim() {
 
 # Cannot be an alias due to expansion order with $CM_LAUNCHER
 dmenu() {
-    SHIM_STDOUT="Selected text. (2 lines)" shim dmenu
+    SHIM_STDOUT="Selected text. (2 lines)" shim dmenu "$@"
+}
+
+rofi() {
+    SHIM_STDOUT="Selected text. (2 lines)" shim rofi "$@"
 }
 
 alias xsel='shim xsel'
