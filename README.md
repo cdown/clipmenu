@@ -1,4 +1,5 @@
-clipmenu is a simple clipboard manager using [dmenu][] and [xsel][].
+clipmenu is a simple clipboard manager using [dmenu][] (or [rofi][]) and
+[xsel][].
 
 # Usage
 
@@ -35,4 +36,5 @@ there, but it basically works like this:
    selections.
 
 [dmenu]: http://tools.suckless.org/dmenu/
+[rofi]: https://github.com/DaveDavenport/Rofi
 [xsel]: http://www.vergenet.net/~conrad/software/xsel/
