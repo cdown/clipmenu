@@ -9,6 +9,11 @@ cache_file=$cache_dir/line_cache
 
 : "${CM_LAUNCHER=dmenu}"
 
+if [[ "$CM_LAUNCHER" == rofi ]]; then
+    # rofi supports dmenu-like arguments through the -dmenu flag
+    set -- -dmenu "$@"
+fi
+
 if [[ $1 == --help ]]; then
     cat << EOF
 clipmenu is a simple clipboard manager using dmenu and xsel. Launch this
