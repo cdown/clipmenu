@@ -9,6 +9,20 @@ cache_file=$cache_dir/line_cache
 
 : "${CM_LAUNCHER=dmenu}"
 
+if [[ $1 == --help ]]; then
+    cat << EOF
+clipmenu is a simple clipboard manager using dmenu and xsel. Launch this
+when you want to select a clip.
+
+All arguments are passed through to dmenu itself.
+
+Environment variables:
+
+- \$CM_LAUNCHER: specify a dmenu-compatible launcher (default: dmenu)
+EOF
+    exit 0
+fi
+
 # It's okay to hardcode `-l 8` here as a sensible default without checking
 # whether `-l` is also in "$@", because the way that dmenu works allows a later
 # argument to override an earlier one. That is, if the user passes in `-l`, our
