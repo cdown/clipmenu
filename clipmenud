@@ -6,8 +6,12 @@ cache_file=$cache_dir/line_cache
 lock_file=$cache_dir/lock
 lock_timeout=2
 
+: "${CM_ONESHOT=0}"
+: "${CM_OWN_CLIPBOARD=1}"
+: "${CM_DEBUG=0}"
+
 _xsel() {
-    timeout 1 xsel --logfile /dev/null "$@"
+    timeout 1 xsel --logfile /dev/stderr "$@"
 }
 
 get_first_line() {
@@ -42,7 +46,7 @@ get_first_line() {
 }
 
 debug() {
-    if (( DEBUG )); then
+    if (( CM_DEBUG )); then
         printf '%s\n' "$@" >&2
     fi
 }
@@ -56,9 +60,9 @@ declare -A last_filename
 
 exec {lock_fd}> "$lock_file"
 
-while sleep "${CLIPMENUD_SLEEP:-0.5}"; do
+while sleep "${CM_SLEEP:-0.5}"; do
     if ! flock -x -w "$lock_timeout" "$lock_fd"; then
-        if (( ONESHOT )); then
+        if (( CM_ONESHOT )); then
             printf 'ERROR: %s\n' 'Timed out waiting for lock' >&2
             exit 1
         else
@@ -103,6 +107,10 @@ while sleep "${CLIPMENUD_SLEEP:-0.5}"; do
         last_filename[$selection]=$filename
 
         first_line=$(get_first_line "$data")
+
+        printf 'New clipboard entry on %s selection: "%s"\n' \
+            "$selection" "$first_line"
+
         filename="$cache_dir/$(cksum <<< "$first_line")"
         debug "Writing $data to $filename"
         printf '%s' "$data" > "$filename"
@@ -110,7 +118,7 @@ while sleep "${CLIPMENUD_SLEEP:-0.5}"; do
         debug "Writing $first_line to $cache_file"
         printf '%s\n' "$first_line" >> "$cache_file"
 
-        if ! (( NO_OWN_CLIPBOARD )) && [[ $selection != primary ]]; then
+        if (( CM_OWN_CLIPBOARD )) && [[ $selection != primary ]]; then
             # Take ownership of the clipboard, in case the original application
             # is unable to serve the clipboard request (due to being suspended,
             # etc).
@@ -128,7 +136,7 @@ while sleep "${CLIPMENUD_SLEEP:-0.5}"; do
 
     flock -u "$lock_fd"
 
-    if (( ONESHOT )); then
+    if (( CM_ONESHOT )); then
         debug 'Oneshot mode enabled, exiting'
         break
     fi

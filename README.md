@@ -1,4 +1,9 @@
-clipmenu is a simple clipboard manager using [dmenu][] and [xsel][].
+clipmenu is a simple clipboard manager using [dmenu][] (or [rofi][]) and
+[xsel][].
+
+# Demo
+
+![Demo](https://cloud.githubusercontent.com/assets/660663/24079784/6f76da94-0c88-11e7-8251-40b1f02ebf3c.gif)
 
 # Usage
 
@@ -22,8 +27,8 @@ there, but it basically works like this:
 ## clipmenud
 
 1. `clipmenud` polls the clipboard every 0.5 seconds (or another interval as
-   configured with the `CLIPMENUD_SLEEP` environment variable). Unfortunately
-   there's no interface to subscribe for changes in X11, so we must poll.
+   configured with the `CM_SLEEP` environment variable). Unfortunately there's
+   no interface to subscribe for changes in X11, so we must poll.
 2. If `clipmenud` detects changes to the clipboard contents, it writes them out
    to the cache directory.
 
@@ -35,4 +40,5 @@ there, but it basically works like this:
    selections.
 
 [dmenu]: http://tools.suckless.org/dmenu/
+[rofi]: https://github.com/DaveDavenport/Rofi
 [xsel]: http://www.vergenet.net/~conrad/software/xsel/
