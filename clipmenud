@@ -7,7 +7,7 @@ lock_file=$cache_dir/lock
 lock_timeout=2
 
 _xsel() {
-    timeout 1 xsel --logfile /dev/null "$@"
+    timeout 1 xsel --logfile /dev/stderr "$@"
 }
 
 get_first_line() {
