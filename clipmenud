@@ -9,6 +9,7 @@ lock_timeout=2
 : "${CM_ONESHOT=0}"
 : "${CM_OWN_CLIPBOARD=1}"
 : "${CM_DEBUG=0}"
+: "${CM_SYNC=0}"
 
 _xsel() {
     timeout 1 xsel --logfile /dev/stderr "$@"
@@ -131,6 +132,10 @@ while sleep "${CM_SLEEP:-0.5}"; do
             # https://github.com/cdown/clipmenu/issues/34 requires knowing if
             # we would skip first.
             _xsel -o --"$selection" | _xsel -i --"$selection"
+        fi
+
+        if (( CM_SYNC )) && [[ $selection == primary ]]; then
+            _xsel -o --"$selection" | _xsel -i --clipboard
         fi
     done
 
