@@ -60,7 +60,7 @@ declare -A last_filename
 
 exec {lock_fd}> "$lock_file"
 
-while sleep "${CM_SLEEP:-0.5}"; do
+while (( CM_ONESHOT )) || sleep "${CM_SLEEP:-0.5}"; do
     if ! flock -x -w "$lock_timeout" "$lock_fd"; then
         if (( CM_ONESHOT )); then
             printf 'ERROR: %s\n' 'Timed out waiting for lock' >&2
