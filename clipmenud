@@ -94,15 +94,6 @@ while (( CM_ONESHOT )) || sleep "${CM_SLEEP:-0.5}"; do
             continue
         fi
 
-        # If we were in the middle of doing a selection when the previous poll
-        # ran, then we may have got a partial clip.
-        possible_partial=${last_data[$selection]}
-        if [[ $possible_partial && $data == "$possible_partial"* ]]; then
-            debug "$possible_partial is a possible partial of $data"
-            debug "Removing ${last_filename[$selection]}"
-            rm -- "${last_filename[$selection]}"
-        fi
-
         last_data[$selection]=$data
         last_filename[$selection]=$filename
 
