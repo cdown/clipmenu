@@ -57,7 +57,6 @@ debug() {
 mkdir -p -m0700 "$cache_dir"
 
 declare -A last_data
-declare -A last_filename
 
 exec {lock_fd}> "$lock_file"
 
@@ -96,7 +95,6 @@ while (( CM_ONESHOT )) || sleep "${CM_SLEEP:-0.5}"; do
         fi
 
         last_data[$selection]=$data
-        last_filename[$selection]=$filename
 
         first_line=$(get_first_line "$data")
 
