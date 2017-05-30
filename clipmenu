@@ -1,13 +1,15 @@
 #!/bin/bash
 
+: "${CM_LAUNCHER=dmenu}"
+: "${TMPDIR=/tmp}"
+
 major_version=3
 
 shopt -s nullglob
 
-cache_dir=/tmp/clipmenu.$major_version.$USER
+cache_dir=$TMPDIR/clipmenu.$major_version.$USER
 cache_file=$cache_dir/line_cache
 
-: "${CM_LAUNCHER=dmenu}"
 
 if [[ "$CM_LAUNCHER" == rofi ]]; then
     # rofi supports dmenu-like arguments through the -dmenu flag

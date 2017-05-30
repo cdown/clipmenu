@@ -1,14 +1,15 @@
 #!/bin/bash
 
-major_version=3
-cache_dir=/tmp/clipmenu.$major_version.$USER/
-cache_file=$cache_dir/line_cache
-lock_file=$cache_dir/lock
-lock_timeout=2
-
 : "${CM_ONESHOT=0}"
 : "${CM_OWN_CLIPBOARD=1}"
 : "${CM_DEBUG=0}"
+: "${TMPDIR=/tmp}"
+
+major_version=3
+cache_dir=$TMPDIR/clipmenu.$major_version.$USER/
+cache_file=$cache_dir/line_cache
+lock_file=$cache_dir/lock
+lock_timeout=2
 
 _xsel() {
     timeout 1 xsel --logfile /dev/stderr "$@"
