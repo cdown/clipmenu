@@ -52,6 +52,22 @@ debug() {
     fi
 }
 
+if [[ $1 == --help ]] || [[ $1 == -h ]]; then
+    cat << 'EOF'
+clipmenud is the daemon that collects and caches what's on the clipboard.
+when you want to select a clip.
+
+Environment variables:
+
+- $CM_ONESHOT: run once immediately, do not loop (default: 0)
+- $CM_DEBUG: turn on debugging output (default: 0)
+- $CM_OWN_CLIPBOARD: take ownership of the clipboard (default: 1)
+- $TMPDIR: specify the base directory to store the cache dir in (default: /tmp)
+EOF
+    exit 0
+fi
+
+
 # It's ok that this only applies to the final directory.
 # shellcheck disable=SC2174
 mkdir -p -m0700 "$cache_dir"

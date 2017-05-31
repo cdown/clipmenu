@@ -10,14 +10,8 @@ shopt -s nullglob
 cache_dir=$TMPDIR/clipmenu.$major_version.$USER
 cache_file=$cache_dir/line_cache
 
-
-if [[ "$CM_LAUNCHER" == rofi ]]; then
-    # rofi supports dmenu-like arguments through the -dmenu flag
-    set -- -dmenu "$@"
-fi
-
-if [[ $1 == --help ]]; then
-    cat << EOF
+if [[ $1 == --help ]] || [[ $1 == -h ]]; then
+    cat << 'EOF'
 clipmenu is a simple clipboard manager using dmenu and xsel. Launch this
 when you want to select a clip.
 
@@ -25,9 +19,15 @@ All arguments are passed through to dmenu itself.
 
 Environment variables:
 
-- \$CM_LAUNCHER: specify a dmenu-compatible launcher (default: dmenu)
+- $CM_LAUNCHER: specify a dmenu-compatible launcher (default: dmenu)
+- $TMPDIR: specify the base directory to store the cache dir in (default: /tmp)
 EOF
     exit 0
+fi
+
+if [[ "$CM_LAUNCHER" == rofi ]]; then
+    # rofi supports dmenu-like arguments through the -dmenu flag
+    set -- -dmenu "$@"
 fi
 
 # It's okay to hardcode `-l 8` here as a sensible default without checking
