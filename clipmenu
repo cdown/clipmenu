@@ -30,6 +30,14 @@ if [[ "$CM_LAUNCHER" == rofi ]]; then
     set -- -dmenu "$@"
 fi
 
+# provide the option insert, to perform an insertion an the end
+# remove it when it is given, because the rest of the options will
+# be passed to dmenu
+if [[ $1 == '--insert' ]]; then
+    perform_insert=1
+    shift
+fi
+
 # It's okay to hardcode `-l 8` here as a sensible default without checking
 # whether `-l` is also in "$@", because the way that dmenu works allows a later
 # argument to override an earlier one. That is, if the user passes in `-l`, our
@@ -49,3 +57,8 @@ fi
 for selection in clipboard primary; do
     xsel --logfile /dev/stderr -i --"$selection" < "$file"
 done
+
+# perform the insertion
+if [[ $perform_insert == 1 ]]; then
+    xdotool key shift+Insert
+fi
