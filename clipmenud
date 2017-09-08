@@ -2,6 +2,7 @@
 
 : "${CM_ONESHOT=0}"
 : "${CM_OWN_CLIPBOARD=1}"
+: "${CM_PRIVACY=1}"
 : "${CM_DEBUG=0}"
 : "${TMPDIR=/tmp}"
 
@@ -61,6 +62,7 @@ Environment variables:
 
 - $CM_ONESHOT: run once immediately, do not loop (default: 0)
 - $CM_DEBUG: turn on debugging output (default: 0)
+- $CM_PRIVACY: do not print clipboard content to standard out (default: 1)
 - $CM_OWN_CLIPBOARD: take ownership of the clipboard (default: 1)
 - $TMPDIR: specify the base directory to store the cache dir in (default: /tmp)
 EOF
@@ -114,8 +116,13 @@ while (( CM_ONESHOT )) || sleep "${CM_SLEEP:-0.5}"; do
 
         first_line=$(get_first_line "$data")
 
-        printf 'New clipboard entry on %s selection: "%s"\n' \
-            "$selection" "$first_line"
+        if (( CM_PRIVACY )); then
+            printf 'New clipboard entry on %s selection.\n' \
+                "$selection"
+        else
+            printf 'New clipboard entry on %s selection: "%s"\n' \
+                "$selection" "$first_line"
+        fi
 
         filename="$cache_dir/$(cksum <<< "$first_line")"
         debug "Writing $data to $filename"

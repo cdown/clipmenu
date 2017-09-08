@@ -6,6 +6,7 @@ ExecStart=/usr/bin/clipmenud
 Restart=always
 RestartSec=0
 Environment=DISPLAY=:0
+Environment=CM_PRIVACY=1
 
 MemoryDenyWriteExecute=yes
 NoNewPrivileges=yes
