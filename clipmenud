@@ -2,6 +2,7 @@
 
 : "${CM_ONESHOT=0}"
 : "${CM_OWN_CLIPBOARD=0}"
+: "${CM_SYNC_PRIMARY_TO_CLIPBOARD=0}"
 : "${CM_DEBUG=0}"
 : "${CM_DIR:="${XDG_RUNTIME_DIR-"${TMPDIR-/tmp}"}"}"
 
@@ -104,6 +105,7 @@ Environment variables:
 - $CM_ONESHOT: run once immediately, do not loop (default: 0)
 - $CM_OWN_CLIPBOARD: take ownership of the clipboard. Note: this may cause missed copies if some other application also handles the clipboard directly (default: 0)
 - $CM_SELECTIONS: space separated list of the selections to manage (default: "clipboard primary")
+- $CM_SYNC_PRIMARY_TO_CLIPBOARD: sync selections from primary to clipboard immediately (default: 0)
 - $CM_IGNORE_WINDOW: disable recording the clipboard in windows where the windowname matches the given regex (e.g. a password manager), do not ignore any windows if unset or empty (default: unset)
 EOF
     exit 0
@@ -120,6 +122,7 @@ flock -x -n "$session_lock_fd" ||
     die 2 "Can't lock session file -- is another clipmenud running?"
 
 declare -A last_data_sel
+declare -A updated_sel
 
 command -v clipnotify >/dev/null 2>&1 || die 2 "clipnotify not in PATH"
 command -v xdotool >/dev/null 2>&1 && has_xdotool=1
@@ -170,6 +173,8 @@ while true; do
     fi
 
     for selection in "${selections[@]}"; do
+        updated_sel[$selection]=0
+
         data=$(_xsel -o --"$selection"; printf x)
         data=${data%x}  # avoid trailing newlines being stripped
 
@@ -194,6 +199,7 @@ while true; do
         last_cache_file_output=$cache_file_output
         last_data=$data
         last_data_sel[$selection]=$data
+        updated_sel[$selection]=1
 
         debug "Writing $data to $filename"
         printf '%s' "$data" > "$filename"
@@ -205,6 +211,10 @@ while true; do
             _xsel -o --clipboard | _xsel -i --clipboard
         fi
     done
+
+    if (( CM_SYNC_PRIMARY_TO_CLIPBOARD )) && (( updated_sel[primary] )); then
+        _xsel -o --primary | _xsel -i --clipboard
+    fi
 
     # The cache file may not exist if this is the first run and data is skipped
     if (( CM_MAX_CLIPS )) && [[ -f "$cache_file" ]] && (( "$(wc -l < "$cache_file")" > CM_MAX_CLIPS_THRESH )); then
