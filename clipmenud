@@ -114,8 +114,7 @@ while (( CM_ONESHOT )) || sleep "${CM_SLEEP:-0.5}"; do
 
         first_line=$(get_first_line "$data")
 
-        printf 'New clipboard entry on %s selection: "%s"\n' \
-            "$selection" "$first_line"
+        debug "New clipboard entry on $selection selection: \"$first_line\""
 
         filename="$cache_dir/$(cksum <<< "$first_line")"
         debug "Writing $data to $filename"
