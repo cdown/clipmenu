@@ -6,7 +6,9 @@ msg() {
     printf '>>> %s\n' "$@" >&2
 }
 
-dir=/tmp/clipmenu.$major_version.$USER
+: "${CM_DIR="${XDG_RUNTIME_DIR-"${TMPDIR-/tmp}"}"}"
+
+dir=$CM_DIR/clipmenu.$major_version.$USER
 cache_file=$dir/line_cache
 
 log=$(mktemp)

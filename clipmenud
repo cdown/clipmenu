@@ -3,11 +3,11 @@
 : "${CM_ONESHOT=0}"
 : "${CM_OWN_CLIPBOARD=1}"
 : "${CM_DEBUG=0}"
-: "${TMPDIR=/tmp}"
+: "${CM_DIR="${XDG_RUNTIME_DIR-"${TMPDIR-/tmp}"}"}"
 : "${CM_MAX_CLIPS=1000}"
 
 major_version=3
-cache_dir=$TMPDIR/clipmenu.$major_version.$USER/
+cache_dir=$CM_DIR/clipmenu.$major_version.$USER/
 cache_file=$cache_dir/line_cache
 lock_file=$cache_dir/lock
 lock_timeout=2
@@ -64,7 +64,7 @@ Environment variables:
 - $CM_DEBUG: turn on debugging output (default: 0)
 - $CM_OWN_CLIPBOARD: take ownership of the clipboard (default: 1)
 - $CM_MAX_CLIPS: maximum number of clips to store, 0 for inf (default: 1000)
-- $TMPDIR: specify the base directory to store the cache dir in (default: /tmp)
+- $CM_DIR: specify the base directory to store the cache dir in (default: $XDG_RUNTIME_DIR, $TMPDIR, or /tmp)
 EOF
     exit 0
 fi

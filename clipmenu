@@ -1,13 +1,13 @@
 #!/bin/bash
 
 : "${CM_LAUNCHER=dmenu}"
-: "${TMPDIR=/tmp}"
+: "${CM_DIR="${XDG_RUNTIME_DIR-"${TMPDIR-/tmp}"}"}"
 
 major_version=3
 
 shopt -s nullglob
 
-cache_dir=$TMPDIR/clipmenu.$major_version.$USER
+cache_dir=$CM_DIR/clipmenu.$major_version.$USER
 cache_file=$cache_dir/line_cache
 
 if [[ $1 == --help ]] || [[ $1 == -h ]]; then
@@ -20,7 +20,7 @@ All arguments are passed through to dmenu itself.
 Environment variables:
 
 - $CM_LAUNCHER: specify a dmenu-compatible launcher (default: dmenu)
-- $TMPDIR: specify the base directory to store the cache dir in (default: /tmp)
+- $CM_DIR: specify the base directory to store the cache dir in (default: $XDG_RUNTIME_DIR, $TMPDIR, or /tmp)
 EOF
     exit 0
 fi
