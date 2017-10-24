@@ -146,17 +146,19 @@ while (( CM_ONESHOT )) || sleep "${CM_SLEEP:-0.5}"; do
             _xsel -o --"$selection" | _xsel -i --"$selection"
         fi
 
-        mapfile -t to_remove < <(
-            head -n -"$CM_MAX_CLIPS" "$cache_file" |
-                while read -r line; do cksum <<< "$line"; done
-        )
-        num_to_remove="${#to_remove[@]}"
-        if (( num_to_remove )); then
-            debug "Removing $num_to_remove old clips"
-            rm -- "${to_remove[@]/#/"$cache_dir/"}"
-            trunc_tmp=$(mktemp)
-            tail -n "$CM_MAX_CLIPS" "$cache_file" | uniq > "$trunc_tmp"
-            mv -- "$trunc_tmp" "$cache_file"
+        if (( CM_MAX_CLIPS )); then
+            mapfile -t to_remove < <(
+                head -n -"$CM_MAX_CLIPS" "$cache_file" |
+                    while read -r line; do cksum <<< "$line"; done
+            )
+            num_to_remove="${#to_remove[@]}"
+            if (( num_to_remove )); then
+                debug "Removing $num_to_remove old clips"
+                rm -- "${to_remove[@]/#/"$cache_dir/"}"
+                trunc_tmp=$(mktemp)
+                tail -n "$CM_MAX_CLIPS" "$cache_file" | uniq > "$trunc_tmp"
+                mv -- "$trunc_tmp" "$cache_file"
+            fi
         fi
     done
 
