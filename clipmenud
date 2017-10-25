@@ -1,14 +1,16 @@
 #!/bin/bash
 
-major_version=3
-cache_dir=/tmp/clipmenu.$major_version.$USER/
-cache_file=$cache_dir/line_cache
-lock_file=$cache_dir/lock
-lock_timeout=2
-
 : "${CM_ONESHOT=0}"
 : "${CM_OWN_CLIPBOARD=1}"
 : "${CM_DEBUG=0}"
+: "${CM_DIR="${XDG_RUNTIME_DIR-"${TMPDIR-/tmp}"}"}"
+: "${CM_MAX_CLIPS=1000}"
+
+major_version=4
+cache_dir=$CM_DIR/clipmenu.$major_version.$USER/
+cache_file=$cache_dir/line_cache
+lock_file=$cache_dir/lock
+lock_timeout=2
 
 _xsel() {
     timeout 1 xsel --logfile /dev/stderr "$@"
@@ -51,16 +53,32 @@ debug() {
     fi
 }
 
+if [[ $1 == --help ]] || [[ $1 == -h ]]; then
+    cat << 'EOF'
+clipmenud is the daemon that collects and caches what's on the clipboard.
+when you want to select a clip.
+
+Environment variables:
+
+- $CM_ONESHOT: run once immediately, do not loop (default: 0)
+- $CM_DEBUG: turn on debugging output (default: 0)
+- $CM_OWN_CLIPBOARD: take ownership of the clipboard (default: 1)
+- $CM_MAX_CLIPS: maximum number of clips to store, 0 for inf (default: 1000)
+- $CM_DIR: specify the base directory to store the cache dir in (default: $XDG_RUNTIME_DIR, $TMPDIR, or /tmp)
+EOF
+    exit 0
+fi
+
+
 # It's ok that this only applies to the final directory.
 # shellcheck disable=SC2174
 mkdir -p -m0700 "$cache_dir"
 
 declare -A last_data
-declare -A last_filename
 
 exec {lock_fd}> "$lock_file"
 
-while sleep "${CM_SLEEP:-0.5}"; do
+while (( CM_ONESHOT )) || sleep "${CM_SLEEP:-0.5}"; do
     if ! flock -x -w "$lock_timeout" "$lock_fd"; then
         if (( CM_ONESHOT )); then
             printf 'ERROR: %s\n' 'Timed out waiting for lock' >&2
@@ -94,29 +112,24 @@ while sleep "${CM_SLEEP:-0.5}"; do
             continue
         fi
 
-        # If we were in the middle of doing a selection when the previous poll
-        # ran, then we may have got a partial clip.
-        possible_partial=${last_data[$selection]}
-        if [[ $possible_partial && $data == "$possible_partial"* ]]; then
-            debug "$possible_partial is a possible partial of $data"
-            debug "Removing ${last_filename[$selection]}"
-            rm -- "${last_filename[$selection]}"
-        fi
-
         last_data[$selection]=$data
-        last_filename[$selection]=$filename
 
         first_line=$(get_first_line "$data")
 
-        printf 'New clipboard entry on %s selection: "%s"\n' \
-            "$selection" "$first_line"
+        debug "New clipboard entry on $selection selection: \"$first_line\""
 
-        filename="$cache_dir/$(cksum <<< "$first_line")"
-        debug "Writing $data to $filename"
-        printf '%s' "$data" > "$filename"
+        # Without checking ${last_data[any]}, we often double write since both
+        # selections get the same content
+        if [[ ${last_data[any]} != "$data" ]]; then
+            filename="$cache_dir/$(cksum <<< "$first_line")"
+            debug "Writing $data to $filename"
+            printf '%s' "$data" > "$filename"
 
-        debug "Writing $first_line to $cache_file"
-        printf '%s\n' "$first_line" >> "$cache_file"
+            debug "Writing $first_line to $cache_file"
+            printf '%s\n' "$first_line" >> "$cache_file"
+        fi
+
+        last_data[any]=$data
 
         if (( CM_OWN_CLIPBOARD )) && [[ $selection != primary ]]; then
             # Take ownership of the clipboard, in case the original application
@@ -131,6 +144,21 @@ while sleep "${CM_SLEEP:-0.5}"; do
             # https://github.com/cdown/clipmenu/issues/34 requires knowing if
             # we would skip first.
             _xsel -o --"$selection" | _xsel -i --"$selection"
+        fi
+
+        if (( CM_MAX_CLIPS )); then
+            mapfile -t to_remove < <(
+                head -n -"$CM_MAX_CLIPS" "$cache_file" |
+                    while read -r line; do cksum <<< "$line"; done
+            )
+            num_to_remove="${#to_remove[@]}"
+            if (( num_to_remove )); then
+                debug "Removing $num_to_remove old clips"
+                rm -- "${to_remove[@]/#/"$cache_dir/"}"
+                trunc_tmp=$(mktemp)
+                tail -n "$CM_MAX_CLIPS" "$cache_file" | uniq > "$trunc_tmp"
+                mv -- "$trunc_tmp" "$cache_file"
+            fi
         fi
     done
 

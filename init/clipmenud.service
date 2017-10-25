@@ -14,8 +14,5 @@ ProtectKernelTunables=yes
 RestrictAddressFamilies=
 RestrictRealtime=yes
 
-ProtectSystem=strict
-ReadWritePaths=/tmp
-
 [Install]
 WantedBy=default.target

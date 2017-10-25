@@ -4,8 +4,10 @@ set -x
 set -e
 set -o pipefail
 
-major_version=3
-dir=/tmp/clipmenu.$major_version.$USER
+: "${CM_DIR="${XDG_RUNTIME_DIR-"${TMPDIR-/tmp}"}"}"
+
+major_version=4
+dir=$CM_DIR/clipmenu.$major_version.$USER
 cache_file=$dir/line_cache
 
 if [[ $0 == /* ]]; then
