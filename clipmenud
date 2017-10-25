@@ -6,7 +6,7 @@
 : "${CM_DIR="${XDG_RUNTIME_DIR-"${TMPDIR-/tmp}"}"}"
 : "${CM_MAX_CLIPS=1000}"
 
-major_version=3
+major_version=4
 cache_dir=$CM_DIR/clipmenu.$major_version.$USER/
 cache_file=$cache_dir/line_cache
 lock_file=$cache_dir/lock

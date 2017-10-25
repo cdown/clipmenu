@@ -1,6 +1,6 @@
 #!/bin/bash
 
-major_version=3
+major_version=4
 
 msg() {
     printf '>>> %s\n' "$@" >&2

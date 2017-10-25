@@ -3,7 +3,7 @@
 : "${CM_LAUNCHER=dmenu}"
 : "${CM_DIR="${XDG_RUNTIME_DIR-"${TMPDIR-/tmp}"}"}"
 
-major_version=3
+major_version=4
 
 shopt -s nullglob
 
