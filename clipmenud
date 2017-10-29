@@ -14,7 +14,10 @@ lock_timeout=2
 
 xsel_log=/dev/null
 for file in /proc/self/fd/2 /dev/stderr; do
-    [[ -e "$file" ]] || continue
+    [[ -f "$file" ]] || continue
+    # In Linux, it's not possible to write to a socket represented by a file
+    # (for example, /dev/stderr or /proc/self/fd/2). See issue #54.
+    [[ -f "$(readlink "$file")" ]] || continue
     xsel_log="$file"
     break
 done
