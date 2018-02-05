@@ -11,6 +11,7 @@ cache_dir=$CM_DIR/clipmenu.$major_version.$USER/
 cache_file=$cache_dir/line_cache
 lock_file=$cache_dir/lock
 lock_timeout=2
+has_clipnotify=0
 
 xsel_log=/dev/null
 for file in /proc/self/fd/2 /dev/stderr; do
@@ -86,9 +87,20 @@ mkdir -p -m0700 "$cache_dir"
 
 declare -A last_data
 
+command -v clipnotify >/dev/null 2>&1 && has_clipnotify=1
+
 exec {lock_fd}> "$lock_file"
 
-while (( CM_ONESHOT )) || sleep "${CM_SLEEP:-0.5}"; do
+while true; do
+    if ! (( CM_ONESHOT )); then
+        if (( has_clipnotify )); then
+            clipnotify
+        else
+            # Use old polling method
+            sleep "${CM_SLEEP:-0.5}"
+        fi
+    fi
+
     if ! flock -x -w "$lock_timeout" "$lock_fd"; then
         if (( CM_ONESHOT )); then
             printf 'ERROR: %s\n' 'Timed out waiting for lock' >&2
