@@ -26,14 +26,14 @@ there, but it basically works like this:
 
 ## clipmenud
 
-1. `clipmenud` polls the clipboard every 0.5 seconds (or another interval as
-   configured with the `CM_SLEEP` environment variable). Unfortunately there's
-   no interface to subscribe for changes in X11, so we must poll.
+1. `clipmenud` uses [clipnotify](https://github.com/cdown/clipnotify) to wait
+   for new clipboard events. If clipnotify is not present on the system, we
+   poll every 0.5 seconds (or another interval as configured with the
+   `CM_SLEEP` environment variable).
 
-   Instead of polling, you can bind your copy key binding to also issue
-   `CM_ONESHOT=1 clipmenud`. However, there's no generic way to do this, since
-   any keys or mouse buttons could be bound to do this action in a number of
-   ways.
+   You can also bind your copy key binding to also issue `CM_ONESHOT=1
+   clipmenud`. However, there's no generic way to do this, since any keys or
+   mouse buttons could be bound to do this action in a number of ways.
 2. If `clipmenud` detects changes to the clipboard contents, it writes them out
    to the cache directory.
 
