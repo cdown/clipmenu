@@ -96,13 +96,16 @@ fi
 
 exec {lock_fd}> "$lock_file"
 
+sleep_cmd=(sleep "${CM_SLEEP:-0.5}")
+
 while true; do
     if ! (( CM_ONESHOT )); then
         if (( has_clipnotify )); then
-            clipnotify
+            # Fall back to polling if clipnotify fails
+            clipnotify || "${sleep_cmd[@]}"
         else
             # Use old polling method
-            sleep "${CM_SLEEP:-0.5}"
+            "${sleep_cmd[@]}"
         fi
     fi
 
