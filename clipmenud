@@ -89,6 +89,11 @@ declare -A last_data
 
 command -v clipnotify >/dev/null 2>&1 && has_clipnotify=1
 
+if ! (( has_clipnotify )); then
+    echo "WARN: Consider installing clipnotify for better performance." >&2
+    echo "WARN: See https://github.com/cdown/clipnotify." >&2
+fi
+
 exec {lock_fd}> "$lock_file"
 
 while true; do
