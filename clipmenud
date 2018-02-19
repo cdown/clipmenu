@@ -173,7 +173,7 @@ while true; do
             # We can't colocate this with the above copying code because
             # https://github.com/cdown/clipmenu/issues/34 requires knowing if
             # we would skip first.
-            _xsel -o --"$selection" | _xsel -i --"$selection"
+            _xsel -k --"$selection"
         fi
 
         if (( CM_MAX_CLIPS )); then
