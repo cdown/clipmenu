@@ -5,6 +5,7 @@
 : "${CM_DEBUG=0}"
 : "${CM_DIR="${XDG_RUNTIME_DIR-"${TMPDIR-/tmp}"}"}"
 : "${CM_MAX_CLIPS=1000}"
+: "${CM_SELECTIONS=clipboard primary}"
 
 major_version=4
 cache_dir=$CM_DIR/clipmenu.$major_version.$USER/
@@ -12,6 +13,11 @@ cache_file=$cache_dir/line_cache
 lock_file=$cache_dir/lock
 lock_timeout=5
 has_clipnotify=0
+
+# This comes from the environment, so we rely on word splitting.
+# shellcheck disable=SC2206
+cm_selections=( $CM_SELECTIONS )
+
 
 xsel_log=/dev/null
 for file in /proc/self/fd/2 /dev/stderr; do
@@ -64,6 +70,17 @@ debug() {
     fi
 }
 
+element_in() {
+    local item element
+    item="$1"
+    for element in "${@:2}"; do
+        if [[ "$item" == "$element" ]]; then
+            return 0
+        fi
+    done
+    return 1
+}
+
 if [[ $1 == --help ]] || [[ $1 == -h ]]; then
     cat << 'EOF'
 clipmenud is the daemon that collects and caches what's on the clipboard.
@@ -76,6 +93,7 @@ Environment variables:
 - $CM_OWN_CLIPBOARD: take ownership of the clipboard (default: 1)
 - $CM_MAX_CLIPS: maximum number of clips to store, 0 for inf (default: 1000)
 - $CM_DIR: specify the base directory to store the cache dir in (default: $XDG_RUNTIME_DIR, $TMPDIR, or /tmp)
+- $CM_SELECTIONS: space separated list of the selections to manage (default: "clipboard primary")
 EOF
     exit 0
 fi
@@ -99,7 +117,7 @@ sleep_cmd=(sleep "${CM_SLEEP:-0.5}")
 while true; do
     # We need to take ownership synchronously before we run `clipnotify` as
     # otherwise we could enter an infinite loop.
-    if (( CM_OWN_CLIPBOARD )); then
+    if (( CM_OWN_CLIPBOARD )) && element_in clipboard "${cm_selections[@]}"; then
         # Take ownership of the clipboard, in case the original application
         # is unable to serve the clipboard request (due to being suspended,
         # etc).
@@ -129,7 +147,7 @@ while true; do
         exit 1
     fi
 
-    for selection in clipboard primary; do
+    for selection in "${cm_selections[@]}"; do
         data=$(_xsel -o --"$selection"; printf x)
 
         debug "Data before stripping: $data"
