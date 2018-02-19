@@ -107,7 +107,7 @@ while true; do
         # Primary is excluded from the change of ownership as applications
         # sometimes act up if clipboard focus is taken away from them --
         # for example, urxvt will unhilight text, which is undesirable.
-        _xsel -k --clipboard
+        _xsel -o --clipboard | _xsel -i --clipboard
     fi
 
     if ! (( CM_ONESHOT )); then
