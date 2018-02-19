@@ -125,14 +125,8 @@ while true; do
 
     {
     if ! flock -x -w "$lock_timeout" "$lock_fd"; then
-        if (( CM_ONESHOT )); then
-            printf 'ERROR: %s\n' 'Timed out waiting for lock' >&2
-            exit 1
-        else
-            printf 'ERROR: %s\n' \
-                'Timed out waiting for lock, skipping this run' >&2
-            continue
-        fi
+        printf 'ERROR: %s\n' 'Timed out waiting for lock' >&2
+        exit 1
     fi
 
     for selection in clipboard primary; do
