@@ -222,7 +222,7 @@ while true; do
         if (( CM_MAX_CLIPS )) && [[ -f $cache_file ]]; then
             mapfile -t to_remove < <(
                 head -n -"$CM_MAX_CLIPS" "$cache_file" |
-                    while read -r line; do cksum <<< "$line"; done
+                    while read -r line; do cksum <<< "${line#* }"; done
             )
             num_to_remove="${#to_remove[@]}"
             if (( num_to_remove )); then
