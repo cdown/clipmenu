@@ -128,7 +128,9 @@ while true; do
         #
         # We need to check if the clipboard is empty to mitigate #34.
         data=$(_xsel -o --clipboard; printf x)
-        [[ $data != x ]] && _xsel -i --clipboard <<< "${data%x}"
+        if [[ $data != x ]]; then
+            printf '%s' "${data%x}" | _xsel -i --clipboard
+        fi
     fi
 
     if ! (( CM_ONESHOT )); then
