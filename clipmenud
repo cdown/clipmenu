@@ -11,7 +11,7 @@ major_version=4
 cache_dir=$CM_DIR/clipmenu.$major_version.$USER/
 cache_file=$cache_dir/line_cache
 lock_file=$cache_dir/lock
-lock_timeout=5
+lock_timeout=2
 has_clipnotify=0
 
 # This comes from the environment, so we rely on word splitting.
@@ -141,7 +141,6 @@ while true; do
         fi
     fi
 
-    {
     if ! flock -x -w "$lock_timeout" "$lock_fd"; then
         printf 'ERROR: %s\n' 'Timed out waiting for lock' >&2
         exit 1
@@ -192,10 +191,8 @@ while true; do
     done
 
     flock -u "$lock_fd"
-    } &
 
     if (( CM_ONESHOT )); then
-        wait
         debug 'Oneshot mode enabled, exiting'
         break
     fi
