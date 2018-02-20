@@ -125,10 +125,7 @@ while true; do
         # Primary is excluded from the change of ownership as applications
         # sometimes act up if clipboard focus is taken away from them --
         # for example, urxvt will unhilight text, which is undesirable.
-        #
-        # We need to check if the clipboard is empty to mitigate #34.
-        data=$(_xsel -o --clipboard; printf x)
-        [[ $data != x ]] && _xsel -i --clipboard <<< "${data%x}"
+        _xsel -o --clipboard | _xsel -i --clipboard
     fi
 
     if ! (( CM_ONESHOT )); then
