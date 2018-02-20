@@ -5,6 +5,9 @@
 : "${CM_DEBUG=0}"
 : "${CM_DIR="${XDG_RUNTIME_DIR-"${TMPDIR-/tmp}"}"}"
 : "${CM_MAX_CLIPS=1000}"
+
+# Shellcheck is mistaken here, this is used later as lowercase.
+# shellcheck disable=SC2153
 : "${CM_SELECTIONS=clipboard primary}"
 
 major_version=5
