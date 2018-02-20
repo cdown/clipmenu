@@ -194,7 +194,7 @@ while true; do
             # We can't colocate this with the above copying code because
             # https://github.com/cdown/clipmenu/issues/34 requires knowing if
             # we would skip first.
-            _xsel -k --"$selection"
+            _xsel -o --clipboard | _xsel -i --clipboard
         fi
 
         if (( CM_MAX_CLIPS )) && [[ -f $cache_file ]]; then
