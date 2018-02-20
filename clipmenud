@@ -103,6 +103,8 @@ fi
 # shellcheck disable=SC2174
 mkdir -p -m0700 "$cache_dir"
 
+declare -A last_data
+
 command -v clipnotify >/dev/null 2>&1 && has_clipnotify=1
 
 if ! (( has_clipnotify )); then
@@ -115,22 +117,6 @@ exec {lock_fd}> "$lock_file"
 sleep_cmd=(sleep "${CM_SLEEP:-0.5}")
 
 while true; do
-    # We need to take ownership synchronously before we run `clipnotify` as
-    # otherwise we could enter an infinite loop.
-    if (( CM_OWN_CLIPBOARD )) && element_in clipboard "${cm_selections[@]}"; then
-        # Take ownership of the clipboard, in case the original application
-        # is unable to serve the clipboard request (due to being suspended,
-        # etc).
-        #
-        # Primary is excluded from the change of ownership as applications
-        # sometimes act up if clipboard focus is taken away from them --
-        # for example, urxvt will unhilight text, which is undesirable.
-        #
-        # We need to check if the clipboard is empty to mitigate #34.
-        data=$(_xsel -o --clipboard; printf x)
-        [[ $data != x ]] && _xsel -i --clipboard <<< "${data%x}"
-    fi
-
     if ! (( CM_ONESHOT )); then
         if (( has_clipnotify )); then
             # Fall back to polling if clipnotify fails
@@ -142,8 +128,14 @@ while true; do
     fi
 
     if ! flock -x -w "$lock_timeout" "$lock_fd"; then
-        printf 'ERROR: %s\n' 'Timed out waiting for lock' >&2
-        exit 1
+        if (( CM_ONESHOT )); then
+            printf 'ERROR: %s\n' 'Timed out waiting for lock' >&2
+            exit 1
+        else
+            printf 'ERROR: %s\n' \
+                'Timed out waiting for lock, skipping this run' >&2
+            continue
+        fi
     fi
 
     for selection in "${cm_selections[@]}"; do
@@ -163,16 +155,45 @@ while true; do
             continue
         fi
 
+        if [[ ${last_data[$selection]} == "$data" ]]; then
+            debug 'Skipping as last selection is the same as this one'
+            continue
+        fi
+
+        last_data[$selection]=$data
+
         first_line=$(get_first_line "$data")
 
         debug "New clipboard entry on $selection selection: \"$first_line\""
 
-        filename="$cache_dir/$(cksum <<< "$first_line")"
-        debug "Writing $data to $filename"
-        printf '%s' "$data" > "$filename"
+        # Without checking ${last_data[any]}, we often double write since both
+        # selections get the same content
+        if [[ ${last_data[any]} != "$data" ]]; then
+            filename="$cache_dir/$(cksum <<< "$first_line")"
+            debug "Writing $data to $filename"
+            printf '%s' "$data" > "$filename"
 
-        debug "Writing $first_line to $cache_file"
-        printf '%s\n' "$first_line" >> "$cache_file"
+            debug "Writing $first_line to $cache_file"
+            printf '%s\n' "$first_line" >> "$cache_file"
+        fi
+
+        last_data[any]=$data
+
+        if (( CM_OWN_CLIPBOARD )) && [[ $selection != primary ]] &&
+           element_in clipboard "${cm_selections[@]}"; then
+            # Take ownership of the clipboard, in case the original application
+            # is unable to serve the clipboard request (due to being suspended,
+            # etc).
+            #
+            # Primary is excluded from the change of ownership as applications
+            # sometimes act up if clipboard focus is taken away from them --
+            # for example, urxvt will unhilight text, which is undesirable.
+            #
+            # We can't colocate this with the above copying code because
+            # https://github.com/cdown/clipmenu/issues/34 requires knowing if
+            # we would skip first.
+            _xsel -k --"$selection"
+        fi
 
         if (( CM_MAX_CLIPS )); then
             mapfile -t to_remove < <(
