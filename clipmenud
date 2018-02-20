@@ -7,9 +7,9 @@
 : "${CM_MAX_CLIPS=1000}"
 : "${CM_SELECTIONS=clipboard primary}"
 
-major_version=4
+major_version=5
 cache_dir=$CM_DIR/clipmenu.$major_version.$USER/
-cache_file=$cache_dir/line_cache
+cache_file_prefix=$cache_dir/line_cache
 lock_file=$cache_dir/lock
 lock_timeout=2
 has_clipnotify=0
@@ -166,6 +166,8 @@ while true; do
 
         debug "New clipboard entry on $selection selection: \"$first_line\""
 
+        cache_file=${cache_file_prefix}_$selection
+
         # Without checking ${last_data[any]}, we often double write since both
         # selections get the same content
         if [[ ${last_data[any]} != "$data" ]]; then
@@ -174,7 +176,7 @@ while true; do
             printf '%s' "$data" > "$filename"
 
             debug "Writing $first_line to $cache_file"
-            printf '%s\n' "$first_line" >> "$cache_file"
+            printf '%d %s\n' "$(date +%s)" "$first_line" >> "$cache_file"
         fi
 
         last_data[any]=$data
@@ -195,7 +197,7 @@ while true; do
             _xsel -k --"$selection"
         fi
 
-        if (( CM_MAX_CLIPS )); then
+        if (( CM_MAX_CLIPS )) && [[ -f $cache_file ]]; then
             mapfile -t to_remove < <(
                 head -n -"$CM_MAX_CLIPS" "$cache_file" |
                     while read -r line; do cksum <<< "$line"; done

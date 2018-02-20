@@ -3,12 +3,12 @@
 : "${CM_LAUNCHER=dmenu}"
 : "${CM_DIR="${XDG_RUNTIME_DIR-"${TMPDIR-/tmp}"}"}"
 
-major_version=4
+major_version=5
 
 shopt -s nullglob
 
 cache_dir=$CM_DIR/clipmenu.$major_version.$USER
-cache_file=$cache_dir/line_cache
+cache_file_prefix=$cache_dir/line_cache
 
 if [[ $1 == --help ]] || [[ $1 == -h ]]; then
     cat << 'EOF'
@@ -34,7 +34,10 @@ fi
 # whether `-l` is also in "$@", because the way that dmenu works allows a later
 # argument to override an earlier one. That is, if the user passes in `-l`, our
 # one will be ignored.
-chosen_line=$(tac "$cache_file" | awk '!seen[$0]++' | "$CM_LAUNCHER" -l 8 "$@")
+chosen_line=$(
+    cat "$cache_file_prefix"_* /dev/null | sort -rnk 1 | cut -d' ' -f2- |
+        awk '!seen[$0]++' | "$CM_LAUNCHER" -l 8 "$@"
+)
 
 [[ $chosen_line ]] || exit 1
 
