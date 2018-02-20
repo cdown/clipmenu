@@ -1,7 +1,7 @@
 [![Tests](https://img.shields.io/travis/cdown/clipmenu/develop.svg)](https://travis-ci.org/cdown/clipmenu)
 
-clipmenu is a simple clipboard manager using [dmenu][] (or [rofi][]) and
-[xsel][].
+clipmenu is a simple clipboard manager using [dmenu][] (or [rofi][] with
+`CM_LAUNCHER=rofi`) and [xsel][].
 
 # Demo
 
