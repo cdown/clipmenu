@@ -160,6 +160,15 @@ while true; do
             continue
         fi
 
+        # If we were in the middle of doing a selection when the previous poll
+        # ran, then we may have got a partial clip.
+        possible_partial=${last_data[$selection]}
+        if [[ $possible_partial && $data == "$possible_partial"* ]]; then
+            debug "$possible_partial is a possible partial of $data"
+            debug "Removing ${last_filename[$selection]}"
+            rm -- "${last_filename[$selection]}"
+        fi
+
         last_data[$selection]=$data
 
         first_line=$(get_first_line "$data")
