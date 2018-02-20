@@ -1,6 +1,6 @@
 #!/bin/bash
 
-major_version=4
+major_version=5
 
 msg() {
     printf '>>> %s\n' "$@" >&2
@@ -9,7 +9,7 @@ msg() {
 : "${CM_DIR="${XDG_RUNTIME_DIR-"${TMPDIR-/tmp}"}"}"
 
 dir=$CM_DIR/clipmenu.$major_version.$USER
-cache_file=$dir/line_cache
+cache_file=$dir/line_cache_primary
 
 log=$(mktemp)
 tim=$(mktemp)
@@ -62,7 +62,7 @@ if ! (( NO_RECREATE )); then
         )
         read -r first_line_raw <<< "$data"
         printf -v first_line '%s (%s lines)\n' "$first_line_raw" "$num_lines"
-        printf '%s' "$first_line" >> "$cache_file"
+        printf '%d %s' "$i" "$first_line" >> "$cache_file"
         fn=$dir/$(cksum <<< "$first_line")
         printf '%s' "$data" > "$fn"
     done

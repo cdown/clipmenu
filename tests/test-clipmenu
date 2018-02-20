@@ -6,9 +6,9 @@ set -o pipefail
 
 : "${CM_DIR="${XDG_RUNTIME_DIR-"${TMPDIR-/tmp}"}"}"
 
-major_version=4
+major_version=5
 dir=$CM_DIR/clipmenu.$major_version.$USER
-cache_file=$dir/line_cache
+cache_file=$dir/line_cache_primary
 
 if [[ $0 == /* ]]; then
     location=${0%/*}
@@ -58,8 +58,8 @@ rm -rf "$dir"
 mkdir -p "$dir"
 
 cat > "$cache_file" << 'EOF'
-Selected text. (2 lines)
-Selected text 2. (2 lines)
+1234 Selected text. (2 lines)
+1235 Selected text 2. (2 lines)
 EOF
 
 cat > "$dir/$(cksum <<< 'Selected text. (2 lines)')" << 'EOF'
@@ -70,7 +70,6 @@ EOF
 ### TESTS ###
 
 temp=$(mktemp)
-trap 'rm -f -- "$temp"' EXIT
 
 /tmp/clipmenu --foo bar > "$temp" 2>&1
 
