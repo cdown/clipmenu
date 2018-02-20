@@ -171,6 +171,12 @@ while true; do
         debug "New clipboard entry on $selection selection: \"$first_line\""
 
         filename="$cache_dir/$(cksum <<< "$first_line")"
+
+        if [[ -f $filename ]]; then
+            debug "Skipping as this already exists"
+            continue
+        fi
+
         debug "Writing $data to $filename"
         printf '%s' "$data" > "$filename"
 
