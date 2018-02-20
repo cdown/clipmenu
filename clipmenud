@@ -103,6 +103,8 @@ fi
 # shellcheck disable=SC2174
 mkdir -p -m0700 "$cache_dir"
 
+declare -A last_data
+
 command -v clipnotify >/dev/null 2>&1 && has_clipnotify=1
 
 if ! (( has_clipnotify )); then
@@ -153,16 +155,29 @@ while true; do
             continue
         fi
 
+        if [[ ${last_data[$selection]} == "$data" ]]; then
+            debug 'Skipping as last selection is the same as this one'
+            continue
+        fi
+
+        last_data[$selection]=$data
+
         first_line=$(get_first_line "$data")
 
         debug "New clipboard entry on $selection selection: \"$first_line\""
 
-        filename="$cache_dir/$(cksum <<< "$first_line")"
-        debug "Writing $data to $filename"
-        printf '%s' "$data" > "$filename"
+        # Without checking ${last_data[any]}, we often double write since both
+        # selections get the same content
+        if [[ ${last_data[any]} != "$data" ]]; then
+            filename="$cache_dir/$(cksum <<< "$first_line")"
+            debug "Writing $data to $filename"
+            printf '%s' "$data" > "$filename"
 
-        debug "Writing $first_line to $cache_file"
-        printf '%s\n' "$first_line" >> "$cache_file"
+            debug "Writing $first_line to $cache_file"
+            printf '%s\n' "$first_line" >> "$cache_file"
+        fi
+
+        last_data[any]=$data
 
         if (( CM_OWN_CLIPBOARD )) && [[ $selection != primary ]] &&
            element_in clipboard "${cm_selections[@]}"; then
