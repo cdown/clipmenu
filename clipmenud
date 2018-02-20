@@ -142,8 +142,14 @@ while true; do
     fi
 
     if ! flock -x -w "$lock_timeout" "$lock_fd"; then
-        printf 'ERROR: %s\n' 'Timed out waiting for lock' >&2
-        exit 1
+        if (( CM_ONESHOT )); then
+            printf 'ERROR: %s\n' 'Timed out waiting for lock' >&2
+            exit 1
+        else
+            printf 'ERROR: %s\n' \
+                'Timed out waiting for lock, skipping this run' >&2
+            continue
+        fi
     fi
 
     for selection in "${cm_selections[@]}"; do
