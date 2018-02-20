@@ -115,19 +115,6 @@ exec {lock_fd}> "$lock_file"
 sleep_cmd=(sleep "${CM_SLEEP:-0.5}")
 
 while true; do
-    # We need to take ownership synchronously before we run `clipnotify` as
-    # otherwise we could enter an infinite loop.
-    if (( CM_OWN_CLIPBOARD )) && element_in clipboard "${cm_selections[@]}"; then
-        # Take ownership of the clipboard, in case the original application
-        # is unable to serve the clipboard request (due to being suspended,
-        # etc).
-        #
-        # Primary is excluded from the change of ownership as applications
-        # sometimes act up if clipboard focus is taken away from them --
-        # for example, urxvt will unhilight text, which is undesirable.
-        _xsel -k --clipboard
-    fi
-
     if ! (( CM_ONESHOT )); then
         if (( has_clipnotify )); then
             # Fall back to polling if clipnotify fails
@@ -176,6 +163,22 @@ while true; do
 
         debug "Writing $first_line to $cache_file"
         printf '%s\n' "$first_line" >> "$cache_file"
+
+        if (( CM_OWN_CLIPBOARD )) && [[ $selection != primary ]] &&
+           element_in clipboard "${cm_selections[@]}"; then
+            # Take ownership of the clipboard, in case the original application
+            # is unable to serve the clipboard request (due to being suspended,
+            # etc).
+            #
+            # Primary is excluded from the change of ownership as applications
+            # sometimes act up if clipboard focus is taken away from them --
+            # for example, urxvt will unhilight text, which is undesirable.
+            #
+            # We can't colocate this with the above copying code because
+            # https://github.com/cdown/clipmenu/issues/34 requires knowing if
+            # we would skip first.
+            _xsel -k --"$selection"
+        fi
 
         if (( CM_MAX_CLIPS )); then
             mapfile -t to_remove < <(
