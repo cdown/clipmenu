@@ -190,7 +190,7 @@ while true; do
 
         # Without checking ${last_data[any]}, we often double write since both
         # selections get the same content
-        cache_file_output="$(date +%s) $first_line"
+        cache_file_output="$(date +%s%N) $first_line"
         if [[ ${last_data[any]} != "$data" ]]; then
             filename="$cache_dir/$(cksum <<< "$first_line")"
             debug "Writing $data to $filename"
