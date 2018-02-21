@@ -35,8 +35,8 @@ fi
 # argument to override an earlier one. That is, if the user passes in `-l`, our
 # one will be ignored.
 chosen_line=$(
-    cat "$cache_file_prefix"_* /dev/null | sort -rnk 1 | cut -d' ' -f2- |
-        awk '!seen[$0]++' | "$CM_LAUNCHER" -l 8 "$@"
+    cat "$cache_file_prefix"_* /dev/null | LC_ALL=C sort -rnk 1 |
+        cut -d' ' -f2- | awk '!seen[$0]++' | "$CM_LAUNCHER" -l 8 "$@"
 )
 
 [[ $chosen_line ]] || exit 1
