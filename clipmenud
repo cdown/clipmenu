@@ -121,11 +121,23 @@ exec {lock_fd}> "$lock_file"
 
 sleep_cmd=(sleep "${CM_SLEEP:-0.5}")
 
+if element_in primary "${cm_selections[@]}"; then
+    clipnotify_cmd="clipnotify"
+else
+    clipnotify_cmd="clipnotify --disable-primary"
+fi
+
+if element_in primary "${cm_selections[@]}"; then
+    clipnotify_cmd="clipnotify"
+else
+    clipnotify_cmd="clipnotify --disable-primary"
+            $clipnotify_cmd || "${sleep_cmd[@]}"
+
 while true; do
     if ! (( CM_ONESHOT )); then
         if (( has_clipnotify )); then
             # Fall back to polling if clipnotify fails
-            clipnotify || "${sleep_cmd[@]}"
+            $clipnotify_cmd || "${sleep_cmd[@]}"
         else
             # Use old polling method
             "${sleep_cmd[@]}"
