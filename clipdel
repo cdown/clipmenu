@@ -57,14 +57,10 @@ else
     )
 
     if (( CM_REAL_DELETE )); then
-        mapfile -t match_cksums < <(
-            for match in "${matches[@]}"; do cksum <<< "${line}"; done
-        )
-
         flock -x -w "$lock_timeout" "$lock_fd" || exit
 
         for match in "${matches[@]}"; do
-            ck=$(cksum <<< "$line")
+            ck=$(cksum <<< "$match")
             rm -f -- "$cache_dir/$ck"
         done
 
