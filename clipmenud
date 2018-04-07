@@ -32,8 +32,20 @@ for file in /proc/self/fd/2 /dev/stderr; do
     break
 done
 
+_sort() {
+    LC_ALL=C sort
+}
+
+get_clips_over() {
+    head -n -"$CM_MAX_CLIPS" "${1?cache file missing}" | strip_time | _sort
+}
+
 _xsel() {
     timeout 1 xsel --logfile "$xsel_log" "$@"
+}
+
+strip_time() {
+    cut -d' ' -f2-
 }
 
 get_first_line() {
@@ -221,9 +233,21 @@ while true; do
         fi
 
         if (( CM_MAX_CLIPS )) && [[ -f $cache_file ]]; then
+            # It's possible that this clip's content still exists in some other
+            # file, see issue #73. As such, we have to check the other files first.
+            all_cache_files=("$cache_file_prefix"_*)
+            files_to_compare=()
+            for file in "${all_cache_files[@]}"; do
+                [[ "$file" != "$cache_file" ]] && files_to_compare+=( "$file" )
+            done
             mapfile -t to_remove < <(
-                head -n -"$CM_MAX_CLIPS" "$cache_file" |
-                    while read -r line; do cksum <<< "${line#* }"; done
+                comm -23 \
+                    <(get_clips_over "$cache_file") \
+                    <(cat <(
+                        for file in "${files_to_compare[@]}"; do
+                            get_clips_over "$file"
+                        done
+                    )) | while read -r line; do cksum <<< "$line"; done
             )
             num_to_remove="${#to_remove[@]}"
             if (( num_to_remove )); then
