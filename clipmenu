@@ -59,7 +59,11 @@ file=$cache_dir/$(cksum <<< "$chosen_line")
 
 if ! [[ -f "$file" ]]; then
     # We didn't find this in cache
-    printf 'FATAL: %s not in cache\n' "$chosen_line" >&2
+    printf 'FATAL: %s not in cache (%s missing)\n' "$chosen_line" "$file" >&2
+    printf 'Please report the following debug information:\n\n' >&2
+    wc -l "$cache_file_prefix"_* >&2
+    grep -nFR "$chosen_line" "$cache_dir" >&2
+    stat "$file" >&2
     exit 2
 fi
 
