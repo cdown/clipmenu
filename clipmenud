@@ -181,15 +181,15 @@ while true; do
             rm -- "${last_filename[$selection]}"
         fi
 
-        last_data[$selection]=$data
-        last_filename[$selection]=$filename
-
         first_line=$(get_first_line "$data")
 
         debug "New clipboard entry on $selection selection: \"$first_line\""
 
         cache_file_output="$(date +%s%N) $first_line"
         filename="$cache_dir/$(cksum <<< "$first_line")"
+
+        last_data[$selection]=$data
+        last_filename[$selection]=$filename
 
         # Recover without restart if we deleted the entire clip dir.
         # It's ok that this only applies to the final directory.
