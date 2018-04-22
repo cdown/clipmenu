@@ -21,6 +21,8 @@ invoke clipmenu in exactly the same way to get the same effect, like so:
 
     clipmenu -i -fn Terminus:size=8 -nb '#002b36' -nf '#839496' -sb '#073642' -sf '#93a1a1'
 
+You can remove clips with the `clipdel` utility, see `clipdel --help`.
+
 # How does it work?
 
 The code is fairly simple and easy to follow, you may find it easier to read

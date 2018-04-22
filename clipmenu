@@ -30,14 +30,28 @@ if [[ "$CM_LAUNCHER" == rofi ]]; then
     set -- -dmenu "$@"
 fi
 
-# It's okay to hardcode `-l 8` here as a sensible default without checking
-# whether `-l` is also in "$@", because the way that dmenu works allows a later
-# argument to override an earlier one. That is, if the user passes in `-l`, our
-# one will be ignored.
-chosen_line=$(
-    cat "$cache_file_prefix"_* /dev/null | LC_ALL=C sort -rnk 1 |
-        cut -d' ' -f2- | awk '!seen[$0]++' | "$CM_LAUNCHER" -l 8 "$@"
-)
+list_clips() {
+    cat "$cache_file_prefix"_* /dev/null | LC_ALL=C sort -rnk 1 | cut -d' ' -f2- | awk '!seen[$0]++'
+}
+
+if [[ "$CM_LAUNCHER" == rofi-script ]]; then
+    if ! (( $# )); then
+        list_clips
+        exit
+    else
+        # https://github.com/koalaman/shellcheck/issues/1141
+        # shellcheck disable=SC2124
+        chosen_line="${@: -1}"
+    fi
+else
+    # It's okay to hardcode `-l 8` here as a sensible default without checking
+    # whether `-l` is also in "$@", because the way that dmenu works allows a later
+    # argument to override an earlier one. That is, if the user passes in `-l`, our
+    # one will be ignored.
+    chosen_line=$(
+        list_clips | "$CM_LAUNCHER" -l 8 "$@"
+    )
+fi
 
 [[ $chosen_line ]] || exit 1
 
@@ -45,7 +59,11 @@ file=$cache_dir/$(cksum <<< "$chosen_line")
 
 if ! [[ -f "$file" ]]; then
     # We didn't find this in cache
-    printf 'FATAL: %s not in cache\n' "$chosen_line" >&2
+    printf 'FATAL: %s not in cache (%s missing)\n' "$chosen_line" "$file" >&2
+    printf 'Please report the following debug information:\n\n' >&2
+    wc -l "$cache_file_prefix"_* >&2
+    grep -nFR "$chosen_line" "$cache_dir" >&2
+    stat "$file" >&2
     exit 2
 fi
 

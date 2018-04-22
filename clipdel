@@ -1,0 +1,79 @@
+#!/bin/bash
+
+: "${CM_DIR="${XDG_RUNTIME_DIR-"${TMPDIR-/tmp}"}"}"
+CM_REAL_DELETE=0
+[[ $1 == -d ]] && CM_REAL_DELETE=1
+
+major_version=5
+
+shopt -s nullglob
+
+cache_dir=$CM_DIR/clipmenu.$major_version.$USER
+cache_file_prefix=$cache_dir/line_cache
+lock_file=$cache_dir/lock
+lock_timeout=2
+
+if [[ $1 == --help ]] || [[ $1 == -h ]]; then
+    cat << 'EOF'
+clipdel deletes clipmenu entries matching a regex. By default, just lists what
+it would delete, pass -d to do it for real.
+
+".*" is special, it will just nuke the entire data directory, including the
+line caches and all other state.
+
+Arguments:
+
+    -d  Delete for real.
+
+Environment variables:
+
+- $CM_DIR: specify the base directory to store the cache dir in (default: $XDG_RUNTIME_DIR, $TMPDIR, or /tmp)
+EOF
+    exit 0
+fi
+
+line_cache_files=( "$cache_file_prefix"_* )
+
+if (( ${#line_cache_files[@]} == 0 )); then
+    printf '%s\n' "No line cache files found, no clips exist" >&2
+    exit 0  # Well, this is a kind of success...
+fi
+
+# https://github.com/koalaman/shellcheck/issues/1141
+# shellcheck disable=SC2124
+raw_pattern=${@: -1}
+esc_pattern=${raw_pattern/\#/'\#'}
+
+exec {lock_fd}> "$lock_file"
+
+if (( CM_REAL_DELETE )) && [[ "$raw_pattern" == ".*" ]]; then
+    flock -x -w "$lock_timeout" "$lock_fd" || exit
+    rm -rf -- "$cache_dir"
+    exit 0
+else
+    mapfile -t matches < <(
+        cat "${line_cache_files[@]}" | cut -d' ' -f2- | sort -u |
+            sed -n "\\#${esc_pattern}#p"
+    )
+
+    if (( CM_REAL_DELETE )); then
+        flock -x -w "$lock_timeout" "$lock_fd" || exit
+
+        for match in "${matches[@]}"; do
+            ck=$(cksum <<< "$match")
+            rm -f -- "$cache_dir/$ck"
+        done
+
+        for file in "${line_cache_files[@]}"; do
+            temp=$(mktemp)
+            cut -d' ' -f2- < "$file" | sed "\\#${esc_pattern}#d" > "$temp"
+            mv -- "$temp" "$file"
+        done
+
+        flock -u "$lock_fd"
+    else
+        if (( ${#matches[@]} )); then
+            printf '%s\n' "${matches[@]}"
+        fi
+    fi
+fi
