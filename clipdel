@@ -44,6 +44,11 @@ fi
 raw_pattern=${@: -1}
 esc_pattern=${raw_pattern/\#/'\#'}
 
+if ! [[ $raw_pattern ]]; then
+    printf '%s\n' 'No pattern provided, see --help' >&2
+    exit 2
+fi
+
 exec {lock_fd}> "$lock_file"
 
 if (( CM_REAL_DELETE )) && [[ "$raw_pattern" == ".*" ]]; then
