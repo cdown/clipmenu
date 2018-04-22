@@ -2,7 +2,10 @@
 
 : "${CM_DIR="${XDG_RUNTIME_DIR-"${TMPDIR-/tmp}"}"}"
 CM_REAL_DELETE=0
-[[ $1 == -d ]] && CM_REAL_DELETE=1
+if [[ $1 == -d ]]; then
+    CM_REAL_DELETE=1
+    shift
+fi
 
 major_version=5
 
@@ -41,7 +44,7 @@ fi
 
 # https://github.com/koalaman/shellcheck/issues/1141
 # shellcheck disable=SC2124
-raw_pattern=${@: -1}
+raw_pattern=$1
 esc_pattern=${raw_pattern/\#/'\#'}
 
 if ! [[ $raw_pattern ]]; then
