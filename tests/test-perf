@@ -35,10 +35,8 @@ exec 3>&2 2> >(tee "$log" |
                  date -f - +%s.%N > "$tim")
 set -x
 
-shopt -s expand_aliases
-
-alias dmenu=:
-alias xsel=:
+dmenu() { :; }
+xsel() { :; }
 
 EOF
 
