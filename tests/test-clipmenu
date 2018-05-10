@@ -81,8 +81,8 @@ grep -Fxq 'dmenu line 1 stdin: Selected text 2. (2 lines)' "$temp"
 grep -Fxq 'dmenu line 2 stdin: Selected text. (2 lines)' "$temp"
 
 # xsel should copy both to clipboard *and* primary
-grep -Fxq 'xsel args: --logfile /dev/stderr -i --clipboard' "$temp"
-grep -Fxq 'xsel args: --logfile /dev/stderr -i --primary' "$temp"
+grep -Fxq 'xsel args: --logfile /dev/null -i --clipboard' "$temp"
+grep -Fxq 'xsel args: --logfile /dev/null -i --primary' "$temp"
 
 grep -Fxq 'xsel line 1 stdin: Selected text.' "$temp"
 grep -Fxq "xsel line 2 stdin: Yes, it's selected text." "$temp"
