@@ -68,5 +68,5 @@ if ! [[ -f "$file" ]]; then
 fi
 
 for selection in clipboard primary; do
-    xsel --logfile /dev/stderr -i --"$selection" < "$file"
+    xsel --logfile /dev/null -i --"$selection" < "$file"
 done
