@@ -1,7 +1,17 @@
 #!/bin/bash
 
-: "${CM_LAUNCHER=dmenu}"
 : "${CM_DIR="${XDG_RUNTIME_DIR-"${TMPDIR-/tmp}"}"}"
+# Pick dmenu or rofi, depending on what's available on the system
+if [[ -z "$CM_LAUNCHER" ]]; then
+  if command -v dmenu >/dev/null 2>&1; then
+    CM_LAUNCHER=dmenu
+  elif command -v rofi >/dev/null 2>&1; then
+    CM_LAUNCHER=rofi
+  else
+    echo "Neither dmenu(1) nor rofi(1) were found." >&2
+    exit 5
+  fi
+fi
 
 major_version=5
 
