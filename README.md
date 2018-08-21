@@ -23,6 +23,14 @@ invoke clipmenu in exactly the same way to get the same effect, like so:
 
 You can remove clips with the `clipdel` utility, see `clipdel --help`.
 
+# Installation
+
+Several distributions, including Arch and Nix, provide clipmenu as an official
+package called `clipmenu`.
+
+If your distribution doesn't provide a package, you can run the scripts
+standalone (or better yet, package them!).
+
 # How does it work?
 
 The code is fairly simple and easy to follow, you may find it easier to read
