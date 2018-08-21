@@ -80,11 +80,11 @@ when you want to select a clip.
 
 Environment variables:
 
-- $CM_ONESHOT: run once immediately, do not loop (default: 0)
 - $CM_DEBUG: turn on debugging output (default: 0)
-- $CM_OWN_CLIPBOARD: take ownership of the clipboard (default: 1)
-- $CM_MAX_CLIPS: maximum number of clips to store, 0 for inf (default: 1000)
 - $CM_DIR: specify the base directory to store the cache dir in (default: $XDG_RUNTIME_DIR, $TMPDIR, or /tmp)
+- $CM_MAX_CLIPS: maximum number of clips to store, 0 for inf (default: 1000)
+- $CM_ONESHOT: run once immediately, do not loop (default: 0)
+- $CM_OWN_CLIPBOARD: take ownership of the clipboard (default: 1)
 - $CM_SELECTIONS: space separated list of the selections to manage (default: "clipboard primary")
 EOF
     exit 0
