@@ -22,6 +22,7 @@ Environment variables:
 
 - $CM_LAUNCHER: specify a dmenu-compatible launcher (default: dmenu)
 - $CM_DIR: specify the base directory to store the cache dir in (default: $XDG_RUNTIME_DIR, $TMPDIR, or /tmp)
+- $CM_HISTLENGTH: specify the number of lines to show in dmenu/rofi (default: 8)
 EOF
     exit 0
 fi
