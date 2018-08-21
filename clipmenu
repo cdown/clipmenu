@@ -1,14 +1,14 @@
 #!/bin/bash
 
 : "${CM_LAUNCHER=dmenu}"
-: "${CM_DIR="${XDG_RUNTIME_DIR-"${TMPDIR-/tmp}"}"}"
+: "${CM_DIR="${XDG_RUNTIME_DIR:-"${TMPDIR:-/tmp}"}"}"
 
 major_version=5
 
 shopt -s nullglob
 
-cache_dir=$CM_DIR/clipmenu.$major_version.$USER
-cache_file_prefix=$cache_dir/line_cache
+cache_dir="${CM_DIR}/clipmenu.${major_version}.${USER}"
+cache_file_prefix="${cache_dir}/line_cache"
 
 if [[ $1 == --help ]] || [[ $1 == -h ]]; then
     cat << 'EOF'
