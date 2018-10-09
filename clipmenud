@@ -86,6 +86,7 @@ Environment variables:
 - $CM_ONESHOT: run once immediately, do not loop (default: 0)
 - $CM_OWN_CLIPBOARD: take ownership of the clipboard (default: 1)
 - $CM_SELECTIONS: space separated list of the selections to manage (default: "clipboard primary")
+- $CM_IGNORE_WINDOW: disable recording the clipboard in windows where the windowname matches the given regex (e.g. a passwordmanager), do not ignore any windows if unset (default: unset)
 EOF
     exit 0
 fi
@@ -119,6 +120,12 @@ while true; do
             # Use old polling method
             "${sleep_cmd[@]}"
         fi
+    fi
+
+    windowname="$(xdotool getactivewindow getwindowname)"
+    if [[ -n "${CM_IGNORE_WINDOW+x}" && "$windowname" =~ $CM_IGNORE_WINDOW ]]; then
+        debug "ignoring clipboard because windowname \"$windowname\" matches \"${CM_IGNORE_WINDOW}\""
+        continue
     fi
 
     if ! flock -x -w "$lock_timeout" "$lock_fd"; then
