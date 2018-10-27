@@ -19,7 +19,8 @@ lock_timeout=2
 if [[ $1 == --help ]] || [[ $1 == -h ]]; then
     cat << 'EOF'
 clipdel deletes clipmenu entries matching a regex. By default, just lists what
-it would delete, pass -d to do it for real.
+it would delete, pass -d to do it for real. If no pattern is passed as an argument,
+it will try to read one from standard input.
 
 ".*" is special, it will just nuke the entire data directory, including the
 line caches and all other state.
@@ -40,7 +41,12 @@ if ! [[ -f $cache_file ]]; then
     exit 0  # Well, this is a kind of success...
 fi
 
-raw_pattern=$1
+if [[ -n $1 ]]; then
+    raw_pattern=$1
+elif ! [[ -t 0 ]]; then
+    IFS= read -r raw_pattern
+fi
+
 esc_pattern=${raw_pattern//\#/'\#'}
 
 # We use 2 separate sed commands so "esc_pattern" matches only the 'clip' text
