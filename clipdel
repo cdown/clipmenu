@@ -40,8 +40,6 @@ if ! [[ -f $cache_file ]]; then
     exit 0  # Well, this is a kind of success...
 fi
 
-# https://github.com/koalaman/shellcheck/issues/1141
-# shellcheck disable=SC2124
 raw_pattern=$1
 esc_pattern=${raw_pattern//\#/'\#'}
 
