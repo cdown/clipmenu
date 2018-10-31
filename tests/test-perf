@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 major_version=5
 
@@ -28,7 +28,7 @@ fi
 msg 'Setting up edited clipmenu'
 
 cat - "$location/../clipmenu" > /tmp/clipmenu << EOF
-#!/bin/bash
+#!/usr/bin/env bash
 
 exec 3>&2 2> >(tee "$log" |
                  sed -u 's/^.*$/now/' |
