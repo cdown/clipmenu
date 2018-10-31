@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 : "${CM_ONESHOT=0}"
 : "${CM_OWN_CLIPBOARD=1}"
