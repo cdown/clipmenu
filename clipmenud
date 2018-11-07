@@ -129,10 +129,12 @@ while true; do
         fi
     fi
 
-    windowname="$(xdotool getactivewindow getwindowname)"
-    if [[ -n "${CM_IGNORE_WINDOW+x}" && "$windowname" =~ $CM_IGNORE_WINDOW ]]; then
-        debug "ignoring clipboard because windowname \"$windowname\" matches \"${CM_IGNORE_WINDOW}\""
-        continue
+    if [[ "${CM_IGNORE_WINDOW}" && (( has_xdotool ))]]; then
+        windowname="$(xdotool getactivewindow getwindowname)"
+        if [[ "$windowname" =~ $CM_IGNORE_WINDOW ]]; then
+            debug "ignoring clipboard because windowname \"$windowname\" matches \"${CM_IGNORE_WINDOW}\""
+            continue
+        fi
     fi
 
     if ! flock -x -w "$lock_timeout" "$lock_fd"; then
