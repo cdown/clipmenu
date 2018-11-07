@@ -16,6 +16,7 @@ cache_file_prefix=$cache_dir/line_cache
 lock_file=$cache_dir/lock
 lock_timeout=2
 has_clipnotify=0
+has_xdotool=0
 
 # This comes from the environment, so we rely on word splitting.
 # shellcheck disable=SC2206
@@ -105,6 +106,12 @@ command -v clipnotify >/dev/null 2>&1 && has_clipnotify=1
 if ! (( has_clipnotify )); then
     echo "WARN: Consider installing clipnotify for better performance." >&2
     echo "WARN: See https://github.com/cdown/clipnotify." >&2
+fi
+
+command -v xdotool >/dev/null 2>&1 && has_xdotool=1
+
+if [[ "$CM_IGNORE_WINDOW" && ! (( has_xdotool )) ]]; then
+    echo "WARN: CM_IGNORE_WINDOW does not work without xdotool, which is not installed" >&2
 fi
 
 exec {lock_fd}> "$lock_file"
