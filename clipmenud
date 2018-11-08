@@ -129,7 +129,7 @@ while true; do
         fi
     fi
 
-    if [[ "${CM_IGNORE_WINDOW}" && (( has_xdotool ))]]; then
+    if [[ $CM_IGNORE_WINDOW ]] && (( has_xdotool )); then
         windowname="$(xdotool getactivewindow getwindowname)"
         if [[ "$windowname" =~ $CM_IGNORE_WINDOW ]]; then
             debug "ignoring clipboard because windowname \"$windowname\" matches \"${CM_IGNORE_WINDOW}\""
