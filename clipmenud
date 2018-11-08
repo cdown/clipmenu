@@ -87,7 +87,7 @@ Environment variables:
 - $CM_ONESHOT: run once immediately, do not loop (default: 0)
 - $CM_OWN_CLIPBOARD: take ownership of the clipboard (default: 1)
 - $CM_SELECTIONS: space separated list of the selections to manage (default: "clipboard primary")
-- $CM_IGNORE_WINDOW: disable recording the clipboard in windows where the windowname matches the given regex (e.g. a passwordmanager), do not ignore any windows if unset (default: unset)
+- $CM_IGNORE_WINDOW: disable recording the clipboard in windows where the windowname matches the given regex (e.g. a password manager), do not ignore any windows if unset or empty (default: unset)
 EOF
     exit 0
 fi
