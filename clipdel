@@ -45,7 +45,7 @@ fi
 # https://github.com/koalaman/shellcheck/issues/1141
 # shellcheck disable=SC2124
 raw_pattern=$1
-esc_pattern=${raw_pattern/\#/'\#'}
+esc_pattern=${raw_pattern//\#/'\#'}
 
 if ! [[ $raw_pattern ]]; then
     printf '%s\n' 'No pattern provided, see --help' >&2
