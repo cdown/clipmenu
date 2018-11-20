@@ -16,6 +16,7 @@ cache_file_prefix=$cache_dir/line_cache
 lock_file=$cache_dir/lock
 lock_timeout=2
 has_clipnotify=0
+has_xdotool=0
 
 # This comes from the environment, so we rely on word splitting.
 # shellcheck disable=SC2206
@@ -93,6 +94,7 @@ Environment variables:
 - $CM_ONESHOT: run once immediately, do not loop (default: 0)
 - $CM_OWN_CLIPBOARD: take ownership of the clipboard (default: 1)
 - $CM_SELECTIONS: space separated list of the selections to manage (default: "clipboard primary")
+- $CM_IGNORE_WINDOW: disable recording the clipboard in windows where the windowname matches the given regex (e.g. a password manager), do not ignore any windows if unset or empty (default: unset)
 EOF
     exit 0
 fi
@@ -113,6 +115,12 @@ if ! (( has_clipnotify )); then
     echo "WARN: See https://github.com/cdown/clipnotify." >&2
 fi
 
+command -v xdotool >/dev/null 2>&1 && has_xdotool=1
+
+if [[ $CM_IGNORE_WINDOW ]] && ! (( has_xdotool )); then
+    echo "WARN: CM_IGNORE_WINDOW does not work without xdotool, which is not installed" >&2
+fi
+
 exec {lock_fd}> "$lock_file"
 
 sleep_cmd=(sleep "${CM_SLEEP:-0.5}")
@@ -125,6 +133,14 @@ while true; do
         else
             # Use old polling method
             "${sleep_cmd[@]}"
+        fi
+    fi
+
+    if [[ $CM_IGNORE_WINDOW ]] && (( has_xdotool )); then
+        windowname="$(xdotool getactivewindow getwindowname)"
+        if [[ "$windowname" =~ $CM_IGNORE_WINDOW ]]; then
+            debug "ignoring clipboard because windowname \"$windowname\" matches \"${CM_IGNORE_WINDOW}\""
+            continue
         fi
     fi
 
