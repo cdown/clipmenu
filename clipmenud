@@ -128,8 +128,11 @@ sleep_cmd=(sleep "${CM_SLEEP:-0.5}")
 while true; do
     if ! (( CM_ONESHOT )); then
         if (( has_clipnotify )); then
-            # Fall back to polling if clipnotify fails
-            clipnotify || "${sleep_cmd[@]}"
+            if ! clipnotify; then
+                echo "clipnotify failed"
+                exit 1
+            fi
+
         else
             # Use old polling method
             "${sleep_cmd[@]}"
