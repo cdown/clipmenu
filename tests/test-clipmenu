@@ -71,7 +71,8 @@ EOF
 
 temp=$(mktemp)
 
-/tmp/clipmenu --foo bar > "$temp" 2>&1
+# Use script so clipmenu thinks its output is going to a terminal
+script -qfc "/tmp/clipmenu --foo bar 2>&1" /dev/null | tr -d '\015' > "$temp"
 
 # Arguments are transparently passed to dmenu
 grep -Fxq 'dmenu args: -l 8 --foo bar' "$temp"
@@ -87,7 +88,7 @@ grep -Fxq 'xsel args: --logfile /dev/null -i --primary' "$temp"
 grep -Fxq 'xsel line 1 stdin: Selected text.' "$temp"
 grep -Fxq "xsel line 2 stdin: Yes, it's selected text." "$temp"
 
-CM_LAUNCHER=rofi /tmp/clipmenu --foo bar > "$temp" 2>&1
+script -qfc "env CM_LAUNCHER=rofi /tmp/clipmenu --foo bar 2>&1" /dev/null | tr -d '\015' > "$temp"
 
 # We have a special case to add -dmenu for rofi
 grep -Fxq 'rofi args: -l 8 -dmenu --foo bar' "$temp"

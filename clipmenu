@@ -45,6 +45,9 @@ if [[ "$CM_LAUNCHER" == rofi-script ]]; then
         # shellcheck disable=SC2124
         chosen_line="${@: -1}"
     fi
+elif [[ ! -t 1 ]]; then
+    list_clips | "$CM_LAUNCHER" -l "${CM_HISTLENGTH}" "$@"
+    exit $?
 else
     chosen_line=$(
         list_clips | "$CM_LAUNCHER" -l "${CM_HISTLENGTH}" "$@"
