@@ -2,10 +2,10 @@
 
 : "${CM_DIR="${XDG_RUNTIME_DIR-"${TMPDIR-/tmp}"}"}"
 CM_REAL_DELETE=0
-if [[ $1 == -d ]]; then
-    CM_REAL_DELETE=1
-    shift
-fi
+CM_REQUIRE_PATTERN=1
+CM_FUNCTION=''
+CM_PATTERNS=()
+CM_OLDER_THAN=''
 
 major_version=5
 
@@ -16,72 +16,164 @@ cache_file_prefix=$cache_dir/line_cache
 lock_file=$cache_dir/lock
 lock_timeout=2
 
-if [[ $1 == --help ]] || [[ $1 == -h ]]; then
-    cat << 'EOF'
-clipdel deletes clipmenu entries matching a regex. By default, just lists what
-it would delete, pass -d to do it for real.
+line_cache_files=( "$cache_file_prefix"_* )
 
-".*" is special, it will just nuke the entire data directory, including the
-line caches and all other state.
+check_conflict() {
+    if [[ -z "$CM_FUNCTION" ]]; then
+        CM_FUNCTION="$1"
+        CM_REQUIRE_PATTERN=$2
+        if ! ((CM_REQUIRE_PATTERN)) && ((${#CM_PATTERNS[@]})); then
+            printf '%s\n' "Too many arguments" >&2
+            return 2
+        fi
+    else
+       printf '%s\n' "${3:-Options '$1' and '$CM_FUNCTION' conflict}" >&2
+       return 1
+    fi
+}
+
+print_usage() {
+    cat << 'EOF'
+Usage: clipdel [OPTION] [REGEX]
+Delete clipmenu entries.
 
 Arguments:
 
-    -d  Delete for real.
+    --all                      Delete all entries
+    -c, --current              Delete current entry
+    -d, --delete               Delete for real (default when deleting all, current or from stdin)
+    -t, --older-than <STRING>  Delete entries older than STRING (format: N UNIT [N UNIT...])
+    -h, --help                 Print this message
+
+Examples:
+
+    clipmenu | clipdel         Launch clipmenu and delete selected entry
+    clipdel -d "bye world"     Delete all entries containing "bye world"
+    clipdel -t "10 hours" -d   Delete all entries older than 10 hours
+    clipdel -t "1 year 1 day"  List entries older than 1 year plus 1 day
 
 Environment variables:
 
 - $CM_DIR: specify the base directory to store the cache dir in (default: $XDG_RUNTIME_DIR, $TMPDIR, or /tmp)
 EOF
-    exit 0
-fi
+}
 
-line_cache_files=( "$cache_file_prefix"_* )
+while (($# > 0)); do
+    case "$1" in
+        --all|-c|--current) check_conflict "$1" 0 || exit 1;;
+        -d|--delete) CM_REAL_DELETE=1;;
+        -h|--help)
+            print_usage
+            exit 0
+            ;;
+        -t|--older-than)
+            check_conflict "$1" 0 || exit 1
+            shift
+            if [[ "$1" ]]; then
+                date_format=$(sed "s,\([0-9]\+ [A-Za-z]\+\),\1 ago,g" <<< "$1")
+                CM_OLDER_THAN=$(date --date="$date_format" +%s%N 2> /dev/null) ||
+                {
+                    printf '%s\n' "Unrecognized date format '$1'" >&2
+                    exit 1
+                }
+            else
+                printf '%s\n' "Missing date format" >&2
+                exit 1
+            fi
+            ;;
+        --|[!-]*)
+            if ((CM_REQUIRE_PATTERN)) && ! ((${#CM_PATTERNS[@]})); then
+                if [[ "$1" == "--" ]]; then
+                    shift
+                    (( $# )) && CM_PATTERNS=("$*")
+                    break
+                fi
+                CM_PATTERNS=("$1")
+            else
+                printf '%s\n' "Too many arguments" >&2
+                exit 1
+            fi
+            ;;
+        -*)
+            printf '%s\n' "Unrecognized option '$1'" >&2
+            exit 1
+            ;;
+    esac
+    shift
+done
 
 if (( ${#line_cache_files[@]} == 0 )); then
     printf '%s\n' "No line cache files found, no clips exist" >&2
     exit 0  # Well, this is a kind of success...
-fi
-
-# https://github.com/koalaman/shellcheck/issues/1141
-# shellcheck disable=SC2124
-raw_pattern=$1
-esc_pattern=${raw_pattern//\#/'\#'}
-
-if ! [[ $raw_pattern ]]; then
+elif [[ -p /dev/stdin ]]; then
+    check_conflict "stdin" 0 "Option '$CM_FUNCTION' can't be used when reading from stdin" || exit 1
+    CM_REAL_DELETE=1
+    IFS=$'\n' read -d '' -r -a CM_PATTERNS < /dev/stdin
+elif (( CM_REQUIRE_PATTERN )) && ! (( ${#CM_PATTERNS[@]} )); then
     printf '%s\n' 'No pattern provided, see --help' >&2
     exit 2
 fi
 
 exec {lock_fd}> "$lock_file"
 
-if (( CM_REAL_DELETE )) && [[ "$raw_pattern" == ".*" ]]; then
-    flock -x -w "$lock_timeout" "$lock_fd" || exit
-    rm -rf -- "$cache_dir"
-    exit 0
-else
-    mapfile -t matches < <(
-        cat "${line_cache_files[@]}" | cut -d' ' -f2- | sort -u |
-            sed -n "\\#${esc_pattern}#p"
-    )
-
-    if (( CM_REAL_DELETE )); then
+case "$CM_FUNCTION" in
+    stdin) matches=("${CM_PATTERNS[@]}");;
+    --all)
         flock -x -w "$lock_timeout" "$lock_fd" || exit
+        rm -rf -- "$cache_dir"
+        exit 0
+        ;;
+    -c|--current)
+        CM_REAL_DELETE=1
+        mapfile -t matches < <(
+            cat "$cache_file_prefix"_* /dev/null | LC_ALL=C sort -rnk 1 | cut -d' ' -f2- | head -n 1
+        )
+        ;;
+    -t|--older-than)
+        mapfile -t matches < <(
+            cat "${line_cache_files[@]}" | LC_ALL=C sort -rnk 1 | while read line; do
+                if [[ $(cut -d' ' -f1 <<< "$line") -lt $CM_OLDER_THAN ]]; then
+                    cut -d' ' -f2- <<< "$line"
+                fi
+            done | tac
+        )
+        ;;
+    *)
+        # https://github.com/koalaman/shellcheck/issues/1141
+        # shellcheck disable=SC2124
+        mapfile -t matches < <(
+            cat "${line_cache_files[@]}" | cut -d' ' -f2- | sort -u |
+                sed -n "\\#${CM_PATTERNS[0]//\#/'\#'}#p"
+        )
+        ;;
+esac
 
-        for match in "${matches[@]}"; do
-            ck=$(cksum <<< "$match")
+if (( CM_REAL_DELETE )); then
+    flock -x -w "$lock_timeout" "$lock_fd" || exit
+
+    for match in "${matches[@]}"; do
+        ck=$(cksum <<< "$match")
+        if [[ -f "$cache_dir/$ck" ]]; then
             rm -f -- "$cache_dir/$ck"
-        done
+        else
+            printf '%s\n' "Couldn't find a cache file for '$match'" >&2
+        fi
 
         for file in "${line_cache_files[@]}"; do
-            temp=$(mktemp)
-            cut -d' ' -f2- < "$file" | sed "\\#${esc_pattern}#d" > "$temp"
-            mv -- "$temp" "$file"
+            safe_line=$(sed 's/[[\.*^$/]/\\&/g' <<< "$match")
+            sed -i "/^[0-9]\+ ${safe_line}$/d" "$file"
         done
+    done
 
-        flock -u "$lock_fd"
-    else
-        if (( ${#matches[@]} )); then
-            printf '%s\n' "${matches[@]}"
-        fi
+    ck=$(cat "$cache_file_prefix"_* /dev/null | LC_ALL=C sort -rnk 1 | cut -d' ' -f2- | head -n 1 | cksum)
+    [[ -f "$cache_dir/$ck" ]] &&
+    for selection in clipboard primary; do
+        xsel --logfile /dev/null -i --"$selection" < "$cache_dir/$ck"
+    done
+
+    flock -u "$lock_fd"
+else
+    if (( ${#matches[@]} )); then
+        printf '%s\n' "${matches[@]}"
     fi
 fi
