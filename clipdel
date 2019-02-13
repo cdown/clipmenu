@@ -95,7 +95,7 @@ while (($# > 0)); do
             fi
             ;;
         -*)
-            printf '%s\n' "Unrecognized option '$1'" >&2
+            printf "Unrecognized option '%s'\n" "$1" >&2
             exit 1
             ;;
     esac
