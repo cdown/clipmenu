@@ -47,7 +47,7 @@ if [[ "$CM_LAUNCHER" == rofi-script ]]; then
     fi
 elif [[ ! -t 1 ]]; then
     list_clips | "$CM_LAUNCHER" -l "${CM_HISTLENGTH}" "$@"
-    exit $?
+    exit
 else
     chosen_line=$(
         list_clips | "$CM_LAUNCHER" -l "${CM_HISTLENGTH}" "$@"
