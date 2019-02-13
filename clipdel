@@ -35,19 +35,19 @@ check_conflict() {
 print_usage() {
     cat << 'EOF'
 Usage: clipdel [OPTION] [REGEX]
-Delete clipmenu entries.
+Delete clipmenu entries. If -d or --delete is not specified only a dry run is performed.
 
 Arguments:
 
     --all                      Delete all entries
     -c, --current              Delete current entry
-    -d, --delete               Delete for real (default when deleting all, current or from stdin)
+    -d, --delete               Delete for real
     -t, --older-than <STRING>  Delete entries older than STRING (format: N UNIT [N UNIT...])
     -h, --help                 Print this message
 
 Examples:
 
-    clipmenu | clipdel         Launch clipmenu and delete selected entry
+    clipmenu | clipdel -d      Launch clipmenu and delete selected entry
     clipdel -d "bye world"     Delete all entries containing "bye world"
     clipdel -t "10 hours" -d   Delete all entries older than 10 hours
     clipdel -t "1 year 1 day"  List entries older than 1 year plus 1 day
@@ -107,7 +107,6 @@ if (( ${#line_cache_files[@]} == 0 )); then
     exit 0  # Well, this is a kind of success...
 elif [[ -p /dev/stdin ]]; then
     check_conflict "stdin" 0 "Option '$CM_FUNCTION' can't be used when reading from stdin" || exit 1
-    CM_REAL_DELETE=1
     IFS=$'\n' read -d '' -r -a CM_PATTERNS < /dev/stdin
 elif (( CM_REQUIRE_PATTERN )) && ! (( ${#CM_PATTERNS[@]} )); then
     printf '%s\n' 'No pattern provided, see --help' >&2
@@ -119,12 +118,17 @@ exec {lock_fd}> "$lock_file"
 case "$CM_FUNCTION" in
     stdin) matches=("${CM_PATTERNS[@]}");;
     --all)
-        flock -x -w "$lock_timeout" "$lock_fd" || exit
-        rm -rf -- "$cache_dir"
-        exit 0
+        if (( CM_REAL_DELETE )); then
+            flock -x -w "$lock_timeout" "$lock_fd" || exit
+            rm -rf -- "$cache_dir"
+            exit 0
+        else
+            mapfile -t matches < <(
+               cat "$cache_file_prefix"_* /dev/null | LC_ALL=C sort -rnk 1 | cut -d' ' -f2-
+            )
+        fi
         ;;
     -c|--current)
-        CM_REAL_DELETE=1
         mapfile -t matches < <(
             cat "$cache_file_prefix"_* /dev/null | LC_ALL=C sort -rnk 1 | cut -d' ' -f2- | head -n 1
         )
