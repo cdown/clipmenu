@@ -105,7 +105,7 @@ done
 if (( ${#line_cache_files[@]} == 0 )); then
     printf '%s\n' "No line cache files found, no clips exist" >&2
     exit 0  # Well, this is a kind of success...
-elif [[ -p /dev/stdin ]]; then
+elif [[ -p /dev/stdin ]] || [[ -s /dev/stdin ]]; then
     check_conflict "stdin" 0 "Option '$CM_FUNCTION' can't be used when reading from stdin" || exit 1
     IFS=$'\n' read -d '' -r -a CM_PATTERNS < /dev/stdin
 elif (( CM_REQUIRE_PATTERN )) && ! (( ${#CM_PATTERNS[@]} )); then
