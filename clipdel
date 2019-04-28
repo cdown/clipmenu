@@ -47,6 +47,10 @@ fi
 raw_pattern=$1
 esc_pattern=${raw_pattern//\#/'\#'}
 
+# We use 2 separate sed commands so "esc_pattern" matches only the 'clip' text
+# without the timestamp (e.g. $> clipdel '^delete_exact_match$')
+sed_common_command="s#^[0-9]\+ ##;\\#${esc_pattern}#"
+
 if ! [[ $raw_pattern ]]; then
     printf '%s\n' 'No pattern provided, see --help' >&2
     exit 2
@@ -60,8 +64,8 @@ if (( CM_REAL_DELETE )) && [[ "$raw_pattern" == ".*" ]]; then
     exit 0
 else
     mapfile -t matches < <(
-        cat "${line_cache_files[@]}" | cut -d' ' -f2- | sort -u |
-            sed -n "\\#${esc_pattern}#p"
+        sed -n "${sed_common_command}p" "${line_cache_files[@]}" |
+            sort -u
     )
 
     if (( CM_REAL_DELETE )); then
@@ -74,7 +78,11 @@ else
 
         for file in "${line_cache_files[@]}"; do
             temp=$(mktemp)
-            cut -d' ' -f2- < "$file" | sed "\\#${esc_pattern}#d" > "$temp"
+            # sed 'h' and 'g' here means save and restore the line, so
+            # timestamps are not removed from non-deleted lines. 'd' deletes the
+            # line and restarts, skipping 'g'/restore.
+            # https://www.gnu.org/software/sed/manual/html_node/Other-Commands.html#Other-Commands
+            sed "h;${sed_common_command}d;g" "$file" > "$temp"
             mv -- "$temp" "$file"
         done
 
