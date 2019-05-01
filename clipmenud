@@ -13,7 +13,12 @@
 major_version=5
 cache_dir=$CM_DIR/clipmenu.$major_version.$USER/
 cache_file_prefix=$cache_dir/line_cache
+
+# lock_file is the lock for *one* iteration of clipboard capture/propagation.
+# session_lock_file is the lock to prevent multiple clipmenud daemons from
+# running at once.
 lock_file=$cache_dir/lock
+session_lock_file=$cache_dir/session_lock
 lock_timeout=2
 has_clipnotify=0
 has_xdotool=0
@@ -103,6 +108,13 @@ fi
 # It's ok that this only applies to the final directory.
 # shellcheck disable=SC2174
 mkdir -p -m0700 "$cache_dir"
+
+exec {session_lock_fd}> "$session_lock_file"
+
+if ! flock -x -n "$session_lock_fd"; then
+    printf 'ERROR: %s\n' "Can't lock session file"
+    exit 2
+fi
 
 declare -A last_data
 declare -A last_filename
