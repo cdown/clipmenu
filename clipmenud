@@ -38,6 +38,15 @@ _xsel() {
     "${timeout_cmd[@]}" xsel --logfile /dev/null "$@"
 }
 
+error() {
+    printf 'ERROR: %s\n' "${1?}" >&2
+}
+
+die() {
+    error "${2?}"
+    exit "${1?}"
+}
+
 get_first_line() {
     # Args:
     # - $1, the file or data
@@ -111,10 +120,7 @@ mkdir -p -m0700 "$cache_dir"
 
 exec {session_lock_fd}> "$session_lock_file"
 
-if ! flock -x -n "$session_lock_fd"; then
-    printf 'ERROR: %s\n' "Can't lock session file"
-    exit 2
-fi
+flock -x -n "$session_lock_fd" || die 2 "Can't lock session file"
 
 declare -A last_data
 declare -A last_filename
@@ -158,11 +164,9 @@ while true; do
 
     if ! flock -x -w "$lock_timeout" "$lock_fd"; then
         if (( CM_ONESHOT )); then
-            printf 'ERROR: %s\n' 'Timed out waiting for lock' >&2
-            exit 1
+            die 1 "Timed out waiting for lock"
         else
-            printf 'ERROR: %s\n' \
-                'Timed out waiting for lock, skipping this run' >&2
+            error "Timed out waiting for lock, skipping this iteration"
             continue
         fi
     fi
