@@ -120,7 +120,8 @@ mkdir -p -m0700 "$cache_dir"
 
 exec {session_lock_fd}> "$session_lock_file"
 
-flock -x -n "$session_lock_fd" || die 2 "Can't lock session file"
+flock -x -n "$session_lock_fd" ||
+    die 2 "Can't lock session file -- is another clipmenud running?"
 
 declare -A last_data
 declare -A last_filename
