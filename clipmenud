@@ -13,7 +13,12 @@
 major_version=5
 cache_dir=$CM_DIR/clipmenu.$major_version.$USER/
 cache_file_prefix=$cache_dir/line_cache
+
+# lock_file is the lock for *one* iteration of clipboard capture/propagation.
+# session_lock_file is the lock to prevent multiple clipmenud daemons from
+# running at once.
 lock_file=$cache_dir/lock
+session_lock_file=$cache_dir/session_lock
 lock_timeout=2
 has_clipnotify=0
 has_xdotool=0
@@ -31,6 +36,15 @@ fi
 
 _xsel() {
     "${timeout_cmd[@]}" xsel --logfile /dev/null "$@"
+}
+
+error() {
+    printf 'ERROR: %s\n' "${1?}" >&2
+}
+
+die() {
+    error "${2?}"
+    exit "${1?}"
 }
 
 get_first_line() {
@@ -104,6 +118,11 @@ fi
 # shellcheck disable=SC2174
 mkdir -p -m0700 "$cache_dir"
 
+exec {session_lock_fd}> "$session_lock_file"
+
+flock -x -n "$session_lock_fd" ||
+    die 2 "Can't lock session file -- is another clipmenud running?"
+
 declare -A last_data
 declare -A last_filename
 declare -A last_cache_file_output
@@ -146,11 +165,9 @@ while true; do
 
     if ! flock -x -w "$lock_timeout" "$lock_fd"; then
         if (( CM_ONESHOT )); then
-            printf 'ERROR: %s\n' 'Timed out waiting for lock' >&2
-            exit 1
+            die 1 "Timed out waiting for lock"
         else
-            printf 'ERROR: %s\n' \
-                'Timed out waiting for lock, skipping this run' >&2
+            error "Timed out waiting for lock, skipping this iteration"
             continue
         fi
     fi
