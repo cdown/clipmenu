@@ -23,6 +23,7 @@ Environment variables:
 - $CM_DIR: specify the base directory to store the cache dir in (default: $XDG_RUNTIME_DIR, $TMPDIR, or /tmp)
 - $CM_HISTLENGTH: specify the number of lines to show in dmenu/rofi (default: 8)
 - $CM_LAUNCHER: specify a dmenu-compatible launcher (default: dmenu)
+- $CM_OUTPUT_CLIP: if set, output clip selection to stdout
 EOF
     exit 0
 fi
@@ -52,3 +53,7 @@ file=$cache_dir/$(cksum <<< "$chosen_line")
 for selection in clipboard primary; do
     xsel --logfile /dev/null -i --"$selection" < "$file"
 done
+
+if (( CM_OUTPUT_CLIP )); then
+    cat "$file"
+fi
