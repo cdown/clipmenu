@@ -42,6 +42,10 @@ error() {
     printf 'ERROR: %s\n' "${1?}" >&2
 }
 
+info() {
+    printf 'INFO: %s\n' "${1?}"
+}
+
 die() {
     error "${2?}"
     exit "${1?}"
@@ -207,7 +211,9 @@ while true; do
             previous_size=$(wc -c <<< "${last_cache_file_output[$selection]}")
             truncate -s -"$previous_size" "$cache_file"
 
-            rm -- "${last_filename[$selection]}"
+            file=${last_filename[$selection]}
+            info "Removing $file as a possible partial"
+            rm -- "$file"
         fi
 
         first_line=$(get_first_line "$data")
@@ -257,7 +263,11 @@ while true; do
             num_to_remove="${#to_remove[@]}"
             if (( num_to_remove )); then
                 debug "Removing $num_to_remove old clips"
-                rm -- "${to_remove[@]/#/"$cache_dir/"}"
+
+                files=( "${to_remove[@]/#/"$cache_dir/"}" )
+                info "Removing the following due to overflow: ${files[*]}"
+
+                rm -- "${files[@]}"
                 trunc_tmp=$(mktemp)
                 tail -n "$CM_MAX_CLIPS" "$cache_file" | uniq > "$trunc_tmp"
                 mv -- "$trunc_tmp" "$cache_file"
