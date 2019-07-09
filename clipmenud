@@ -6,6 +6,11 @@
 : "${CM_DIR="${XDG_RUNTIME_DIR-"${TMPDIR-/tmp}"}"}"
 : "${CM_MAX_CLIPS=1000}"
 
+# Buffer to batch to avoid calling too much. Will only be used if CM_MAX_CLIPS
+# > 0.
+CM_MAX_CLIPS_THRESH=$(( CM_MAX_CLIPS + 100 ))
+
+
 # Shellcheck is mistaken here, this is used later as lowercase.
 # shellcheck disable=SC2153
 : "${CM_SELECTIONS=clipboard primary}"
@@ -259,7 +264,10 @@ while true; do
             _xsel -o --clipboard | _xsel -i --clipboard
         fi
 
-        if (( CM_MAX_CLIPS )) && [[ -f $cache_file ]]; then
+        # Fail quickly if we're not far enough over, to avoid calling `cksum` a
+        # lot and killing perf if we're not batched.
+        if (( CM_MAX_CLIPS )) && [[ -f $cache_file ]] &&
+           (( "$(wc -l < "$cache_file")" > CM_MAX_CLIPS_THRESH )); then
             # comm filters out duplicate entries that we'd delete still
             # referenced entries for
             mapfile -t to_remove < <(
@@ -269,6 +277,7 @@ while true; do
                 <(tail -n -"$CM_MAX_CLIPS" "$cache_file" |
                     make_line_cksums | sort)
             )
+
             num_to_remove="${#to_remove[@]}"
             if (( num_to_remove )); then
                 debug "Removing $num_to_remove old clips"
