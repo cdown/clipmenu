@@ -51,6 +51,10 @@ die() {
     exit "${1?}"
 }
 
+make_line_cksums() {
+    while read -r line; do cksum <<< "${line#* }"; done
+}
+
 get_first_line() {
     # Args:
     # - $1, the file or data
@@ -256,9 +260,14 @@ while true; do
         fi
 
         if (( CM_MAX_CLIPS )) && [[ -f $cache_file ]]; then
+            # comm filters out duplicate entries that we'd delete still
+            # referenced entries for
             mapfile -t to_remove < <(
-                head -n -"$CM_MAX_CLIPS" "$cache_file" |
-                    while read -r line; do cksum <<< "${line#* }"; done
+                comm -23 \
+                <(head -n -"$CM_MAX_CLIPS" "$cache_file" |
+                    make_line_cksums | sort) \
+                <(tail -n -"$CM_MAX_CLIPS" "$cache_file" |
+                    make_line_cksums | sort)
             )
             num_to_remove="${#to_remove[@]}"
             if (( num_to_remove )); then
