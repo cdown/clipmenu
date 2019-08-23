@@ -3,6 +3,7 @@
 : "${CM_LAUNCHER=dmenu}"
 : "${CM_DIR="${XDG_RUNTIME_DIR-"${TMPDIR-/tmp}"}"}"
 : "${CM_HISTLENGTH=8}"
+: "${CM_DEBUG=false}"
 
 major_version=5
 
@@ -54,6 +55,10 @@ fi
 [[ $chosen_line ]] || exit 1
 
 file=$cache_dir/$(cksum <<< "$chosen_line")
+
+if ! [[ "$CM_DEBUG" == false ]]; then
+    cat "$file"
+fi
 
 if ! [[ -f "$file" ]]; then
     # We didn't find this in cache
