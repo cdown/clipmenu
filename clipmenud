@@ -19,7 +19,6 @@ cache_file_prefix=$cache_dir/line_cache
 lock_file=$cache_dir/lock
 session_lock_file=$cache_dir/session_lock
 lock_timeout=2
-has_clipnotify=0
 has_xdotool=0
 
 # This comes from the environment, so we rely on word splitting.
@@ -122,12 +121,7 @@ declare -A last_data
 declare -A last_filename
 declare -A last_cache_file_output
 
-command -v clipnotify >/dev/null 2>&1 && has_clipnotify=1
-
-if ! (( has_clipnotify )); then
-    echo "WARN: Consider installing clipnotify for better performance." >&2
-    echo "WARN: See https://github.com/cdown/clipnotify." >&2
-fi
+command -v clipnotify >/dev/null 2>&1 || die 3 "clipnotify binary missing"
 
 command -v xdotool >/dev/null 2>&1 && has_xdotool=1
 
@@ -137,18 +131,8 @@ fi
 
 exec {lock_fd}> "$lock_file"
 
-sleep_cmd=(sleep "${CM_SLEEP:-0.5}")
-
 while true; do
-    if ! (( CM_ONESHOT )); then
-        if (( has_clipnotify )); then
-            # Fall back to polling if clipnotify fails
-            clipnotify || "${sleep_cmd[@]}"
-        else
-            # Use old polling method
-            "${sleep_cmd[@]}"
-        fi
-    fi
+    (( CM_ONESHOT )) || clipnotify
 
     if [[ $CM_IGNORE_WINDOW ]] && (( has_xdotool )); then
         windowname="$(xdotool getactivewindow getwindowname)"
