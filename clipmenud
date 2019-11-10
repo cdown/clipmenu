@@ -64,11 +64,8 @@ flock -x -n "$session_lock_fd" ||
     die 2 "Can't lock session file -- is another clipmenud running?"
 
 declare -A last_data
-declare -A last_filename
-declare -A last_cache_file_output
 
 command -v clipnotify >/dev/null 2>&1 || die 3 "clipnotify binary missing"
-
 command -v xdotool >/dev/null 2>&1 && has_xdotool=1
 
 if [[ $CM_IGNORE_WINDOW ]] && ! (( has_xdotool )); then
@@ -113,7 +110,6 @@ while clipnotify; do
         filename="$cache_dir/$(cksum <<< "$first_line")"
 
         last_data[$selection]=$data
-        last_filename[$selection]=$filename
 
         # Recover if cache_dir was deleted. It's ok that we only chmod our dir.
         # shellcheck disable=SC2174
@@ -121,8 +117,6 @@ while clipnotify; do
 
         printf '%s' "$data" > "$filename"
         printf '%s\n' "$cache_file_output" >> "$cache_file"
-
-        last_cache_file_output[$selection]=$cache_file_output
     done
 
     flock -u "$lock_fd"
