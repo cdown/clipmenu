@@ -26,15 +26,8 @@ has_xdotool=0
 # shellcheck disable=SC2206
 cm_selections=( $CM_SELECTIONS )
 
-if command -v timeout >/dev/null 2>&1; then
-    timeout_cmd=(timeout 1)
-else
-    echo "WARN: No timeout binary. Continuing without any timeout on xsel." >&2
-    timeout_cmd=()
-fi
-
 _xsel() {
-    "${timeout_cmd[@]}" xsel --logfile /dev/null "$@"
+    xsel --logfile /dev/null "$@"
 }
 
 error() {
