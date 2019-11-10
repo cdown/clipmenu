@@ -77,9 +77,7 @@ fi
 
 exec {lock_fd}> "$lock_file"
 
-while true; do
-    clipnotify
-
+while clipnotify; do
     if [[ $CM_IGNORE_WINDOW ]] && (( has_xdotool )); then
         windowname="$(xdotool getactivewindow getwindowname)"
         if [[ "$windowname" =~ $CM_IGNORE_WINDOW ]]; then
