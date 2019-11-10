@@ -33,19 +33,10 @@ die() {
 }
 
 get_first_line() {
-    # Args:
-    # - $1, the file or data
-    # - $2, optional, the line length limit
-
     data=${1?}
-    line_length_limit=${2-300}
 
-    # We look for the first line matching regex /./ here because we want the
-    # first line that can provide reasonable context to the user. That is, if
-    # you have 5 leading lines of whitespace, displaying " (6 lines)" is much
-    # less useful than displaying "foo (6 lines)", where "foo" is the first
-    # line in the entry with actionable context.
-    awk -v limit="$line_length_limit" '
+    # We get the first significant line, ignoring lines only with whitespace.
+    awk -v limit=300 '
         BEGIN { printed = 0; }
 
         printed == 0 && NF {
