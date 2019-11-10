@@ -33,25 +33,9 @@ die() {
 }
 
 get_first_line() {
-    data=${1?}
-
     # We get the first significant line, ignoring lines only with whitespace.
-    awk -v limit=300 '
-        BEGIN { printed = 0; }
-
-        printed == 0 && NF {
-            $0 = substr($0, 0, limit);
-            printf("%s", $0);
-            printed = 1;
-        }
-
-        END {
-            if (NR > 1) {
-                print " (" NR " lines)";
-            } else {
-                printf("\n");
-            }
-        }' <<< "$data"
+    awk 'NF { printf("%s", substr($0, 0, 300)); exit; }
+         END { if (NR > 1) { print " (" NR " lines)" }; }' <<< "${1?}"
 }
 
 
