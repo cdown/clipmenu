@@ -23,18 +23,10 @@ has_xdotool=0
 # shellcheck disable=SC2206
 cm_selections=( $CM_SELECTIONS )
 
-_xsel() {
-    xsel --logfile /dev/null "$@"
-}
-
-error() {
-    printf 'ERROR: %s\n' "${1?}" >&2
-}
-
-info() {
-    printf 'INFO: %s\n' "${1?}"
-}
-
+_xsel() { xsel --logfile /dev/null "$@"; }
+error() { printf 'ERROR: %s\n' "${1?}" >&2; }
+info() { printf 'INFO: %s\n' "${1?}"; }
+debug() { (( CM_DEBUG )) && printf 'DEBUG: %s\n' "$@" >&2; }
 die() {
     error "${2?}"
     exit "${1?}"
@@ -71,11 +63,6 @@ get_first_line() {
         }' <<< "$data"
 }
 
-debug() {
-    if (( CM_DEBUG )); then
-        printf '%s\n' "$@" >&2
-    fi
-}
 
 if [[ $1 == --help ]] || [[ $1 == -h ]]; then
     cat << 'EOF'
