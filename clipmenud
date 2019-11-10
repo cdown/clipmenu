@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 
-: "${CM_ONESHOT=0}"
 : "${CM_OWN_CLIPBOARD=1}"
 : "${CM_DEBUG=0}"
 : "${CM_DIR="${XDG_RUNTIME_DIR-"${TMPDIR-/tmp}"}"}"
@@ -99,7 +98,6 @@ Environment variables:
 
 - $CM_DEBUG: turn on debugging output (default: 0)
 - $CM_DIR: specify the base directory to store the cache dir in (default: $XDG_RUNTIME_DIR, $TMPDIR, or /tmp)
-- $CM_ONESHOT: run once immediately, do not loop (default: 0)
 - $CM_OWN_CLIPBOARD: take ownership of the clipboard (default: 1)
 - $CM_SELECTIONS: space separated list of the selections to manage (default: "clipboard primary")
 - $CM_IGNORE_WINDOW: disable recording the clipboard in windows where the windowname matches the given regex (e.g. a password manager), do not ignore any windows if unset or empty (default: unset)
@@ -132,7 +130,7 @@ fi
 exec {lock_fd}> "$lock_file"
 
 while true; do
-    (( CM_ONESHOT )) || clipnotify
+    clipnotify
 
     if [[ $CM_IGNORE_WINDOW ]] && (( has_xdotool )); then
         windowname="$(xdotool getactivewindow getwindowname)"
@@ -142,14 +140,7 @@ while true; do
         fi
     fi
 
-    if ! flock -x -w "$lock_timeout" "$lock_fd"; then
-        if (( CM_ONESHOT )); then
-            die 1 "Timed out waiting for lock"
-        else
-            error "Timed out waiting for lock, skipping this iteration"
-            continue
-        fi
-    fi
+    flock -x -w "$lock_timeout" "$lock_fd" || die 1 "Timeout waiting for lock"
 
     for selection in "${cm_selections[@]}"; do
         cache_file=${cache_file_prefix}_$selection
@@ -232,9 +223,4 @@ while true; do
     done
 
     flock -u "$lock_fd"
-
-    if (( CM_ONESHOT )); then
-        debug 'Oneshot mode enabled, exiting'
-        break
-    fi
 done
