@@ -151,23 +151,6 @@ while true; do
             continue
         fi
 
-
-        # If we were in the middle of doing a selection when the previous poll
-        # ran, then we may have got a partial clip.
-        possible_partial=${last_data[$selection]}
-        if [[ $possible_partial && $data == "$possible_partial"* ]] ||
-           [[ $possible_partial && $data == *"$possible_partial" ]]; then
-            debug "$possible_partial is a possible partial of $data"
-            debug "Removing ${last_filename[$selection]}"
-
-            previous_size=$(wc -c <<< "${last_cache_file_output[$selection]}")
-            truncate -s -"$previous_size" "$cache_file"
-
-            file=${last_filename[$selection]}
-            info "Removing $file as a possible partial"
-            rm -- "$file"
-        fi
-
         first_line=$(get_first_line "$data")
 
         debug "New clipboard entry on $selection selection: \"$first_line\""
