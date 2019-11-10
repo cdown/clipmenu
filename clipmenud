@@ -115,8 +115,6 @@ while true; do
         debug "Data before stripping: $data"
 
         # We add and remove the x so that trailing newlines are not stripped.
-        # Otherwise, they would be stripped by the very nature of how POSIX
-        # defines command substitution.
         data=${data%x}
 
         debug "Data after stripping: $data"
@@ -141,8 +139,7 @@ while true; do
         last_data[$selection]=$data
         last_filename[$selection]=$filename
 
-        # Recover without restart if we deleted the entire clip dir.
-        # It's ok that this only applies to the final directory.
+        # Recover if cache_dir was deleted. It's ok that we only chmod our dir.
         # shellcheck disable=SC2174
         mkdir -p -m0700 "$cache_dir"
 
