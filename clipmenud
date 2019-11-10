@@ -11,9 +11,7 @@ major_version=5
 cache_dir=$CM_DIR/clipmenu.$major_version.$USER/
 cache_file_prefix=$cache_dir/line_cache
 
-# lock_file is the lock for *one* iteration of clipboard capture/propagation.
-# session_lock_file is the lock to prevent multiple clipmenud daemons from
-# running at once.
+# lock_file is for *one* iteration. session_lock_file is for clipmenud itself.
 lock_file=$cache_dir/lock
 session_lock_file=$cache_dir/session_lock
 lock_timeout=2
