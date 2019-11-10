@@ -66,15 +66,17 @@ get_first_line() {
 
 if [[ $1 == --help ]] || [[ $1 == -h ]]; then
     cat << 'EOF'
-clipmenud is the daemon that collects and caches what's on the clipboard.
-when you want to select a clip.
+clipmenud collects clipboard entries, which can then be selected by clipmenu.
 
 Environment variables:
 
 - $CM_DEBUG: turn on debugging output (default: 0)
-- $CM_DIR: specify the base directory to store the cache dir in (default: $XDG_RUNTIME_DIR, $TMPDIR, or /tmp)
-- $CM_SELECTIONS: space separated list of the selections to manage (default: "clipboard primary")
-- $CM_IGNORE_WINDOW: disable recording the clipboard in windows where the windowname matches the given regex (e.g. a password manager), do not ignore any windows if unset or empty (default: unset)
+- $CM_DIR: specify the base directory to store the cache dir in
+  (default: $XDG_RUNTIME_DIR, $TMPDIR, or /tmp)
+- $CM_SELECTIONS: space separated list of the selections to manage
+  (default: "clipboard primary")
+- $CM_IGNORE_WINDOW: disable recording the clipboard in windows where the
+  windowname matches the given regex (e.g. a password manager) (default: unset)
 EOF
     exit 0
 fi
