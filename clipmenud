@@ -97,7 +97,7 @@ command -v clipnotify >/dev/null 2>&1 || die 3 "clipnotify binary missing"
 command -v xdotool >/dev/null 2>&1 && has_xdotool=1
 
 if [[ $CM_IGNORE_WINDOW ]] && ! (( has_xdotool )); then
-    echo "WARN: CM_IGNORE_WINDOW does not work without xdotool, which is not installed" >&2
+    error "CM_IGNORE_WINDOW requires xdotool, which is not installed. Ignoring"
 fi
 
 exec {lock_fd}> "$lock_file"
