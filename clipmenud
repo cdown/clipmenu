@@ -112,12 +112,8 @@ while true; do
         cache_file=${cache_file_prefix}_$selection
         data=$(_xsel -o --"$selection"; printf x)
 
-        debug "Data before stripping: $data"
-
-        # We add and remove the x so that trailing newlines are not stripped.
-        data=${data%x}
-
-        debug "Data after stripping: $data"
+        debug "New potential entry: $data"
+        data=${data%x}  # So that trailing newlines are not stripped.
 
         if [[ $data != *[^[:space:]]* ]]; then
             debug "Skipping as clipboard is only blank"
@@ -143,10 +139,7 @@ while true; do
         # shellcheck disable=SC2174
         mkdir -p -m0700 "$cache_dir"
 
-        debug "Writing $data to $filename"
         printf '%s' "$data" > "$filename"
-
-        debug "Writing $cache_file_output to $cache_file"
         printf '%s\n' "$cache_file_output" >> "$cache_file"
 
         last_cache_file_output[$selection]=$cache_file_output
