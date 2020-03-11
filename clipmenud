@@ -282,7 +282,19 @@ while true; do
             if (( num_to_remove )); then
                 debug "Removing $num_to_remove old clips"
 
-                files=( "${to_remove[@]/#/"$cache_dir/"}" )
+                # If we had the same clip content twice, we will have two
+                # entries in the cache file for it. This is handled on clipmenu
+                # side by checking for seen lines with awk, but we should try
+                # to avoid doing `rm` with the same file repeatedly in the list
+                # for this case (which is harmless, but causes confusion when
+                # rm errors).
+                declare -A tmp_files
+                for file in "${to_remove[@]/#/"$cache_dir/"}"; do
+                    tmp_files["$file"]=1
+                done
+                files=( "${!tmp_files[@]}" )
+                unset tmp_files
+
                 info "Removing the following due to overflow: ${files[*]}"
 
                 rm -- "${files[@]}"
