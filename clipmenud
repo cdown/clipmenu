@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 : "${CM_ONESHOT=0}"
-: "${CM_OWN_CLIPBOARD=1}"
+: "${CM_OWN_CLIPBOARD=0}"
 : "${CM_DEBUG=0}"
 : "${CM_DIR="${XDG_RUNTIME_DIR-"${TMPDIR-/tmp}"}"}"
 : "${CM_MAX_CLIPS=1000}"
@@ -119,7 +119,7 @@ Environment variables:
 - $CM_DIR: specify the base directory to store the cache dir in (default: $XDG_RUNTIME_DIR, $TMPDIR, or /tmp)
 - $CM_MAX_CLIPS: soft maximum number of clips to store, 0 for inf. At $CM_MAX_CLIPS + 100, the number of clips is reduced to $CM_MAX_CLIPS (default: 1000)
 - $CM_ONESHOT: run once immediately, do not loop (default: 0)
-- $CM_OWN_CLIPBOARD: take ownership of the clipboard (default: 1)
+- $CM_OWN_CLIPBOARD: take ownership of the clipboard. Note: this may cause missed copies if some other application also handles the clipboard directly (default: 0)
 - $CM_SELECTIONS: space separated list of the selections to manage (default: "clipboard primary")
 - $CM_IGNORE_WINDOW: disable recording the clipboard in windows where the windowname matches the given regex (e.g. a password manager), do not ignore any windows if unset or empty (default: unset)
 EOF
