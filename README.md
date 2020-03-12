@@ -12,11 +12,13 @@ clipmenu is a simple clipboard manager using [dmenu][] (or [rofi][] with
 Start `clipmenud`, then run `clipmenu` to select something to put on the
 clipboard.
 
-A systemd user service for starting clipmenud is included at
-[init/clipmenud.service](https://github.com/cdown/clipmenu/blob/develop/init/clipmenud.service).
-You can then start clipmenud like this:
+A systemd user service for starting clipmenud is installed as part of the project.
 
-    systemctl --user start clipmenud
+If you want to start `clipmenud` immediately via systemd and have it be started when you login, run:
+
+    systemctl --user enable --now clipmenud
+
+You may wish to bind a shortcut in your window manager to launch `clipmenu`.
 
 All args passed to clipmenu are transparently dispatched to dmenu. That is, if
 you usually call dmenu with args to set colours and other properties, you can
@@ -37,8 +39,16 @@ For a full list of environment variables that clipmenud can take, please see
 Several distributions, including Arch and Nix, provide clipmenu as an official
 package called `clipmenu`.
 
-If your distribution doesn't provide a package, you can run the scripts
-standalone (or better yet, package them!).
+## Installation - Manual
+
+If your distribution doesn't provide a package, you can run the following
+the commands to install this.  (Or better yet, create package for your distribution!).
+You'll first need to install `xsel` and `clipnotify`. If you'll also need `dmenu` unless
+you plan to set `CM_LAUNCHER` to a different value, like `rofi`.
+
+     git clone https://github.com/cdown/clipmenu.git
+     cd clipmenu
+     sudo make install
 
 # How does it work?
 
