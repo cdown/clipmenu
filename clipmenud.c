@@ -1,20 +1,53 @@
-/* gcc clipmenud.c -Wall -Werror -lxcb -o cd */
+/* gcc clipmenud.c -Wall -Werror -lxcb -lxcb-util -lxcb-xfixes -o cd */
 
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include <xcb/xcb.h>
+#include <xcb/xcb_event.h>
+#include <xcb/xfixes.h>
 
 #define die(status, ...)                                                       \
     fprintf(stderr, __VA_ARGS__);                                              \
     exit(status);
 
+static xcb_connection_t *xcb_conn;
+static xcb_window_t evt_win;
+
+static int print_xcb_error(xcb_generic_error_t *err) {
+    if (!err) {
+        return 0;
+    }
+
+    fprintf(stderr, "X error %d: %s\n", err->error_code,
+            xcb_event_get_error_label(err->error_code));
+
+    return -1;
+}
+
+static int get_atom(const char *name, xcb_atom_t *atom) {
+    xcb_intern_atom_cookie_t cookie;
+    xcb_intern_atom_reply_t *ret = NULL;
+
+    cookie = xcb_intern_atom(xcb_conn, 0, strlen(name), name);
+    ret = xcb_intern_atom_reply(xcb_conn, cookie, NULL);
+    if (!ret) {
+        return -EINVAL;
+    }
+
+    *atom = ret->atom;
+    free(ret);
+
+    return 0;
+}
+
 /*
  * Create a hidden child of the root window to collect clipboard events, and
  * then return its XID.
  */
-static int create_event_window(xcb_connection_t *xcb_conn, xcb_window_t *xid) {
+static int create_event_window(xcb_window_t *xid) {
     xcb_screen_t *screen;
     xcb_generic_error_t *err;
     xcb_void_cookie_t cookie;
@@ -24,7 +57,10 @@ static int create_event_window(xcb_connection_t *xcb_conn, xcb_window_t *xid) {
     screen = xcb_setup_roots_iterator(xcb_get_setup(xcb_conn)).data;
     values[0] = screen->black_pixel;
 
-    /* Window dimensions must be >0, but we'll deal with that later. */
+    /*
+     * Window dimensions are irrelevant since it won't be displayed, but X
+     * returns BadRequest for <0.
+     */
     cookie = xcb_create_window_checked(
         xcb_conn, screen->root_depth, window_xid, screen->root, 0, 0, 1, 1, 0,
         XCB_COPY_FROM_PARENT, screen->root_visual,
@@ -45,9 +81,9 @@ static int create_event_window(xcb_connection_t *xcb_conn, xcb_window_t *xid) {
 }
 
 /* Destroy the event capture window. */
-static int destroy_event_window(xcb_connection_t *xcb_conn, xcb_window_t xid) {
+static int destroy_event_window(void) {
     xcb_generic_error_t *err;
-    xcb_void_cookie_t cookie = xcb_destroy_window_checked(xcb_conn, xid);
+    xcb_void_cookie_t cookie = xcb_destroy_window_checked(xcb_conn, evt_win);
 
     err = xcb_request_check(xcb_conn, cookie);
     if (err) {
@@ -57,9 +93,68 @@ static int destroy_event_window(xcb_connection_t *xcb_conn, xcb_window_t xid) {
     return 0;
 }
 
+static int set_notify(const char *sel_name) {
+    xcb_atom_t atom;
+    xcb_void_cookie_t cookie;
+    xcb_generic_error_t *err;
+    int ret;
+
+    ret = get_atom(sel_name, &atom);
+    if (ret) {
+        return ret;
+    }
+
+    xcb_discard_reply(
+        xcb_conn, xcb_xfixes_query_version(xcb_conn, XCB_XFIXES_MAJOR_VERSION,
+                                           XCB_XFIXES_MINOR_VERSION)
+                      .sequence);
+
+    cookie = xcb_xfixes_select_selection_input_checked(
+        xcb_conn, evt_win, atom,
+        XCB_XFIXES_SELECTION_EVENT_MASK_SET_SELECTION_OWNER);
+
+    err = xcb_request_check(xcb_conn, cookie);
+    if (err) {
+        print_xcb_error(err);
+        free(err);
+        return -EIO;
+    }
+
+    return 0;
+}
+
+static void event_loop() {
+    xcb_generic_event_t *evt;
+    int ret;
+
+    ret = set_notify("PRIMARY");
+    if (ret) {
+        die(90, "Error setting up notifications for PRIMARY\n");
+    }
+
+    ret = set_notify("CLIPBOARD");
+    if (ret) {
+        die(91, "Error setting up notifications for CLIPBOARD\n");
+    }
+
+    xcb_flush(xcb_conn);
+
+    while ((evt = xcb_wait_for_event(xcb_conn))) {
+        if (!evt) {
+            fprintf(stderr, "I/O error getting event from X server\n");
+            continue;
+        }
+
+        if (evt->response_type == 0) {
+            fprintf(stderr, "Unknown error getting event from X server\n");
+            continue;
+        }
+
+        printf("Got event\n");
+    }
+}
+
 int main(int argc, char *argv[]) {
-    xcb_connection_t *xcb_conn;
-    xcb_window_t event_win;
     int err;
 
     xcb_conn = xcb_connect(NULL, NULL);
@@ -68,13 +163,15 @@ int main(int argc, char *argv[]) {
         die(1, "Failed to connect to X server\n");
     }
 
-    err = create_event_window(xcb_conn, &event_win);
+    err = create_event_window(&evt_win);
     if (err) {
         xcb_disconnect(xcb_conn);
         die(2, "Failed to create event window\n");
     }
 
-    err = destroy_event_window(xcb_conn, event_win);
+    event_loop();
+
+    err = destroy_event_window();
     if (err) {
         xcb_disconnect(xcb_conn);
         die(3, "Failed to destroy event window\n");
