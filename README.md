@@ -49,6 +49,34 @@ there, but it basically works like this:
 2. If `clipmenud` detects changes to the clipboard contents, it writes them out
    to the cache directory.
 
+### Features of `clipmenud`
+
+The behavior of `clipmenud` can be customized through environment variables. Features include:
+
+ * Customizing max number of clips (Default: 1000)
+ * Choosing which selections to manage
+ * Ignoring certain windows, like password managers
+ * Enabling debugging
+ * Customizing the cache dir location
+ * Disable looping
+ * Option to "own" the clipboard
+
+Check the online help to view the details:
+
+    clipmenud --help
+
+If you managing `clipmenud` with `systemd`, you can override the defaults by using this command to generate an override file:
+
+    systemctl --user edit clipmenud
+
+Then add a new section sets your environment variables. For example:
+
+```
+[Service]
+Environment="CM_MAX_CLIPS=30"
+Environment="CM_SELECTIONS=clipboard"
+```
+
 ## clipmenu
 
 1. `clipmenu` reads the cache directory to find all available clips.
