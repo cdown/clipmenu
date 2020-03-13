@@ -195,12 +195,7 @@ static void event_loop() {
     while ((evt = xcb_wait_for_event(xcb_conn))) {
         uint8_t resp_type;
 
-        if (!evt) {
-            fprintf(stderr, "I/O error getting event from X server\n");
-            continue;
-        }
-
-        if (evt->response_type == 0) {
+        if (!evt || !evt->response_type) {
             fprintf(stderr, "Unknown error getting event from X server\n");
             continue;
         }
