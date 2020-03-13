@@ -123,9 +123,27 @@ static int set_notify(const char *sel_name) {
     return 0;
 }
 
+static int get_xfixes_first_event(void) {
+    const xcb_query_extension_reply_t *reply;
+
+    reply = xcb_get_extension_data(xcb_conn, &xcb_xfixes_id);
+
+    if (!reply || !reply->present) {
+        return -ENOSYS;
+    }
+
+    /* uint8_t -> signed int */
+    return reply->first_event;
+}
+
 static void event_loop() {
     xcb_generic_event_t *evt;
     int ret;
+    int xfixes_loc = get_xfixes_first_event();
+
+    if (xfixes_loc < 0) {
+        die(89, "XFixes extension unavailable\n");
+    }
 
     ret = set_notify("PRIMARY");
     if (ret) {
@@ -140,6 +158,8 @@ static void event_loop() {
     xcb_flush(xcb_conn);
 
     while ((evt = xcb_wait_for_event(xcb_conn))) {
+        uint8_t resp_type;
+
         if (!evt) {
             fprintf(stderr, "I/O error getting event from X server\n");
             continue;
@@ -150,7 +170,23 @@ static void event_loop() {
             continue;
         }
 
-        printf("Got event\n");
+        switch ((resp_type = XCB_EVENT_RESPONSE_TYPE(evt))) {
+        case XCB_SELECTION_NOTIFY:
+            printf("Got XCB_SELECTION_NOTIFY for %d\n",
+                   ((xcb_selection_notify_event_t *)evt)->selection);
+            break;
+
+        default:
+            /*
+             * Not integer constant, so has to be evaluated outside of the
+             * switch
+             */
+            if (resp_type == xfixes_loc + XCB_XFIXES_SELECTION_NOTIFY) {
+                printf("Got XCB_XFIXES_SELECTION_NOTIFY for %d\n",
+                       ((xcb_xfixes_selection_notify_event_t *)evt)->selection);
+            }
+            break;
+        }
     }
 }
 
