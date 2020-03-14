@@ -418,6 +418,17 @@ static int selftest(void) {
     assert_streq(tmp, "Foo bar (2 lines)");
     free(tmp);
 
+    /* UTF-8 tests */
+    tmp = get_first_line("道");
+    assert_streq(tmp, "道");
+    free(tmp);
+    tmp = get_first_line("道可到\n");
+    assert_streq(tmp, "道可到");
+    free(tmp);
+    tmp = get_first_line("道可到\n非常道");
+    assert_streq(tmp, "道可到 (2 lines)");
+    free(tmp);
+
     /* Test djb2 hash */
     assert_u32_eq(djb2_hash("stottie"), (uint32_t)2933491793);
     assert_u32_eq(djb2_hash("肉夹馍"), (uint32_t)2954197494);
