@@ -1,4 +1,4 @@
-/* gcc clipmenud.c -Wall -Werror -lxcb -lxcb-util -lxcb-xfixes -o cd */
+/* gcc -g3 clipmenud.c -Wall -Werror -lxcb -lxcb-util -lxcb-xfixes -o cd */
 
 #include <assert.h>
 #include <errno.h>
@@ -28,7 +28,7 @@ static xcb_window_t evt_win;
  *
  * https://groups.google.com/forum/#!msg/comp.lang.c/lSKWXiuNOAk/zstZ3SRhCjgJ
  */
-size_t djb2_hash(const char *raw_str) {
+size_t djb2_hash(char *raw_str) {
     unsigned char *str = (unsigned char *)raw_str;
     size_t hash = 5381;
     int c;
@@ -43,7 +43,8 @@ size_t djb2_hash(const char *raw_str) {
 void *malloc_checked(size_t n) {
     void *p = malloc(n);
     if (!p) {
-        die(100, "ENOMEM: failed to allocate %zu bytes\n", n);
+        fprintf(stderr, "ENOMEM: failed to allocate %zu bytes\n", n);
+        abort();
     }
     return p;
 }
@@ -62,7 +63,7 @@ void *malloc_checked(size_t n) {
  *
  * The result of this function must be freed when unused.
  */
-static const char *get_first_line(const char *data) {
+static char *get_first_line(char *data) {
     size_t i, num_lines;
     size_t alloc_size = 0;
     char *first_line_start = NULL, *first_line_end = NULL;
@@ -85,7 +86,22 @@ static const char *get_first_line(const char *data) {
         }
     }
 
-    if (first_line_start) {
+    assert(!first_line_end || first_line_start < first_line_end);
+
+    /*
+     * If there was no newline at the end, still count it as a line, and set
+     * first_line_end as appropriate if we used that line as the first line,
+     * otherwise we'd miss it since it isn't a newline.
+     */
+    if (i && !first_line_end && data[i - 1] != '\n') {
+        first_line_end = (char *)data + i;
+    }
+
+    if (i && data[i - 1] != '\n') {
+        ++num_lines;
+    }
+
+    if (first_line_end) {
         first_line_length = first_line_end - first_line_start;
         alloc_size += first_line_length;
     }
@@ -101,15 +117,16 @@ static const char *get_first_line(const char *data) {
     /* In case the content is "" or "\n" and we don't put in anything */
     output[0] = '\0';
 
-    if (first_line_start) {
+    if (first_line_end) {
         assert(first_line_length <= alloc_size);
         /* +1 to avoid truncating for trailing null */
-        snprintf(output, first_line_length + 1, "%s", first_line_start);
+        (void)snprintf(output, first_line_length + 1, "%s", first_line_start);
         sn_i += first_line_length;
     }
 
     if (num_lines > 1) {
-        snprintf(output + sn_i, alloc_size - sn_i, " (%zu lines)", num_lines);
+        (void)snprintf(output + sn_i, alloc_size - sn_i, " (%zu lines)",
+                       num_lines);
     }
 
     return output;
@@ -125,9 +142,9 @@ static const char *get_first_line(const char *data) {
  *
  * The result of this function must be freed when unused.
  */
-static const char *make_filename(const char *data) {
+static __attribute__((unused)) char *make_filename(char *data) {
     char *filename = malloc_checked(CM_FILENAME_MAX);
-    const char *first_line = get_first_line(data);
+    char *first_line = get_first_line(data);
     size_t len = strlen(data);
     size_t hash;
     struct timespec ts;
@@ -347,11 +364,64 @@ static void event_loop() {
     }
 }
 
+#define assert_streq(a, b)                                                     \
+    if (strcmp((a), (b)) != 0) {                                               \
+        fprintf(                                                               \
+            stderr,                                                            \
+            "selftest failed on line %d step '%s == %s', \"%s\" != \"%s\"\n",  \
+            __LINE__, #a, #b, (a), (b));                                       \
+        return -EINVAL;                                                        \
+    }
+
+int selftest(void) {
+    char *tmp;
+
+    /* If it's all empty, the first line should also just be empty */
+    tmp = get_first_line("");
+    assert_streq(tmp, "");
+    free(tmp);
+    tmp = get_first_line("\n");
+    assert_streq(tmp, "");
+    free(tmp);
+
+    /*
+     * If all lines are empty, but there are N, result should be " (N lines)"
+     */
+    tmp = get_first_line("\n\n\n");
+    assert_streq(tmp, " (3 lines)");
+    free(tmp);
+
+    /* If there's only one line, only that line should be displayed. */
+    tmp = get_first_line("Foo bar\n");
+    assert_streq(tmp, "Foo bar");
+    free(tmp);
+
+    /* If there's N lines, "(N lines)" should be displayed */
+    tmp = get_first_line("Foo bar\nbaz\nqux\n");
+    assert_streq(tmp, "Foo bar (3 lines)");
+    free(tmp);
+
+    /* If the last line didn't end with a newline, still count it */
+    tmp = get_first_line("Foo bar");
+    assert_streq(tmp, "Foo bar");
+    free(tmp);
+    tmp = get_first_line("Foo bar\nbaz");
+    assert_streq(tmp, "Foo bar (2 lines)");
+    free(tmp);
+
+    return 0;
+}
+
 int main(int argc, char *argv[]) {
     int err;
 
-    printf("%s\n", get_first_line("foo\nbar\nbaz\nqux\n"));
-    printf("%s\n", make_filename("foo\nbar\nbaz\nqux\n"));
+    if (argc == 2 && (strcmp(argv[1], "--test") == 0)) {
+        err = selftest();
+        if (!err) {
+            printf("selftest completed successfully\n");
+        }
+        return err;
+    }
 
     xcb_conn = xcb_connect(NULL, NULL);
     if (xcb_connection_has_error(xcb_conn)) {
