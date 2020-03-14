@@ -1,6 +1,8 @@
 /* gcc clipmenud.c -Wall -Werror -lxcb -lxcb-util -lxcb-xfixes -o cd */
 
+#include <assert.h>
 #include <errno.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -13,8 +15,139 @@
     fprintf(stderr, __VA_ARGS__);                                              \
     exit(status);
 
+#define min(x, y) (((x) < (y)) ? (x) : (y))
+
+#define SIZE_T_STRING_MAX 20
+#define CM_FILENAME_MAX 64
+
 static xcb_connection_t *xcb_conn;
 static xcb_window_t evt_win;
+
+/*
+ * A totally insecure hash function with decent speed and distribution.
+ *
+ * https://groups.google.com/forum/#!msg/comp.lang.c/lSKWXiuNOAk/zstZ3SRhCjgJ
+ */
+size_t djb2_hash(const char *raw_str) {
+    unsigned char *str = (unsigned char *)raw_str;
+    size_t hash = 5381;
+    int c;
+
+    while ((c = *str++)) {
+        hash = ((hash << 5) + hash) + c;
+    }
+
+    return hash;
+}
+
+void *malloc_checked(size_t n) {
+    void *p = malloc(n);
+    if (!p) {
+        die(100, "ENOMEM: failed to allocate %zu bytes\n", n);
+    }
+    return p;
+}
+
+/*
+ * Get the first line. If there's only one, it will look something like this:
+ *
+ *     The first line
+ *
+ * If there are multiple, it will look like this:
+ *
+ *     The first line (3 lines)
+ *
+ * We ignore leading empty lines in order to try to display something actually
+ * useful.
+ *
+ * The result of this function must be freed when unused.
+ */
+static const char *get_first_line(const char *data) {
+    size_t i, num_lines;
+    size_t alloc_size = 0;
+    char *first_line_start = NULL, *first_line_end = NULL;
+    char *output = NULL;
+    int sn_i = 0;
+    ptrdiff_t first_line_length;
+
+    first_line_start = (char *)data;
+
+    for (i = 0, num_lines = 0; data[i]; i++) {
+        if (data[i] == '\n') {
+            ++num_lines;
+            /* If it's just an empty line, we don't want it */
+            if (!first_line_end && i && data[i - 1] != '\n') {
+                first_line_end = (char *)data + i;
+            }
+        } else if (!first_line_end && i && data[i - 1] == '\n') {
+            /* Record a potential start */
+            first_line_start = (char *)data + i;
+        }
+    }
+
+    if (first_line_start) {
+        first_line_length = first_line_end - first_line_start;
+        alloc_size += first_line_length;
+    }
+
+    if (num_lines > 1) {
+        alloc_size += strlen(" (") + SIZE_T_STRING_MAX + strlen(" lines)");
+    }
+
+    ++alloc_size; /* \0 */
+
+    output = malloc_checked(alloc_size);
+
+    /* In case the content is "" or "\n" and we don't put in anything */
+    output[0] = '\0';
+
+    if (first_line_start) {
+        assert(first_line_length <= alloc_size);
+        /* +1 to avoid truncating for trailing null */
+        snprintf(output, first_line_length + 1, "%s", first_line_start);
+        sn_i += first_line_length;
+    }
+
+    if (num_lines > 1) {
+        snprintf(output + sn_i, alloc_size - sn_i, " (%zu lines)", num_lines);
+    }
+
+    return output;
+}
+
+/*
+ * The filename we should eventually use, in the following format:
+ *
+ *     tv_sec.tv_usec bytes firstlinehash \0
+ * len    10 1   10  1 20  1     20        1
+ *
+ * As such, CM_FILENAME_MAX is 64 bytes.
+ *
+ * The result of this function must be freed when unused.
+ */
+static const char *make_filename(const char *data) {
+    char *filename = malloc_checked(CM_FILENAME_MAX);
+    const char *first_line = get_first_line(data);
+    size_t len = strlen(data);
+    size_t hash;
+    struct timespec ts;
+    int sn_i;
+
+    /* Only hash the first line as a unique identifier. */
+    hash = djb2_hash(first_line);
+
+    /*
+     * Not monotonic, since it's possible the cache dir is persisted between
+     * reboots.
+     */
+    (void)clock_gettime(CLOCK_REALTIME, &ts);
+
+    sn_i = snprintf(filename, CM_FILENAME_MAX, "%lu.%lu %zu %zu", ts.tv_sec,
+                    ts.tv_nsec, len, hash);
+    assert(sn_i <= CM_FILENAME_MAX);
+
+    return filename;
+}
 
 static int print_xcb_error(xcb_generic_error_t *err) {
     if (!err) {
@@ -139,8 +272,6 @@ static int get_xfixes_first_event(void) {
 static void handle_xfixes_selection_notify(xcb_generic_event_t *raw_evt) {
     xcb_xfixes_selection_notify_event_t *evt =
         (xcb_xfixes_selection_notify_event_t *)raw_evt;
-    xcb_atom_t utf8_string_atom, xsel_data_atom;
-    int ret;
 
     /*
      * This shouldn't happen, but if we already own the selection, don't do
@@ -151,24 +282,19 @@ static void handle_xfixes_selection_notify(xcb_generic_event_t *raw_evt) {
         return;
     }
 
-    /* TODO: cache */
-    ret = get_atom("UTF8_STRING", &utf8_string_atom);
-    if (ret) {
-        return;
-    }
-
-    ret = get_atom("XSEL_DATA", &xsel_data_atom);
-    if (ret) {
-        return;
-    }
+#if 0
+    xcb_atom_t utf8_string_atom, xsel_data_atom;
 
     /*
      * Pack the data in our XSEL_DATA atom for safekeeping, generating an
-     * XCB_SELECTION_NOTIFY event.
+     * XCB_SELECTION_NOTIFY event. Also, take ownership of the clipboard.
      */
     xcb_convert_selection(xcb_conn, evt_win, evt->selection, utf8_string_atom,
                           xsel_data_atom, XCB_CURRENT_TIME);
+    xcb_set_selection_owner(xcb_conn, evt_win, evt->selection, XCB_CURRENT_TIME);
+
     xcb_flush(xcb_conn);
+#endif
 }
 
 static void event_loop() {
@@ -223,6 +349,9 @@ static void event_loop() {
 
 int main(int argc, char *argv[]) {
     int err;
+
+    printf("%s\n", get_first_line("foo\nbar\nbaz\nqux\n"));
+    printf("%s\n", make_filename("foo\nbar\nbaz\nqux\n"));
 
     xcb_conn = xcb_connect(NULL, NULL);
     if (xcb_connection_has_error(xcb_conn)) {
