@@ -20,7 +20,6 @@
 #define min(x, y) (((x) < (y)) ? (x) : (y))
 
 #define SIZE_T_STRING_MAX 20
-#define CM_FILENAME_MAX 64
 
 static xcb_connection_t *xcb_conn;
 static xcb_window_t evt_win;
@@ -129,41 +128,6 @@ static char *get_first_line(char *data) {
     }
 
     return output;
-}
-
-/*
- * The filename we should eventually use, in the following format:
- *
- *     tv_sec.tv_usec bytes firstlinehash \0
- * len    10 1   10  1 20  1     10        1
- *
- * As such, CM_FILENAME_MAX is 64 bytes -- 54 rounded up to the nearest power
- * of two.
- *
- * The result of this function must be freed when unused.
- */
-static __attribute__((unused)) char *make_filename(char *data) {
-    char *filename = malloc_checked(CM_FILENAME_MAX);
-    char *first_line = get_first_line(data);
-    size_t len = strlen(data);
-    size_t hash;
-    struct timespec ts;
-    int sn_i;
-
-    /* Only hash the first line as a unique identifier. */
-    hash = djb2_hash(first_line);
-
-    /*
-     * Not monotonic, since it's possible the cache dir is persisted between
-     * reboots.
-     */
-    (void)clock_gettime(CLOCK_REALTIME, &ts);
-
-    sn_i = snprintf(filename, CM_FILENAME_MAX, "%lu.%lu %zu %zu", ts.tv_sec,
-                    ts.tv_nsec, len, hash);
-    assert(sn_i <= CM_FILENAME_MAX);
-
-    return filename;
 }
 
 static int print_xcb_error(xcb_generic_error_t *err) {
