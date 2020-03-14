@@ -1,7 +1,9 @@
-/* gcc -g3 -fsanitize=address -fno-omit-frame-pointer clipmenud.c -Wall -Werror -lxcb -lxcb-util -lxcb-xfixes -o cd */
+/* gcc -g3 -fsanitize=address -fno-omit-frame-pointer clipmenud.c -Wall -Werror
+ * -lxcb -lxcb-util -lxcb-xfixes -o cd */
 
 #include <assert.h>
 #include <errno.h>
+#include <inttypes.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -28,19 +30,16 @@ static xcb_window_t evt_win;
  *
  * https://groups.google.com/forum/#!msg/comp.lang.c/lSKWXiuNOAk/zstZ3SRhCjgJ
  */
-size_t djb2_hash(char *raw_str) {
-    unsigned char *str = (unsigned char *)raw_str;
-    size_t hash = 5381;
-    int c;
+static uint32_t djb2_hash(const char *key) {
+    uint32_t i, hash = 5381;
 
-    while ((c = *str++)) {
-        hash = ((hash << 5) + hash) + c;
-    }
+    for (i = 0; i < strlen(key); i++)
+        hash = ((hash << 5) + hash) + key[i];
 
     return hash;
 }
 
-void *malloc_checked(size_t n) {
+static void *malloc_checked(size_t n) {
     void *p = malloc(n);
     if (!p) {
         fprintf(stderr, "ENOMEM: failed to allocate %zu bytes\n", n);
@@ -136,9 +135,10 @@ static char *get_first_line(char *data) {
  * The filename we should eventually use, in the following format:
  *
  *     tv_sec.tv_usec bytes firstlinehash \0
- * len    10 1   10  1 20  1     20        1
+ * len    10 1   10  1 20  1     10        1
  *
- * As such, CM_FILENAME_MAX is 64 bytes.
+ * As such, CM_FILENAME_MAX is 64 bytes -- 54 rounded up to the nearest power
+ * of two.
  *
  * The result of this function must be freed when unused.
  */
@@ -373,7 +373,16 @@ static void event_loop() {
         return -EINVAL;                                                        \
     }
 
-int selftest(void) {
+#define assert_u32_eq(a, b)                                                    \
+    if ((a) != (b)) {                                                          \
+        fprintf(stderr,                                                        \
+                "selftest failed on line %d step '%s == %s', \"%" PRIu32       \
+                "\" != \"%" PRIu32 "\"\n",                                     \
+                __LINE__, #a, #b, (a), (b));                                   \
+        return -EINVAL;                                                        \
+    }
+
+static int selftest(void) {
     char *tmp;
 
     /* If it's all empty, the first line should also just be empty */
@@ -408,6 +417,11 @@ int selftest(void) {
     tmp = get_first_line("Foo bar\nbaz");
     assert_streq(tmp, "Foo bar (2 lines)");
     free(tmp);
+
+    /* Test djb2 hash */
+    assert_u32_eq(djb2_hash("stottie"), (uint32_t)2933491793);
+    assert_u32_eq(djb2_hash("肉夹馍"), (uint32_t)2954197494);
+    assert_u32_eq(djb2_hash("пельме́ни"), (uint32_t)1457444436);
 
     return 0;
 }
