@@ -1,4 +1,4 @@
-/* gcc -g3 clipmenud.c -Wall -Werror -lxcb -lxcb-util -lxcb-xfixes -o cd */
+/* gcc -g3 -fsanitize=address -fno-omit-frame-pointer clipmenud.c -Wall -Werror -lxcb -lxcb-util -lxcb-xfixes -o cd */
 
 #include <assert.h>
 #include <errno.h>
