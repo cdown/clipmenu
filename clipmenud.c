@@ -251,20 +251,31 @@ static int get_xfixes_first_event(void) {
 }
 
 static void handle_xfixes_selection_notify(xcb_generic_event_t *raw_evt) {
+#if 0
+    int ret;
+    xcb_atom_t utf8_string_atom, xsel_data_atom;
     xcb_xfixes_selection_notify_event_t *evt =
         (xcb_xfixes_selection_notify_event_t *)raw_evt;
 
     /*
-     * This shouldn't happen, but if we already own the selection, don't do
-     * anything to avoid infinite loop.
+     * If this happens, we're already in control and don't need to do anything,
+     * likely from the xcb_set_selection_owner below.
      */
     if (evt->owner == evt_win) {
-        fprintf(stderr, "XCB_XFIXES_SELECTION_NOTIFY allegedly from us?\n");
         return;
     }
 
-#if 0
-    xcb_atom_t utf8_string_atom, xsel_data_atom;
+    ret = get_atom("XSEL_DATA", &xsel_data_atom);
+    if (ret) {
+        fprintf(stderr, "Failed to get XSEL_DATA atom\n");
+        return;
+    }
+
+    ret = get_atom("UTF8_STRING", &utf8_string_atom);
+    if (ret) {
+        fprintf(stderr, "Failed to get UTF8_STRING atom\n");
+        return;
+    }
 
     /*
      * Pack the data in our XSEL_DATA atom for safekeeping, generating an
@@ -272,7 +283,8 @@ static void handle_xfixes_selection_notify(xcb_generic_event_t *raw_evt) {
      */
     xcb_convert_selection(xcb_conn, evt_win, evt->selection, utf8_string_atom,
                           xsel_data_atom, XCB_CURRENT_TIME);
-    xcb_set_selection_owner(xcb_conn, evt_win, evt->selection, XCB_CURRENT_TIME);
+    xcb_set_selection_owner(xcb_conn, evt_win, evt->selection,
+                            XCB_CURRENT_TIME);
 
     xcb_flush(xcb_conn);
 #endif
