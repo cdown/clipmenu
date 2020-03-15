@@ -267,13 +267,13 @@ static void handle_xfixes_selection_notify(xcb_generic_event_t *raw_evt) {
 
     ret = get_atom("XSEL_DATA", &xsel_data_atom);
     if (ret) {
-        fprintf(stderr, "Failed to get XSEL_DATA atom\n");
+        fputs("Failed to get XSEL_DATA atom\n", stderr);
         return;
     }
 
     ret = get_atom("UTF8_STRING", &utf8_string_atom);
     if (ret) {
-        fprintf(stderr, "Failed to get UTF8_STRING atom\n");
+        fputs("Failed to get UTF8_STRING atom\n", stderr);
         return;
     }
 
@@ -315,7 +315,7 @@ static void event_loop() {
         uint8_t resp_type;
 
         if (!evt || !evt->response_type) {
-            fprintf(stderr, "Unknown error getting event from X server\n");
+            fputs("Unknown error getting event from X server\n", stderr);
             continue;
         }
 
