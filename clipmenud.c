@@ -401,6 +401,27 @@ static int selftest(void) {
     return 0;
 }
 
+static void set_wm_attributes(const char *new_name) {
+    xcb_generic_error_t *err;
+    xcb_void_cookie_t cookie;
+
+    cookie = xcb_change_property_checked(
+        xcb_conn, XCB_PROP_MODE_REPLACE, evt_win, XCB_ATOM_WM_CLASS,
+        XCB_ATOM_STRING, 8, strlen(new_name), new_name);
+    err = xcb_request_check(xcb_conn, cookie);
+    if (err) {
+        fprintf(stderr, "Cannot set WM_CLASS\n");
+    }
+
+    cookie = xcb_change_property_checked(
+        xcb_conn, XCB_PROP_MODE_REPLACE, evt_win, XCB_ATOM_WM_NAME,
+        XCB_ATOM_STRING, 8, strlen(new_name), new_name);
+    err = xcb_request_check(xcb_conn, cookie);
+    if (err) {
+        fprintf(stderr, "Cannot set WM_NAME\n");
+    }
+}
+
 int main(int argc, char *argv[]) {
     int err;
 
@@ -423,6 +444,8 @@ int main(int argc, char *argv[]) {
         xcb_disconnect(xcb_conn);
         die(2, "Failed to create event window\n");
     }
+
+    set_wm_attributes("clipmenud");
 
     event_loop();
 
