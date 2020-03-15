@@ -413,26 +413,21 @@ static int selftest(void) {
     return 0;
 }
 
-static void set_wm_attributes(const char *new_name) {
-    xcb_generic_error_t *err;
+static void __set_wm_attribute(xcb_atom_t atom, const char *new_name,
+                               const char *atom_name) {
     xcb_void_cookie_t cookie;
+    xcb_generic_error_t *err;
 
-    cookie = xcb_change_property_checked(
-        xcb_conn, XCB_PROP_MODE_REPLACE, evt_win, XCB_ATOM_WM_CLASS,
-        XCB_ATOM_STRING, 8, strlen(new_name), new_name);
+    cookie = xcb_change_property_checked(xcb_conn, XCB_PROP_MODE_REPLACE,
+                                         evt_win, atom, XCB_ATOM_STRING, 8,
+                                         strlen(new_name), new_name);
     err = xcb_request_check(xcb_conn, cookie);
     if (err) {
-        fprintf(stderr, "Cannot set WM_CLASS\n");
-    }
-
-    cookie = xcb_change_property_checked(
-        xcb_conn, XCB_PROP_MODE_REPLACE, evt_win, XCB_ATOM_WM_NAME,
-        XCB_ATOM_STRING, 8, strlen(new_name), new_name);
-    err = xcb_request_check(xcb_conn, cookie);
-    if (err) {
-        fprintf(stderr, "Cannot set WM_NAME\n");
+        fprintf(stderr, "Failed to set %s\n", atom_name);
     }
 }
+#define SET_WM_ATTRIBUTE(atom, new_name)                                       \
+    __set_wm_attribute(atom, new_name, #atom)
 
 int main(int argc, char *argv[]) {
     int err;
@@ -457,7 +452,8 @@ int main(int argc, char *argv[]) {
         die(2, "Failed to create event window\n");
     }
 
-    set_wm_attributes("clipmenud");
+    SET_WM_ATTRIBUTE(XCB_ATOM_WM_NAME, "clipmenud");
+    SET_WM_ATTRIBUTE(XCB_ATOM_WM_CLASS, "clipmenud");
 
     event_loop();
 
