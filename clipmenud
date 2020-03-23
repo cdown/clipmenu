@@ -15,9 +15,9 @@ CM_MAX_CLIPS_THRESH=$(( CM_MAX_CLIPS + 100 ))
 # shellcheck disable=SC2153
 : "${CM_SELECTIONS=clipboard primary}"
 
-major_version=5
+major_version=6
 cache_dir=$CM_DIR/clipmenu.$major_version.$USER/
-cache_file_prefix=$cache_dir/line_cache
+cache_file=$cache_dir/line_cache
 
 # lock_file is the lock for *one* iteration of clipboard capture/propagation.
 # session_lock_file is the lock to prevent multiple clipmenud daemons from
@@ -186,7 +186,6 @@ while true; do
     fi
 
     for selection in "${cm_selections[@]}"; do
-        cache_file=${cache_file_prefix}_$selection
         data=$(_xsel -o --"$selection"; printf x)
 
         debug "Data before stripping: $data"

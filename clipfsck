@@ -2,12 +2,12 @@
 
 : "${CM_DIR="${XDG_RUNTIME_DIR-"${TMPDIR-/tmp}"}"}"
 
-major_version=5
+major_version=6
 
 shopt -s nullglob
 
 cache_dir=$CM_DIR/clipmenu.$major_version.$USER
-cache_file_prefix=$cache_dir/line_cache
+cache_file=$cache_dir/line_cache
 
 declare -A cksums
 
@@ -16,11 +16,11 @@ while IFS= read -r line; do
     cksums["$cksum"]="$line"
 
     # Are all cache entries represented by a file?
-    cache_file=$cache_dir/$cksum
-    if ! [[ -f $cache_file ]]; then
-        printf 'cache entry without file: %s -> %s\n' "$line" "$cache_file" >&2
+    full_file=$cache_dir/$cksum
+    if ! [[ -f $full_file ]]; then
+        printf 'cache entry without file: %s -> %s\n' "$line" "$full_file" >&2
     fi
-done < <(cat "$cache_file_prefix"_* /dev/null | cut -d' ' -f2-)
+done < <(cut -d' ' -f2- < "$cache_file")
 
 # Are all files represented by a cache entry?
 for file in "$cache_dir"/[012346789]*; do
