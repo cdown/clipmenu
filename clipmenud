@@ -48,19 +48,15 @@ get_first_line() {
     # first line that can provide reasonable context to the user.
     awk -v limit=300 '
         BEGIN { printed = 0; }
-
         printed == 0 && NF {
             $0 = substr($0, 0, limit);
             printf("%s", $0);
             printed = 1;
         }
-
         END {
-            if (NR > 1) {
-                print " (" NR " lines)";
-            } else {
-                printf("\n");
-            }
+            if (NR > 1)
+                printf(" (%d lines)", NR);
+            printf("\n");
         }' <<< "$data"
 }
 
