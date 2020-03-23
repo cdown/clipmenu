@@ -4,30 +4,24 @@
 : "${CM_OWN_CLIPBOARD=0}"
 : "${CM_DEBUG=0}"
 : "${CM_DIR="${XDG_RUNTIME_DIR-"${TMPDIR-/tmp}"}"}"
-: "${CM_MAX_CLIPS=1000}"
 
 # Buffer to batch to avoid calling too much. Only used if CM_MAX_CLIPS >0.
+: "${CM_MAX_CLIPS=1000}"
 CM_MAX_CLIPS_THRESH=$(( CM_MAX_CLIPS + 100 ))
 
-# Shellcheck is mistaken here, this is used later as lowercase.
-# shellcheck disable=SC2153
 : "${CM_SELECTIONS=clipboard primary}"
+read -r -a selections <<< "$CM_SELECTIONS"
 
 major_version=6
 cache_dir=$CM_DIR/clipmenu.$major_version.$USER/
 cache_file=$cache_dir/line_cache
 
-# lock_file is the lock for *one* iteration of clipboard capture/propagation.
-# session_lock_file is the lock to prevent multiple clipmenud daemons from
-# running at once.
+# lock_file: lock for *one* iteration of clipboard capture/propagation
+# session_lock_file: lock to prevent multiple clipmenud daemons
 lock_file=$cache_dir/lock
 session_lock_file=$cache_dir/session_lock
 lock_timeout=2
 has_xdotool=0
-
-# This comes from the environment, so we rely on word splitting.
-# shellcheck disable=SC2206
-cm_selections=( $CM_SELECTIONS )
 
 if command -v timeout >/dev/null 2>&1; then
     timeout_cmd=(timeout 1)
@@ -133,7 +127,7 @@ while true; do
         fi
     fi
 
-    for selection in "${cm_selections[@]}"; do
+    for selection in "${selections[@]}"; do
         data=$(_xsel -o --"$selection"; printf x)
         data=${data%x}
 
@@ -163,16 +157,13 @@ while true; do
 
         cache_file_output="$(date +%s%N) $first_line"
         filename="$cache_dir/$(cksum <<< "$first_line")"
-
+        last_cache_file_output[$selection]=$cache_file_output
         last_data[$selection]=$data
 
         debug "Writing $data to $filename"
         printf '%s' "$data" > "$filename"
-
         debug "Writing $cache_file_output to $cache_file"
         printf '%s\n' "$cache_file_output" >> "$cache_file"
-
-        last_cache_file_output[$selection]=$cache_file_output
 
         if (( CM_OWN_CLIPBOARD )) && [[ $selection == clipboard ]]; then
             # Only clipboard, since apps like urxvt will unhilight for PRIMARY
