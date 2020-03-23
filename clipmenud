@@ -150,8 +150,7 @@ while true; do
         fi
     done
 
-    if (( CM_MAX_CLIPS )) && [[ -f $cache_file ]] &&
-        (( "$(wc -l < "$cache_file")" > CM_MAX_CLIPS_THRESH )); then
+    if (( CM_MAX_CLIPS )) && (( "$(wc -l < "$cache_file")" > CM_MAX_CLIPS_THRESH )); then
         info "Trimming clip cache to CM_MAX_CLIPS ($CM_MAX_CLIPS)"
         trunc_tmp=$(mktemp)
         tail -n "$CM_MAX_CLIPS" "$cache_file" | uniq > "$trunc_tmp"
