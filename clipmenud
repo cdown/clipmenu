@@ -10,7 +10,6 @@
 # > 0.
 CM_MAX_CLIPS_THRESH=$(( CM_MAX_CLIPS + 100 ))
 
-
 # Shellcheck is mistaken here, this is used later as lowercase.
 # shellcheck disable=SC2153
 : "${CM_SELECTIONS=clipboard primary}"
@@ -95,17 +94,6 @@ debug() {
     if (( CM_DEBUG )); then
         printf '%s\n' "$@" >&2
     fi
-}
-
-element_in() {
-    local item element
-    item="$1"
-    for element in "${@:2}"; do
-        if [[ "$item" == "$element" ]]; then
-            return 0
-        fi
-    done
-    return 1
 }
 
 if [[ $1 == --help ]] || [[ $1 == -h ]]; then
@@ -248,8 +236,7 @@ while true; do
 
         last_cache_file_output[$selection]=$cache_file_output
 
-        if (( CM_OWN_CLIPBOARD )) && [[ $selection != primary ]] &&
-           element_in clipboard "${cm_selections[@]}"; then
+        if (( CM_OWN_CLIPBOARD )) && [[ $selection == clipboard ]]; then
             # Take ownership of the clipboard, in case the original application
             # is unable to serve the clipboard request (due to being suspended,
             # etc).
