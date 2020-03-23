@@ -263,35 +263,35 @@ while true; do
             # we would skip first.
             _xsel -o --clipboard | _xsel -i --clipboard
         fi
-
-        # Fail quickly if we're not far enough over, to avoid calling `cksum` a
-        # lot and killing perf if we're not batched.
-        if (( CM_MAX_CLIPS )) && [[ -f $cache_file ]] &&
-           (( "$(wc -l < "$cache_file")" > CM_MAX_CLIPS_THRESH )); then
-            info "Trimming clip cache to CM_MAX_CLIPS ($CM_MAX_CLIPS)"
-            trunc_tmp=$(mktemp)
-            tail -n "$CM_MAX_CLIPS" "$cache_file" | uniq > "$trunc_tmp"
-            mv -- "$trunc_tmp" "$cache_file"
-
-            # Vacuum up unreferenced clips. They may either have been
-            # unreferenced by the above CM_MAX_CLIPS code, or they may be old
-            # possible partials.
-            info "Vacuuming unreferenced clip files"
-            while IFS= read -r line; do
-                cksum=$(cksum <<< "$line")
-                cksums["$cksum"]="$line"
-            done < <(cut -d' ' -f2- < "$cache_file")
-
-            for file in "$cache_dir"/[012346789]*; do
-                cksum=${file##*/}
-                line=${cksums["$cksum"]-_missing_}
-                if [[ $line == _missing_ ]]; then
-                    debug "Vacuuming due to lack of reference: $file"
-                    rm -- "$file"
-                fi
-            done
-        fi
     done
+
+    # Fail quickly if we're not far enough over, to avoid calling `cksum` a
+    # lot and killing perf if we're not batched.
+    if (( CM_MAX_CLIPS )) && [[ -f $cache_file ]] &&
+        (( "$(wc -l < "$cache_file")" > CM_MAX_CLIPS_THRESH )); then
+        info "Trimming clip cache to CM_MAX_CLIPS ($CM_MAX_CLIPS)"
+        trunc_tmp=$(mktemp)
+        tail -n "$CM_MAX_CLIPS" "$cache_file" | uniq > "$trunc_tmp"
+        mv -- "$trunc_tmp" "$cache_file"
+
+        # Vacuum up unreferenced clips. They may either have been
+        # unreferenced by the above CM_MAX_CLIPS code, or they may be old
+        # possible partials.
+        info "Vacuuming unreferenced clip files"
+        while IFS= read -r line; do
+            cksum=$(cksum <<< "$line")
+            cksums["$cksum"]="$line"
+        done < <(cut -d' ' -f2- < "$cache_file")
+
+        for file in "$cache_dir"/[012346789]*; do
+            cksum=${file##*/}
+            line=${cksums["$cksum"]-_missing_}
+            if [[ $line == _missing_ ]]; then
+                debug "Vacuuming due to lack of reference: $file"
+                rm -- "$file"
+            fi
+        done
+    fi
 
     flock -u "$lock_fd"
 
