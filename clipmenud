@@ -43,11 +43,10 @@ make_line_cksums() { while read -r line; do cksum <<< "${line#* }"; done; }
 
 get_first_line() {
     data=${1?}
-    line_length_limit=${2-300}
 
     # We look for the first line matching regex /./ here because we want the
     # first line that can provide reasonable context to the user.
-    awk -v limit="$line_length_limit" '
+    awk -v limit=300 '
         BEGIN { printed = 0; }
 
         printed == 0 && NF {
