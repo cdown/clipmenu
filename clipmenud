@@ -170,8 +170,7 @@ while true; do
         num_vacuumed=0
         for file in "$cache_dir"/[012346789]*; do
             cksum=${file##*/}
-            line=${cksums["$cksum"]-_missing_}
-            if [[ $line == _missing_ ]]; then
+            if [[ ${cksums["$cksum"]-_missing_} == _missing_ ]]; then
                 debug "Vacuuming due to lack of reference: $file"
                 (( ++num_vacuumed ))
                 rm -- "$file"
