@@ -175,17 +175,7 @@ while true; do
         last_cache_file_output[$selection]=$cache_file_output
 
         if (( CM_OWN_CLIPBOARD )) && [[ $selection == clipboard ]]; then
-            # Take ownership of the clipboard, in case the original application
-            # is unable to serve the clipboard request (due to being suspended,
-            # etc).
-            #
-            # Primary is excluded from the change of ownership as applications
-            # sometimes act up if clipboard focus is taken away from them --
-            # for example, urxvt will unhilight text, which is undesirable.
-            #
-            # We can't colocate this with the above copying code because
-            # https://github.com/cdown/clipmenu/issues/34 requires knowing if
-            # we would skip first.
+            # Only clipboard, since apps like urxvt will unhilight for PRIMARY
             _xsel -o --clipboard | _xsel -i --clipboard
         fi
     done
