@@ -159,7 +159,6 @@ while true; do
         # Vacuum up unreferenced clips. They may either have been
         # unreferenced by the above CM_MAX_CLIPS code, or they may be old
         # possible partials.
-        debug "Vacuuming unreferenced clip files"
         declare -A cksums
         while IFS= read -r line; do
             cksum=$(cksum <<< "$line")
