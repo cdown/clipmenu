@@ -213,8 +213,8 @@ while true; do
         possible_partial=${last_data[$selection]}
         if [[ $possible_partial && $data == "$possible_partial"* ]] ||
            [[ $possible_partial && $data == *"$possible_partial" ]]; then
-            info "Last clip was a possible partial, removing line cache entry"
-            debug "$possible_partial is a possible partial of $data"
+            info "Last clip for $selection was a possible partial, removing line cache entry"
+            debug "$selection: $possible_partial is a possible partial of $data"
 
             previous_size=$(wc -c <<< "${last_cache_file_output[$selection]}")
             truncate -s -"$previous_size" "$cache_file"
