@@ -277,20 +277,25 @@ while true; do
         # Vacuum up unreferenced clips. They may either have been
         # unreferenced by the above CM_MAX_CLIPS code, or they may be old
         # possible partials.
-        info "Vacuuming unreferenced clip files"
+        debug "Vacuuming unreferenced clip files"
+        declare -A cksums
         while IFS= read -r line; do
             cksum=$(cksum <<< "$line")
             cksums["$cksum"]="$line"
         done < <(cut -d' ' -f2- < "$cache_file")
 
+        num_vacuumed=0
         for file in "$cache_dir"/[012346789]*; do
             cksum=${file##*/}
             line=${cksums["$cksum"]-_missing_}
             if [[ $line == _missing_ ]]; then
                 debug "Vacuuming due to lack of reference: $file"
+                (( ++num_vacuumed ))
                 rm -- "$file"
             fi
         done
+        unset cksums
+        info "Vacuumed $num_vacuumed clip files."
     fi
 
     flock -u "$lock_fd"
