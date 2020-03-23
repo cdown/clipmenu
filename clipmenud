@@ -23,14 +23,7 @@ session_lock_file=$cache_dir/session_lock
 lock_timeout=2
 has_xdotool=0
 
-if command -v timeout >/dev/null 2>&1; then
-    timeout_cmd=(timeout 1)
-else
-    echo "WARN: No timeout binary. Continuing without any timeout on xsel." >&2
-    timeout_cmd=()
-fi
-
-_xsel() { "${timeout_cmd[@]}" xsel --logfile /dev/null "$@"; }
+_xsel() { timeout 1 xsel --logfile /dev/null "$@"; }
 
 error() { printf 'ERROR: %s\n' "${1?}" >&2; }
 info() { printf 'INFO: %s\n' "${1?}"; }
