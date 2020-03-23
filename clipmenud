@@ -213,15 +213,16 @@ while true; do
         possible_partial=${last_data[$selection]}
         if [[ $possible_partial && $data == "$possible_partial"* ]] ||
            [[ $possible_partial && $data == *"$possible_partial" ]]; then
+            info "Last clip was a possible partial, removing line cache entry"
             debug "$possible_partial is a possible partial of $data"
-            debug "Removing ${last_filename[$selection]}"
 
             previous_size=$(wc -c <<< "${last_cache_file_output[$selection]}")
             truncate -s -"$previous_size" "$cache_file"
 
             file=${last_filename[$selection]}
-            info "Removing $file as a possible partial"
-            rm -- "$file"
+
+            # Don't remove the file yet, because it might be referenced by an
+            # older entry. These will be dealt with at vacuum time.
         fi
 
         first_line=$(get_first_line "$data")
@@ -267,40 +268,28 @@ while true; do
         # lot and killing perf if we're not batched.
         if (( CM_MAX_CLIPS )) && [[ -f $cache_file ]] &&
            (( "$(wc -l < "$cache_file")" > CM_MAX_CLIPS_THRESH )); then
-            # comm filters out duplicate entries that we'd delete still
-            # referenced entries for
-            mapfile -t to_remove < <(
-                comm -23 \
-                <(head -n -"$CM_MAX_CLIPS" "$cache_file" |
-                    make_line_cksums | sort) \
-                <(tail -n -"$CM_MAX_CLIPS" "$cache_file" |
-                    make_line_cksums | sort)
-            )
+            info "Trimming clip cache to CM_MAX_CLIPS ($CM_MAX_CLIPS)"
+            trunc_tmp=$(mktemp)
+            tail -n "$CM_MAX_CLIPS" "$cache_file" | uniq > "$trunc_tmp"
+            mv -- "$trunc_tmp" "$cache_file"
 
-            num_to_remove="${#to_remove[@]}"
-            if (( num_to_remove )); then
-                debug "Removing $num_to_remove old clips"
+            # Vacuum up unreferenced clips. They may either have been
+            # unreferenced by the above CM_MAX_CLIPS code, or they may be old
+            # possible partials.
+            info "Vacuuming unreferenced clip files"
+            while IFS= read -r line; do
+                cksum=$(cksum <<< "$line")
+                cksums["$cksum"]="$line"
+            done < <(cut -d' ' -f2- < "$cache_file")
 
-                # If we had the same clip content twice, we will have two
-                # entries in the cache file for it. This is handled on clipmenu
-                # side by checking for seen lines with awk, but we should try
-                # to avoid doing `rm` with the same file repeatedly in the list
-                # for this case (which is harmless, but causes confusion when
-                # rm errors).
-                declare -A tmp_files
-                for file in "${to_remove[@]/#/"$cache_dir/"}"; do
-                    tmp_files["$file"]=1
-                done
-                files=( "${!tmp_files[@]}" )
-                unset tmp_files
-
-                info "Removing the following due to overflow: ${files[*]}"
-
-                rm -- "${files[@]}"
-                trunc_tmp=$(mktemp)
-                tail -n "$CM_MAX_CLIPS" "$cache_file" | uniq > "$trunc_tmp"
-                mv -- "$trunc_tmp" "$cache_file"
-            fi
+            for file in "$cache_dir"/[012346789]*; do
+                cksum=${file##*/}
+                line=${cksums["$cksum"]-_missing_}
+                if [[ $line == _missing_ ]]; then
+                    debug "Vacuuming due to lack of reference: $file"
+                    rm -- "$file"
+                fi
+            done
         fi
     done
 
