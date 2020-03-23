@@ -6,8 +6,7 @@
 : "${CM_DIR="${XDG_RUNTIME_DIR-"${TMPDIR-/tmp}"}"}"
 : "${CM_MAX_CLIPS=1000}"
 
-# Buffer to batch to avoid calling too much. Will only be used if CM_MAX_CLIPS
-# > 0.
+# Buffer to batch to avoid calling too much. Only used if CM_MAX_CLIPS >0.
 CM_MAX_CLIPS_THRESH=$(( CM_MAX_CLIPS + 100 ))
 
 # Shellcheck is mistaken here, this is used later as lowercase.
@@ -37,40 +36,23 @@ else
     timeout_cmd=()
 fi
 
-_xsel() {
-    "${timeout_cmd[@]}" xsel --logfile /dev/null "$@"
-}
+_xsel() { "${timeout_cmd[@]}" xsel --logfile /dev/null "$@"; }
 
-error() {
-    printf 'ERROR: %s\n' "${1?}" >&2
-}
-
-info() {
-    printf 'INFO: %s\n' "${1?}"
-}
-
+error() { printf 'ERROR: %s\n' "${1?}" >&2; }
+info() { printf 'INFO: %s\n' "${1?}"; }
 die() {
     error "${2?}"
     exit "${1?}"
 }
 
-make_line_cksums() {
-    while read -r line; do cksum <<< "${line#* }"; done
-}
+make_line_cksums() { while read -r line; do cksum <<< "${line#* }"; done; }
 
 get_first_line() {
-    # Args:
-    # - $1, the file or data
-    # - $2, optional, the line length limit
-
     data=${1?}
     line_length_limit=${2-300}
 
     # We look for the first line matching regex /./ here because we want the
-    # first line that can provide reasonable context to the user. That is, if
-    # you have 5 leading lines of whitespace, displaying " (6 lines)" is much
-    # less useful than displaying "foo (6 lines)", where "foo" is the first
-    # line in the entry with actionable context.
+    # first line that can provide reasonable context to the user.
     awk -v limit="$line_length_limit" '
         BEGIN { printed = 0; }
 
@@ -89,11 +71,7 @@ get_first_line() {
         }' <<< "$data"
 }
 
-debug() {
-    if (( CM_DEBUG )); then
-        printf '%s\n' "$@" >&2
-    fi
-}
+debug() { (( CM_DEBUG )) && printf '%s\n' "$@" >&2; }
 
 if [[ $1 == --help ]] || [[ $1 == -h ]]; then
     cat << 'EOF'
