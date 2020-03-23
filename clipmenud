@@ -188,11 +188,6 @@ while true; do
 
         last_data[$selection]=$data
 
-        # Recover without restart if we deleted the entire clip dir.
-        # It's ok that this only applies to the final directory.
-        # shellcheck disable=SC2174
-        mkdir -p -m0700 "$cache_dir"
-
         debug "Writing $data to $filename"
         printf '%s' "$data" > "$filename"
 
