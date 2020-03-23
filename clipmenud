@@ -90,7 +90,6 @@ fi
 mkdir -p -m0700 "$cache_dir"
 
 exec {session_lock_fd}> "$session_lock_file"
-
 flock -x -n "$session_lock_fd" ||
     die 2 "Can't lock session file -- is another clipmenud running?"
 
@@ -144,7 +143,6 @@ while true; do
         fi
 
         first_line=$(get_first_line "$data")
-
         debug "New clipboard entry on $selection selection: \"$first_line\""
 
         cache_file_output="$(date +%s%N) $first_line"
@@ -196,8 +194,5 @@ while true; do
 
     flock -u "$lock_fd"
 
-    if (( CM_ONESHOT )); then
-        debug 'Oneshot mode enabled, exiting'
-        break
-    fi
+    (( CM_ONESHOT )) && break
 done
