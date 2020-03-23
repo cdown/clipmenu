@@ -129,17 +129,10 @@ while true; do
 
     for selection in "${selections[@]}"; do
         data=$(_xsel -o --"$selection"; printf x)
-        data=${data%x}
+        data=${data%x}  # avoid trailing newlines being stripped
 
-        if [[ $data != *[^[:space:]]* ]]; then
-            debug "Skipping as clipboard is only blank"
-            continue
-        fi
-
-        if [[ ${last_data[$selection]} == "$data" ]]; then
-            debug 'Skipping as last selection is the same as this one'
-            continue
-        fi
+        [[ $data == *[^[:space:]]* ]] || continue
+        [[ ${last_data[$selection]} == "$data" ]] && continue
 
         possible_partial=${last_data[$selection]}
         if [[ $possible_partial && $data == "$possible_partial"* ]] ||
