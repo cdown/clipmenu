@@ -5,9 +5,9 @@
 : "${CM_DEBUG=0}"
 : "${CM_DIR="${XDG_RUNTIME_DIR-"${TMPDIR-/tmp}"}"}"
 
-# Buffer to batch to avoid calling too much. Only used if CM_MAX_CLIPS >0.
 : "${CM_MAX_CLIPS=1000}"
-CM_MAX_CLIPS_THRESH=$(( CM_MAX_CLIPS + 100 ))
+# Buffer to batch to avoid calling too much. Only used if CM_MAX_CLIPS >0.
+CM_MAX_CLIPS_THRESH=$(( CM_MAX_CLIPS + 10 ))
 
 : "${CM_SELECTIONS=clipboard primary}"
 read -r -a selections <<< "$CM_SELECTIONS"
@@ -64,7 +64,7 @@ Environment variables:
 
 - $CM_DEBUG: turn on debugging output (default: 0)
 - $CM_DIR: specify the base directory to store the cache dir in (default: $XDG_RUNTIME_DIR, $TMPDIR, or /tmp)
-- $CM_MAX_CLIPS: soft maximum number of clips to store, 0 for inf. At $CM_MAX_CLIPS + 100, the number of clips is reduced to $CM_MAX_CLIPS (default: 1000)
+- $CM_MAX_CLIPS: soft maximum number of clips to store, 0 for inf. At $CM_MAX_CLIPS + 10, the number of clips is reduced to $CM_MAX_CLIPS (default: 1000)
 - $CM_ONESHOT: run once immediately, do not loop (default: 0)
 - $CM_OWN_CLIPBOARD: take ownership of the clipboard. Note: this may cause missed copies if some other application also handles the clipboard directly (default: 0)
 - $CM_SELECTIONS: space separated list of the selections to manage (default: "clipboard primary")
