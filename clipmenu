@@ -35,13 +35,11 @@ list_clips() {
 }
 
 if [[ "$CM_LAUNCHER" == rofi-script ]]; then
-    if ! (( $# )); then
+    if (( $# )); then
+        chosen_line="${!#}"
+    else
         list_clips
         exit
-    else
-        # https://github.com/koalaman/shellcheck/issues/1141
-        # shellcheck disable=SC2124
-        chosen_line="${@: -1}"
     fi
 else
     chosen_line=$(
