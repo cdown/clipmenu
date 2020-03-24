@@ -48,18 +48,8 @@ else
 fi
 
 [[ $chosen_line ]] || exit 1
-
 file=$cache_dir/$(cksum <<< "$chosen_line")
-
-if ! [[ -f "$file" ]]; then
-    # We didn't find this in cache
-    printf 'FATAL: %s not in cache (%s missing)\n' "$chosen_line" "$file" >&2
-    printf 'Please report the following debug information:\n\n' >&2
-    wc -l "$cache_file" >&2
-    grep -nFR "$chosen_line" "$cache_dir" >&2
-    stat "$file" >&2
-    exit 2
-fi
+[[ -f "$file" ]] || exit 2
 
 for selection in clipboard primary; do
     xsel --logfile /dev/null -i --"$selection" < "$file"
