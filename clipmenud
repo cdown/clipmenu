@@ -57,8 +57,7 @@ debug() { (( CM_DEBUG )) && printf '%s\n' "$@" >&2; }
 
 if [[ $1 == --help ]] || [[ $1 == -h ]]; then
     cat << 'EOF'
-clipmenud is the daemon that collects and caches what's on the clipboard.
-when you want to select a clip.
+clipmenud collects and caches what's on the clipboard.
 
 Environment variables:
 
