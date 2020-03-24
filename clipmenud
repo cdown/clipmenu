@@ -1,98 +1,71 @@
 #!/usr/bin/env bash
 
 : "${CM_ONESHOT=0}"
-: "${CM_OWN_CLIPBOARD=1}"
+: "${CM_OWN_CLIPBOARD=0}"
 : "${CM_DEBUG=0}"
 : "${CM_DIR="${XDG_RUNTIME_DIR-"${TMPDIR-/tmp}"}"}"
+
 : "${CM_MAX_CLIPS=1000}"
+# Buffer to batch to avoid calling too much. Only used if CM_MAX_CLIPS >0.
+CM_MAX_CLIPS_THRESH=$(( CM_MAX_CLIPS + 10 ))
 
-# Shellcheck is mistaken here, this is used later as lowercase.
-# shellcheck disable=SC2153
 : "${CM_SELECTIONS=clipboard primary}"
+read -r -a selections <<< "$CM_SELECTIONS"
 
-major_version=5
+major_version=6
 cache_dir=$CM_DIR/clipmenu.$major_version.$USER/
-cache_file_prefix=$cache_dir/line_cache
+cache_file=$cache_dir/line_cache
+
+# lock_file: lock for *one* iteration of clipboard capture/propagation
+# session_lock_file: lock to prevent multiple clipmenud daemons
 lock_file=$cache_dir/lock
+session_lock_file=$cache_dir/session_lock
 lock_timeout=2
-has_clipnotify=0
 has_xdotool=0
 
-# This comes from the environment, so we rely on word splitting.
-# shellcheck disable=SC2206
-cm_selections=( $CM_SELECTIONS )
+_xsel() { timeout 1 xsel --logfile /dev/null "$@"; }
 
-if command -v timeout >/dev/null 2>&1; then
-    timeout_cmd=(timeout 1)
-else
-    echo "WARN: No timeout binary. Continuing without any timeout on xsel." >&2
-    timeout_cmd=()
-fi
-
-_xsel() {
-    "${timeout_cmd[@]}" xsel --logfile /dev/null "$@"
+error() { printf 'ERROR: %s\n' "${1?}" >&2; }
+info() { printf 'INFO: %s\n' "${1?}"; }
+die() {
+    error "${2?}"
+    exit "${1?}"
 }
 
-get_first_line() {
-    # Args:
-    # - $1, the file or data
-    # - $2, optional, the line length limit
+make_line_cksums() { while read -r line; do cksum <<< "${line#* }"; done; }
 
+get_first_line() {
     data=${1?}
-    line_length_limit=${2-300}
 
     # We look for the first line matching regex /./ here because we want the
-    # first line that can provide reasonable context to the user. That is, if
-    # you have 5 leading lines of whitespace, displaying " (6 lines)" is much
-    # less useful than displaying "foo (6 lines)", where "foo" is the first
-    # line in the entry with actionable context.
-    awk -v limit="$line_length_limit" '
+    # first line that can provide reasonable context to the user.
+    awk -v limit=300 '
         BEGIN { printed = 0; }
-
         printed == 0 && NF {
             $0 = substr($0, 0, limit);
             printf("%s", $0);
             printed = 1;
         }
-
         END {
-            if (NR > 1) {
-                print " (" NR " lines)";
-            } else {
-                printf("\n");
-            }
+            if (NR > 1)
+                printf(" (%d lines)", NR);
+            printf("\n");
         }' <<< "$data"
 }
 
-debug() {
-    if (( CM_DEBUG )); then
-        printf '%s\n' "$@" >&2
-    fi
-}
-
-element_in() {
-    local item element
-    item="$1"
-    for element in "${@:2}"; do
-        if [[ "$item" == "$element" ]]; then
-            return 0
-        fi
-    done
-    return 1
-}
+debug() { (( CM_DEBUG )) && printf '%s\n' "$@" >&2; }
 
 if [[ $1 == --help ]] || [[ $1 == -h ]]; then
     cat << 'EOF'
-clipmenud is the daemon that collects and caches what's on the clipboard.
-when you want to select a clip.
+clipmenud collects and caches what's on the clipboard.
 
 Environment variables:
 
 - $CM_DEBUG: turn on debugging output (default: 0)
 - $CM_DIR: specify the base directory to store the cache dir in (default: $XDG_RUNTIME_DIR, $TMPDIR, or /tmp)
-- $CM_MAX_CLIPS: maximum number of clips to store, 0 for inf (default: 1000)
+- $CM_MAX_CLIPS: soft maximum number of clips to store, 0 for inf. At $CM_MAX_CLIPS + 10, the number of clips is reduced to $CM_MAX_CLIPS (default: 1000)
 - $CM_ONESHOT: run once immediately, do not loop (default: 0)
-- $CM_OWN_CLIPBOARD: take ownership of the clipboard (default: 1)
+- $CM_OWN_CLIPBOARD: take ownership of the clipboard. Note: this may cause missed copies if some other application also handles the clipboard directly (default: 0)
 - $CM_SELECTIONS: space separated list of the selections to manage (default: "clipboard primary")
 - $CM_IGNORE_WINDOW: disable recording the clipboard in windows where the windowname matches the given regex (e.g. a password manager), do not ignore any windows if unset or empty (default: unset)
 EOF
@@ -104,17 +77,14 @@ fi
 # shellcheck disable=SC2174
 mkdir -p -m0700 "$cache_dir"
 
+exec {session_lock_fd}> "$session_lock_file"
+flock -x -n "$session_lock_fd" ||
+    die 2 "Can't lock session file -- is another clipmenud running?"
+
 declare -A last_data
-declare -A last_filename
 declare -A last_cache_file_output
 
-command -v clipnotify >/dev/null 2>&1 && has_clipnotify=1
-
-if ! (( has_clipnotify )); then
-    echo "WARN: Consider installing clipnotify for better performance." >&2
-    echo "WARN: See https://github.com/cdown/clipnotify." >&2
-fi
-
+command -v clipnotify >/dev/null 2>&1 || die 2 "clipnotify not in PATH"
 command -v xdotool >/dev/null 2>&1 && has_xdotool=1
 
 if [[ $CM_IGNORE_WINDOW ]] && ! (( has_xdotool )); then
@@ -123,18 +93,8 @@ fi
 
 exec {lock_fd}> "$lock_file"
 
-sleep_cmd=(sleep "${CM_SLEEP:-0.5}")
-
 while true; do
-    if ! (( CM_ONESHOT )); then
-        if (( has_clipnotify )); then
-            # Fall back to polling if clipnotify fails
-            clipnotify || "${sleep_cmd[@]}"
-        else
-            # Use old polling method
-            "${sleep_cmd[@]}"
-        fi
-    fi
+    (( CM_ONESHOT )) || clipnotify
 
     if [[ $CM_IGNORE_WINDOW ]] && (( has_xdotool )); then
         windowname="$(xdotool getactivewindow getwindowname)"
@@ -146,112 +106,78 @@ while true; do
 
     if ! flock -x -w "$lock_timeout" "$lock_fd"; then
         if (( CM_ONESHOT )); then
-            printf 'ERROR: %s\n' 'Timed out waiting for lock' >&2
-            exit 1
+            die 1 "Timed out waiting for lock"
         else
-            printf 'ERROR: %s\n' \
-                'Timed out waiting for lock, skipping this run' >&2
+            error "Timed out waiting for lock, skipping this iteration"
             continue
         fi
     fi
 
-    for selection in "${cm_selections[@]}"; do
-        cache_file=${cache_file_prefix}_$selection
+    for selection in "${selections[@]}"; do
         data=$(_xsel -o --"$selection"; printf x)
+        data=${data%x}  # avoid trailing newlines being stripped
 
-        debug "Data before stripping: $data"
+        [[ $data == *[^[:space:]]* ]] || continue
+        [[ ${last_data[$selection]} == "$data" ]] && continue
 
-        # We add and remove the x so that trailing newlines are not stripped.
-        # Otherwise, they would be stripped by the very nature of how POSIX
-        # defines command substitution.
-        data=${data%x}
-
-        debug "Data after stripping: $data"
-
-        if [[ $data != *[^[:space:]]* ]]; then
-            debug "Skipping as clipboard is only blank"
-            continue
-        fi
-
-        if [[ ${last_data[$selection]} == "$data" ]]; then
-            debug 'Skipping as last selection is the same as this one'
-            continue
-        fi
-
-
-        # If we were in the middle of doing a selection when the previous poll
-        # ran, then we may have got a partial clip.
         possible_partial=${last_data[$selection]}
         if [[ $possible_partial && $data == "$possible_partial"* ]] ||
            [[ $possible_partial && $data == *"$possible_partial" ]]; then
-            debug "$possible_partial is a possible partial of $data"
-            debug "Removing ${last_filename[$selection]}"
-
+            # Don't actually remove the file yet, because it might be
+            # referenced by an older entry. These will be dealt with at vacuum.
+            debug "$selection: $possible_partial is a possible partial of $data"
             previous_size=$(wc -c <<< "${last_cache_file_output[$selection]}")
             truncate -s -"$previous_size" "$cache_file"
-
-            rm -- "${last_filename[$selection]}"
         fi
 
         first_line=$(get_first_line "$data")
-
         debug "New clipboard entry on $selection selection: \"$first_line\""
 
         cache_file_output="$(date +%s%N) $first_line"
         filename="$cache_dir/$(cksum <<< "$first_line")"
-
+        last_cache_file_output[$selection]=$cache_file_output
         last_data[$selection]=$data
-        last_filename[$selection]=$filename
-
-        # Recover without restart if we deleted the entire clip dir.
-        # It's ok that this only applies to the final directory.
-        # shellcheck disable=SC2174
-        mkdir -p -m0700 "$cache_dir"
 
         debug "Writing $data to $filename"
         printf '%s' "$data" > "$filename"
-
         debug "Writing $cache_file_output to $cache_file"
         printf '%s\n' "$cache_file_output" >> "$cache_file"
 
-        last_cache_file_output[$selection]=$cache_file_output
-
-        if (( CM_OWN_CLIPBOARD )) && [[ $selection != primary ]] &&
-           element_in clipboard "${cm_selections[@]}"; then
-            # Take ownership of the clipboard, in case the original application
-            # is unable to serve the clipboard request (due to being suspended,
-            # etc).
-            #
-            # Primary is excluded from the change of ownership as applications
-            # sometimes act up if clipboard focus is taken away from them --
-            # for example, urxvt will unhilight text, which is undesirable.
-            #
-            # We can't colocate this with the above copying code because
-            # https://github.com/cdown/clipmenu/issues/34 requires knowing if
-            # we would skip first.
+        if (( CM_OWN_CLIPBOARD )) && [[ $selection == clipboard ]]; then
+            # Only clipboard, since apps like urxvt will unhilight for PRIMARY
             _xsel -o --clipboard | _xsel -i --clipboard
-        fi
-
-        if (( CM_MAX_CLIPS )) && [[ -f $cache_file ]]; then
-            mapfile -t to_remove < <(
-                head -n -"$CM_MAX_CLIPS" "$cache_file" |
-                    while read -r line; do cksum <<< "${line#* }"; done
-            )
-            num_to_remove="${#to_remove[@]}"
-            if (( num_to_remove )); then
-                debug "Removing $num_to_remove old clips"
-                rm -- "${to_remove[@]/#/"$cache_dir/"}"
-                trunc_tmp=$(mktemp)
-                tail -n "$CM_MAX_CLIPS" "$cache_file" | uniq > "$trunc_tmp"
-                mv -- "$trunc_tmp" "$cache_file"
-            fi
         fi
     done
 
+    if (( CM_MAX_CLIPS )) && (( "$(wc -l < "$cache_file")" > CM_MAX_CLIPS_THRESH )); then
+        info "Trimming clip cache to CM_MAX_CLIPS ($CM_MAX_CLIPS)"
+        trunc_tmp=$(mktemp)
+        tail -n "$CM_MAX_CLIPS" "$cache_file" | uniq > "$trunc_tmp"
+        mv -- "$trunc_tmp" "$cache_file"
+
+        # Vacuum up unreferenced clips. They may either have been
+        # unreferenced by the above CM_MAX_CLIPS code, or they may be old
+        # possible partials.
+        declare -A cksums
+        while IFS= read -r line; do
+            cksum=$(cksum <<< "$line")
+            cksums["$cksum"]="$line"
+        done < <(cut -d' ' -f2- < "$cache_file")
+
+        num_vacuumed=0
+        for file in "$cache_dir"/[012346789]*; do
+            cksum=${file##*/}
+            if [[ ${cksums["$cksum"]-_missing_} == _missing_ ]]; then
+                debug "Vacuuming due to lack of reference: $file"
+                (( ++num_vacuumed ))
+                rm -- "$file"
+            fi
+        done
+        unset cksums
+        info "Vacuumed $num_vacuumed clip files."
+    fi
+
     flock -u "$lock_fd"
 
-    if (( CM_ONESHOT )); then
-        debug 'Oneshot mode enabled, exiting'
-        break
-    fi
+    (( CM_ONESHOT )) && break
 done

@@ -6,9 +6,9 @@ set -o pipefail
 
 : "${CM_DIR="${XDG_RUNTIME_DIR-"${TMPDIR-/tmp}"}"}"
 
-major_version=5
+major_version=6
 dir=$CM_DIR/clipmenu.$major_version.$USER
-cache_file=$dir/line_cache_primary
+cache_file=$dir/line_cache
 
 if [[ $0 == /* ]]; then
     location=${0%/*}

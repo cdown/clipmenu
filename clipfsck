@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+
+: "${CM_DIR="${XDG_RUNTIME_DIR-"${TMPDIR-/tmp}"}"}"
+
+major_version=6
+
+shopt -s nullglob
+
+cache_dir=$CM_DIR/clipmenu.$major_version.$USER
+cache_file=$cache_dir/line_cache
+
+declare -A cksums
+
+while IFS= read -r line; do
+    cksum=$(cksum <<< "$line")
+    cksums["$cksum"]="$line"
+
+    # Are all cache entries represented by a file?
+    full_file=$cache_dir/$cksum
+    if ! [[ -f $full_file ]]; then
+        printf 'cache entry without file: %s -> %s\n' "$line" "$full_file" >&2
+    fi
+done < <(cut -d' ' -f2- < "$cache_file")
+
+# Are all files represented by a cache entry?
+for file in "$cache_dir"/[012346789]*; do
+    cksum=${file##*/}
+    line=${cksums["$cksum"]-_missing_}
+    if [[ $line == _missing_ ]]; then
+        printf 'file without cache entry: %s\n' "$file"
+    fi
+done

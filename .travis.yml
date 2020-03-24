@@ -3,7 +3,7 @@ language: bash
 dist: xenial
 
 script:
-  - shellcheck -s bash clipmenu clipmenud
+  - shellcheck -s bash clipmenu clipmenud clipdel clipfsck
   - tests/test-clipmenu
 
 matrix:

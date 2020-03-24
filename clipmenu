@@ -4,12 +4,12 @@
 : "${CM_DIR="${XDG_RUNTIME_DIR-"${TMPDIR-/tmp}"}"}"
 : "${CM_HISTLENGTH=8}"
 
-major_version=5
+major_version=6
 
 shopt -s nullglob
 
 cache_dir=$CM_DIR/clipmenu.$major_version.$USER
-cache_file_prefix=$cache_dir/line_cache
+cache_file=$cache_dir/line_cache
 
 if [[ $1 == --help ]] || [[ $1 == -h ]]; then
     cat << 'EOF'
@@ -33,7 +33,7 @@ if [[ "$CM_LAUNCHER" == rofi ]]; then
 fi
 
 list_clips() {
-    cat "$cache_file_prefix"_* /dev/null | LC_ALL=C sort -rnk 1 | cut -d' ' -f2- | awk '!seen[$0]++'
+    LC_ALL=C sort -rnk 1 < "$cache_file" | cut -d' ' -f2- | awk '!seen[$0]++'
 }
 
 if [[ "$CM_LAUNCHER" == rofi-script ]]; then
@@ -59,7 +59,7 @@ if ! [[ -f "$file" ]]; then
     # We didn't find this in cache
     printf 'FATAL: %s not in cache (%s missing)\n' "$chosen_line" "$file" >&2
     printf 'Please report the following debug information:\n\n' >&2
-    wc -l "$cache_file_prefix"_* >&2
+    wc -l "$cache_file" >&2
     grep -nFR "$chosen_line" "$cache_dir" >&2
     stat "$file" >&2
     exit 2
