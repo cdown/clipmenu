@@ -81,8 +81,7 @@ exec {session_lock_fd}> "$session_lock_file"
 flock -x -n "$session_lock_fd" ||
     die 2 "Can't lock session file -- is another clipmenud running?"
 
-declare -A last_data
-declare -A last_cache_file_output
+declare -A last_data_sel
 
 command -v clipnotify >/dev/null 2>&1 || die 2 "clipnotify not in PATH"
 command -v xdotool >/dev/null 2>&1 && has_xdotool=1
@@ -118,15 +117,15 @@ while true; do
         data=${data%x}  # avoid trailing newlines being stripped
 
         [[ $data == *[^[:space:]]* ]] || continue
-        [[ ${last_data[$selection]} == "$data" ]] && continue
+        [[ $last_data == "$data" ]] && continue
+        [[ ${last_data_sel[$selection]} == "$data" ]] && continue
 
-        possible_partial=${last_data[$selection]}
-        if [[ $possible_partial && $data == "$possible_partial"* ]] ||
-           [[ $possible_partial && $data == *"$possible_partial" ]]; then
+        if [[ $last_data && $data == "$last_data"* ]] ||
+           [[ $last_data && $data == *"$last_data" ]]; then
             # Don't actually remove the file yet, because it might be
             # referenced by an older entry. These will be dealt with at vacuum.
-            debug "$selection: $possible_partial is a possible partial of $data"
-            previous_size=$(wc -c <<< "${last_cache_file_output[$selection]}")
+            debug "$selection: $last_data is a possible partial of $data"
+            previous_size=$(wc -c <<< "$last_cache_file_output")
             truncate -s -"$previous_size" "$cache_file"
         fi
 
@@ -135,8 +134,9 @@ while true; do
 
         cache_file_output="$(date +%s%N) $first_line"
         filename="$cache_dir/$(cksum <<< "$first_line")"
-        last_cache_file_output[$selection]=$cache_file_output
-        last_data[$selection]=$data
+        last_cache_file_output=$cache_file_output
+        last_data=$data
+        last_data_sel[$selection]=$data
 
         debug "Writing $data to $filename"
         printf '%s' "$data" > "$filename"
