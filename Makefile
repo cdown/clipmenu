@@ -10,4 +10,5 @@ install:
 	install -D -m755 clipmenu /usr/bin/clipmenu
 	install -D -m755 clipmenud /usr/bin/clipmenud
 	install -D -m755 clipdel /usr/bin/clipdel
+	install -D -m755 clipctl /usr/bin/clipctl
 	install -D -m644 init/clipmenud.service /usr/lib/systemd/user/clipmenud.service
