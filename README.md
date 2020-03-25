@@ -68,6 +68,7 @@ The behavior of `clipmenud` can be customized through environment variables. Fea
 
  * Customizing max number of clips (Default: 1000)
  * Choosing which selections to manage
+ * Disabling clip collection temporarily with `clipctl disable`, reenabling with `clipctl enable`
  * Ignoring certain windows, like password managers
  * Enabling debugging
  * Customizing the cache dir location
