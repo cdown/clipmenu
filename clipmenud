@@ -67,6 +67,14 @@ sig_enable() {
         info "Received enable signal but we're not disabled, so doing nothing"
         return
     fi
+
+    # Still store the last data so we don't end up eventually putting it in the
+    # clipboard if it wasn't changed
+    for selection in "${selections[@]}"; do
+        data=$(_xsel -o --"$selection"; printf x)
+        last_data_sel[$selection]=${data%x}
+    done
+
     info "Received enable signal, resuming clipboard capture"
     _CM_DISABLED=0
 }
