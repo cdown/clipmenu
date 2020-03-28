@@ -10,7 +10,7 @@ EOF
     exit 0
 fi
 
-_CLIPMENUD_PID=$(pgrep -u "$(id -u)" -nf '.*/?clipmenud$')
+_CLIPMENUD_PID=$(pgrep -u "$(id -u)" -nf 'clipmenud$')
 
 if [[ -z "$_CLIPMENUD_PID" ]]; then
     echo "clipmenud is not running"
