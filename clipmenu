@@ -28,6 +28,12 @@ EOF
     exit 0
 fi
 
+
+# Blacklist of non-dmenu launchers
+if [[ "$CM_LAUNCHER" != fzf ]]; then
+    set -- -l "${CM_HISTLENGTH}" "$@"
+fi
+
 # rofi supports dmenu-like arguments through the -dmenu flag
 [[ "$CM_LAUNCHER" == rofi ]] && set -- -dmenu "$@"
 
@@ -43,7 +49,7 @@ if [[ "$CM_LAUNCHER" == rofi-script ]]; then
         exit
     fi
 else
-    chosen_line=$(list_clips | "$CM_LAUNCHER" -l "${CM_HISTLENGTH}" "$@")
+    chosen_line=$(list_clips | "$CM_LAUNCHER" "$@")
 fi
 
 [[ $chosen_line ]] || exit 1
