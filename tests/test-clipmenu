@@ -71,6 +71,8 @@ EOF
 
 temp=$(mktemp)
 
+trap 'cat "$temp"' EXIT
+
 /tmp/clipmenu --foo bar > "$temp" 2>&1
 
 # Arguments are transparently passed to dmenu
