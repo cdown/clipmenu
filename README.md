@@ -42,6 +42,17 @@ they do. If you manage `clipmenud` with `systemd`, you can override the
 defaults by using `systemctl --user edit clipmenud` to generate an override
 file.
 
+# Supported launchers
+
+Any dmenu-compliant application will work, but here are `CM_LAUNCHER`
+configurations that are known to work:
+
+- `dmenu` (the default)
+- `fzf`
+- `rofi`
+- `rofi-script`, for [rofi's script
+  mode](https://github.com/davatorium/rofi-scripts/tree/master/mode-scripts)
+
 # Installation
 
 Several distributions, including Arch and Nix, provide clipmenu as an official
