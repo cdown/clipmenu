@@ -30,8 +30,9 @@ fi
 
 
 # Blacklist of non-dmenu launchers
-if [[ "$CM_LAUNCHER" != fzf ]]; then
-    set -- -l "${CM_HISTLENGTH}" "$@"
+launcher_args=(-l "${CM_HISTLENGTH}")
+if [[ "$CM_LAUNCHER" == fzf ]]; then
+    launcher_args=()
 fi
 
 # rofi supports dmenu-like arguments through the -dmenu flag
@@ -49,7 +50,7 @@ if [[ "$CM_LAUNCHER" == rofi-script ]]; then
         exit
     fi
 else
-    chosen_line=$(list_clips | "$CM_LAUNCHER" "$@")
+    chosen_line=$(list_clips | "$CM_LAUNCHER" "${launcher_args[@]}" "$@")
 fi
 
 [[ $chosen_line ]] || exit 1
