@@ -3,13 +3,13 @@
 : "${CM_ONESHOT=0}"
 : "${CM_OWN_CLIPBOARD=0}"
 : "${CM_DEBUG=0}"
-: "${CM_DIR="${XDG_RUNTIME_DIR-"${TMPDIR-/tmp}"}"}"
+: "${CM_DIR:="${XDG_RUNTIME_DIR-"${TMPDIR-/tmp}"}"}"
 
-: "${CM_MAX_CLIPS=1000}"
+: "${CM_MAX_CLIPS:=1000}"
 # Buffer to batch to avoid calling too much. Only used if CM_MAX_CLIPS >0.
 CM_MAX_CLIPS_THRESH=$(( CM_MAX_CLIPS + 10 ))
 
-: "${CM_SELECTIONS=clipboard primary}"
+: "${CM_SELECTIONS:=clipboard primary}"
 read -r -a selections <<< "$CM_SELECTIONS"
 
 major_version=6
