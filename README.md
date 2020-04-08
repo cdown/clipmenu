@@ -40,6 +40,16 @@ package called `clipmenu`.
 If your distribution doesn't provide a package, you can run the scripts
 standalone (or better yet, package them!).
 
+## Configuration
+### Automatic pasting with sxhkd
+To get a `sxhkd` key binding to paste automatically, you can use `xdotool` to simulate the pressing of the paste shortcut.
+
+```
+# sxhkdrc
+alt + v
+    clipmenu && xdotool key Shift+Insert
+```
+
 # How does it work?
 
 clipmenud is less than 200 lines, and clipmenu is less than 100, so hopefully
