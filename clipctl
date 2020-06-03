@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+
+if [[ -z $1 ]] || [[ $1 == --help ]] || [[ $1 == -h ]]; then
+    cat << 'EOF'
+clipctl provides controls for the clipmenud daemon.
+
+You can temporarily disable clip collection without stopping clipmenud entirely
+by running "clipctl disable". You can then reenable with "clipctl enable".
+EOF
+    exit 0
+fi
+
+_CLIPMENUD_PID=$(pgrep -u "$(id -u)" -nf 'clipmenud$')
+
+if [[ -z "$_CLIPMENUD_PID" ]]; then
+    echo "clipmenud is not running"
+    exit 2
+fi
+
+case $1 in
+    enable) kill -USR2 "$_CLIPMENUD_PID" ;;
+    disable) kill -USR1 "$_CLIPMENUD_PID" ;;
+    *)
+        printf 'Unknown command: %s\n' "$1"
+        exit 1
+    ;;
+esac

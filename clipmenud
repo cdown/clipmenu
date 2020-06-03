@@ -3,13 +3,13 @@
 : "${CM_ONESHOT=0}"
 : "${CM_OWN_CLIPBOARD=0}"
 : "${CM_DEBUG=0}"
-: "${CM_DIR="${XDG_RUNTIME_DIR-"${TMPDIR-/tmp}"}"}"
+: "${CM_DIR:="${XDG_RUNTIME_DIR-"${TMPDIR-/tmp}"}"}"
 
-: "${CM_MAX_CLIPS=1000}"
+: "${CM_MAX_CLIPS:=1000}"
 # Buffer to batch to avoid calling too much. Only used if CM_MAX_CLIPS >0.
 CM_MAX_CLIPS_THRESH=$(( CM_MAX_CLIPS + 10 ))
 
-: "${CM_SELECTIONS=clipboard primary}"
+: "${CM_SELECTIONS:=clipboard primary}"
 read -r -a selections <<< "$CM_SELECTIONS"
 
 major_version=6
@@ -55,9 +55,34 @@ get_first_line() {
 
 debug() { (( CM_DEBUG )) && printf '%s\n' "$@" >&2; }
 
+sig_disable() {
+    info "Received disable signal, suspending clipboard capture"
+    _CM_DISABLED=1
+    _CM_FIRST_DISABLE=1
+    [[ -v _CM_CLIPNOTIFY_PID ]] && kill "$_CM_CLIPNOTIFY_PID"
+}
+
+sig_enable() {
+    if ! (( _CM_DISABLED )); then
+        info "Received enable signal but we're not disabled, so doing nothing"
+        return
+    fi
+
+    # Still store the last data so we don't end up eventually putting it in the
+    # clipboard if it wasn't changed
+    for selection in "${selections[@]}"; do
+        data=$(_xsel -o --"$selection"; printf x)
+        last_data_sel[$selection]=${data%x}
+    done
+
+    info "Received enable signal, resuming clipboard capture"
+    _CM_DISABLED=0
+}
+
 if [[ $1 == --help ]] || [[ $1 == -h ]]; then
     cat << 'EOF'
-clipmenud collects and caches what's on the clipboard.
+clipmenud collects and caches what's on the clipboard. You can manage its
+operation with clipctl.
 
 Environment variables:
 
@@ -92,8 +117,29 @@ fi
 
 exec {lock_fd}> "$lock_file"
 
+trap sig_disable USR1
+trap sig_enable USR2
+
+# Kill all background processes on exit
+trap 'trap - TERM; kill -- -$$' INT TERM EXIT
+
 while true; do
-    (( CM_ONESHOT )) || clipnotify
+    if ! (( CM_ONESHOT )); then
+        # Make sure we're interruptible for the sig_{en,dis}able traps
+        clipnotify &
+        _CM_CLIPNOTIFY_PID="$!"
+        wait "$_CM_CLIPNOTIFY_PID"
+    fi
+
+    if (( _CM_DISABLED )); then
+        # The first one will just be from interrupting `wait`, so don't print
+        if (( _CM_FIRST_DISABLE )); then
+            unset _CM_FIRST_DISABLE
+        else
+            info "Got a clipboard notification, but we are disabled, skipping"
+        fi
+        continue
+    fi
 
     if [[ $CM_IGNORE_WINDOW ]] && (( has_xdotool )); then
         windowname="$(xdotool getactivewindow getwindowname)"
@@ -149,7 +195,8 @@ while true; do
         fi
     done
 
-    if (( CM_MAX_CLIPS )) && (( "$(wc -l < "$cache_file")" > CM_MAX_CLIPS_THRESH )); then
+    # The cache file may not exist if this is the first run and data is skipped
+    if (( CM_MAX_CLIPS )) && [[ -f "$cache_file" ]] && (( "$(wc -l < "$cache_file")" > CM_MAX_CLIPS_THRESH )); then
         info "Trimming clip cache to CM_MAX_CLIPS ($CM_MAX_CLIPS)"
         trunc_tmp=$(mktemp)
         tail -n "$CM_MAX_CLIPS" "$cache_file" | uniq > "$trunc_tmp"

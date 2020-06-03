@@ -23,8 +23,16 @@ Environment variables:
 - $CM_DIR: specify the base directory to store the cache dir in (default: $XDG_RUNTIME_DIR, $TMPDIR, or /tmp)
 - $CM_HISTLENGTH: specify the number of lines to show in dmenu/rofi (default: 8)
 - $CM_LAUNCHER: specify a dmenu-compatible launcher (default: dmenu)
+- $CM_OUTPUT_CLIP: if set, output clip selection to stdout
 EOF
     exit 0
+fi
+
+
+# Blacklist of non-dmenu launchers
+launcher_args=(-l "${CM_HISTLENGTH}")
+if [[ "$CM_LAUNCHER" == fzf ]]; then
+    launcher_args=()
 fi
 
 # rofi supports dmenu-like arguments through the -dmenu flag
@@ -42,7 +50,7 @@ if [[ "$CM_LAUNCHER" == rofi-script ]]; then
         exit
     fi
 else
-    chosen_line=$(list_clips | "$CM_LAUNCHER" -l "${CM_HISTLENGTH}" "$@")
+    chosen_line=$(list_clips | "$CM_LAUNCHER" "${launcher_args[@]}" "$@")
 fi
 
 [[ $chosen_line ]] || exit 1
@@ -52,3 +60,7 @@ file=$cache_dir/$(cksum <<< "$chosen_line")
 for selection in clipboard primary; do
     xsel --logfile /dev/null -i --"$selection" < "$file"
 done
+
+if (( CM_OUTPUT_CLIP )); then
+    cat "$file"
+fi

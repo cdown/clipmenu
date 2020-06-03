@@ -10,13 +10,10 @@ clipmenu is a simple clipboard manager using [dmenu][] (or [rofi][] with
 # Usage
 
 Start `clipmenud`, then run `clipmenu` to select something to put on the
-clipboard.
+clipboard. For systemd users, a user service called `clipmenud` is packaged as
+part of the project.
 
-A systemd user service for starting clipmenud is included at
-[init/clipmenud.service](https://github.com/cdown/clipmenu/blob/develop/init/clipmenud.service).
-You can then start clipmenud like this:
-
-    systemctl --user start clipmenud
+You may wish to bind a shortcut in your window manager to launch `clipmenu`.
 
 All args passed to clipmenu are transparently dispatched to dmenu. That is, if
 you usually call dmenu with args to set colours and other properties, you can
@@ -24,25 +21,53 @@ invoke clipmenu in exactly the same way to get the same effect, like so:
 
     clipmenu -i -fn Terminus:size=8 -nb '#002b36' -nf '#839496' -sb '#073642' -sf '#93a1a1'
 
-If you prefer to collect clips on demand rather than running clipmenud as a
-daemon, you can bind a key to the following command for one-off collection:
-
-    CM_ONESHOT=1 clipmenud
-
 For a full list of environment variables that clipmenud can take, please see
 `clipmenud --help`.
+
+# Features
+
+The behavior of `clipmenud` can be customized through environment variables.
+Despite being only <300 lines, clipmenu has many useful features, including:
+
+* Customising the maximum number of clips stored (default 1000)
+* Disabling clip collection temporarily with `clipctl disable`, reenabling with
+  `clipctl enable`
+* Not storing clipboard changes from certain applications, like password
+  managers
+* Taking direct ownership of the clipboard
+* ...and much more.
+
+Check `clipmenud --help` to view all possible environment variables and what
+they do. If you manage `clipmenud` with `systemd`, you can override the
+defaults by using `systemctl --user edit clipmenud` to generate an override
+file.
+
+# Supported launchers
+
+Any dmenu-compliant application will work, but here are `CM_LAUNCHER`
+configurations that are known to work:
+
+- `dmenu` (the default)
+- `fzf`
+- `rofi`
+- `rofi-script`, for [rofi's script
+  mode](https://github.com/davatorium/rofi-scripts/tree/master/mode-scripts)
 
 # Installation
 
 Several distributions, including Arch and Nix, provide clipmenu as an official
 package called `clipmenu`.
 
-If your distribution doesn't provide a package, you can run the scripts
-standalone (or better yet, package them!).
+## Manual installation
+
+If your distribution doesn't provide a package, you can manually install using
+`make install` (or better yet, create a package for your distribution!). You
+will need `xsel` and `clipnotify` installed, and also `dmenu` unless you plan
+to use a different launcher.
 
 # How does it work?
 
-clipmenud is less than 200 lines, and clipmenu is less than 100, so hopefully
+clipmenud is less than 300 lines, and clipmenu is less than 100, so hopefully
 it should be fairly self-explanatory. However, at the most basic level:
 
 ## clipmenud
