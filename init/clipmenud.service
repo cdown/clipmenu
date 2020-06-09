@@ -5,7 +5,6 @@ Description=Clipmenu daemon
 ExecStart=/usr/bin/clipmenud
 Restart=always
 RestartSec=500ms
-Environment=DISPLAY=:0
 
 MemoryDenyWriteExecute=yes
 NoNewPrivileges=yes
