@@ -97,6 +97,7 @@ EOF
     exit 0
 fi
 
+[[ $DISPLAY ]] || die 2 'The X display is unset, is your X server running?'
 
 # It's ok that this only applies to the final directory.
 # shellcheck disable=SC2174
