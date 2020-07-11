@@ -63,6 +63,7 @@ exec {lock_fd}> "$lock_file"
 if (( CM_REAL_DELETE )) && [[ "$raw_pattern" == ".*" ]]; then
     flock -x -w "$lock_timeout" "$lock_fd" || exit
     rm -rf -- "$cache_dir"
+    mkdir -p -- "$cache_dir"
     exit 0
 else
     mapfile -t matches < <(
