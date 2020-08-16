@@ -1,6 +1,6 @@
 # `dmenu` is not a hard dependency, but you need it unless
 # you plan to set CM_LAUNCHER to another value like `rofi`
-REQUIRED_BINS := xsel clipnotify
+REQUIRED_BINS := xsel xdotool clipnotify
 PREFIX ?= /usr
 $(foreach bin,$(REQUIRED_BINS),\
     $(if $(shell command -v $(bin) 2> /dev/null),$(info Found `$(bin)`),$(error Missing Dep. Please install `$(bin)`)))

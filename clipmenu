@@ -62,5 +62,5 @@ for selection in clipboard primary; do
 done
 
 if (( CM_OUTPUT_CLIP )); then
-    cat "$file"
+    xdotool key Shift+Insert
 fi
