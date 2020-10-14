@@ -79,6 +79,15 @@ sig_enable() {
     _CM_DISABLED=0
 }
 
+kill_background_jobs() {
+    # While we usually _are_, there are no guarantees that we're the process
+    # group leader. As such, all we can do is look at the pending jobs. Bash
+    # avoids a subshell here, so the job list is in the right shell.
+    local bg
+    bg=$(jobs -p)
+    [[ $bg ]] && kill -- "$bg"
+}
+
 if [[ $1 == --help ]] || [[ $1 == -h ]]; then
     cat << 'EOF'
 clipmenud collects and caches what's on the clipboard. You can manage its
@@ -120,9 +129,7 @@ exec {lock_fd}> "$lock_file"
 
 trap sig_disable USR1
 trap sig_enable USR2
-
-# Kill all background processes on exit
-trap 'trap - TERM; kill -- -$$' INT TERM EXIT
+trap 'trap - INT TERM EXIT; kill_background_jobs; exit 0' INT TERM EXIT
 
 while true; do
     if ! (( CM_ONESHOT )); then
