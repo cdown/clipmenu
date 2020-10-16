@@ -28,6 +28,10 @@ EOF
     exit 0
 fi
 
+if ! [[ -f "$cache_file" ]]; then
+    printf '%s\n' 'No cache file yet, did you run clipmenud?'
+    exit 2
+fi
 
 # Blacklist of non-dmenu launchers
 launcher_args=(-l "${CM_HISTLENGTH}")
