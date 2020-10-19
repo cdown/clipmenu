@@ -11,7 +11,8 @@ shopt -s nullglob
 cache_dir=$CM_DIR/clipmenu.$major_version.$USER
 cache_file=$cache_dir/line_cache
 
-if [[ $1 == --help ]] || [[ $1 == -h ]]; then
+# Not -h, see #142
+if [[ $1 == --help ]]; then
     cat << 'EOF'
 clipmenu is a simple clipboard manager using dmenu and xsel. Launch this
 when you want to select a clip.
