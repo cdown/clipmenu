@@ -58,6 +58,8 @@ else
     chosen_line=$(list_clips | "$CM_LAUNCHER" "${launcher_args[@]}" "$@")
 fi
 
+launcher_exit=$?
+
 [[ $chosen_line ]] || exit 1
 file=$cache_dir/$(cksum <<< "$chosen_line")
 [[ -f "$file" ]] || exit 2
@@ -69,3 +71,5 @@ done
 if (( CM_OUTPUT_CLIP )); then
     cat "$file"
 fi
+
+exit $launcher_exit
