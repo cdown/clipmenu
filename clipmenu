@@ -56,9 +56,8 @@ if [[ "$CM_LAUNCHER" == rofi-script ]]; then
     fi
 else
     chosen_line=$(list_clips | "$CM_LAUNCHER" "${launcher_args[@]}" "$@")
+    launcher_exit=$?
 fi
-
-launcher_exit=$?
 
 [[ $chosen_line ]] || exit 1
 file=$cache_dir/$(cksum <<< "$chosen_line")
@@ -72,4 +71,4 @@ if (( CM_OUTPUT_CLIP )); then
     cat "$file"
 fi
 
-exit $launcher_exit
+[ -n "$launcher_exit" ] && exit "$launcher_exit"
