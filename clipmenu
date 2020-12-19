@@ -71,4 +71,4 @@ if (( CM_OUTPUT_CLIP )); then
     cat "$file"
 fi
 
-[ -n "$launcher_exit" ] && exit "$launcher_exit"
+exit "${launcher_exit:-"$?"}"
