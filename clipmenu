@@ -1,14 +1,11 @@
 #!/usr/bin/env bash
 
 : "${CM_LAUNCHER=dmenu}"
-: "${CM_DIR="${XDG_RUNTIME_DIR-"${TMPDIR-/tmp}"}"}"
 : "${CM_HISTLENGTH=8}"
-
-major_version=6
 
 shopt -s nullglob
 
-cache_dir=$CM_DIR/clipmenu.$major_version.$USER
+cache_dir=$(clipctl cm-dir)
 cache_file=$cache_dir/line_cache
 
 # Not -h, see #142

@@ -1,27 +1,64 @@
 #!/usr/bin/env bash
 
+: "${CM_DIR:="${XDG_RUNTIME_DIR-"${TMPDIR-/tmp}"}"}"
+
 if [[ -z $1 ]] || [[ $1 == --help ]] || [[ $1 == -h ]]; then
     cat << 'EOF'
 clipctl provides controls for the clipmenud daemon.
 
 You can temporarily disable clip collection without stopping clipmenud entirely
 by running "clipctl disable". You can then reenable with "clipctl enable".
+
+Commands:
+    enable: enable clip collection
+    disable: disable clip collection
+    status: returns "enabled" or "disabled"
+    toggle: toggles clip collection
+    version: returns major version
+    cm-dir: returns the directory used for caching
 EOF
     exit 0
 fi
 
+_MAJORVERSION=6
 _CLIPMENUD_PID=$(pgrep -u "$(id -u)" -nf 'clipmenud$')
+_CLIPMENUCACHEDIR=$CM_DIR/clipmenu.$_MAJORVERSION.$USER
+_CLIPMENUSTATUSFILE=$_CLIPMENUCACHEDIR/status
 
-if [[ -z "$_CLIPMENUD_PID" ]]; then
-    echo "clipmenud is not running"
-    exit 2
-fi
+case $1 in
+    enable|disable|toggle)
+        if [[ -z "$_CLIPMENUD_PID" ]]; then
+            echo "clipmenud is not running"
+            exit 2
+        fi
+        ;;
+esac
 
 case $1 in
     enable) kill -USR2 "$_CLIPMENUD_PID" ;;
     disable) kill -USR1 "$_CLIPMENUD_PID" ;;
+    status)
+        if ! [[ $(pgrep -f "clipmenud") ]]; then
+            echo "disabled"
+            exit
+        fi
+        if [[ -e $_CLIPMENUSTATUSFILE ]]; then
+            echo $(cat $_CLIPMENUSTATUSFILE)
+        else
+            echo "enabled"
+        fi
+        ;;
+    toggle)
+        if [[ $(clipctl status) == "enabled" ]]; then
+            clipctl disable
+        else
+            clipctl enable
+        fi
+        ;;
+    version) echo $_MAJORVERSION ;;
+    cm-dir) echo $_CLIPMENUCACHEDIR ;;
     *)
         printf 'Unknown command: %s\n' "$1"
         exit 1
-    ;;
+        ;;
 esac

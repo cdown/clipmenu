@@ -1,17 +1,14 @@
 #!/usr/bin/env bash
 
-: "${CM_DIR="${XDG_RUNTIME_DIR-"${TMPDIR-/tmp}"}"}"
 CM_REAL_DELETE=0
 if [[ $1 == -d ]]; then
     CM_REAL_DELETE=1
     shift
 fi
 
-major_version=6
-
 shopt -s nullglob
 
-cache_dir=$CM_DIR/clipmenu.$major_version.$USER
+cache_dir=$(clipctl cm-dir)
 cache_file=$cache_dir/line_cache
 lock_file=$cache_dir/lock
 lock_timeout=2

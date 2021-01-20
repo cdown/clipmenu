@@ -1,14 +1,10 @@
 #!/usr/bin/env bash
 
-major_version=6
-
 msg() {
     printf '>>> %s\n' "$@" >&2
 }
 
-: "${CM_DIR="${XDG_RUNTIME_DIR-"${TMPDIR-/tmp}"}"}"
-
-dir=$CM_DIR/clipmenu.$major_version.$USER
+dir=$(clipctl cm-dir)
 cache_file=$dir/line_cache
 
 log=$(mktemp)
