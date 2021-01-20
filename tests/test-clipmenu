@@ -4,7 +4,7 @@ set -x
 set -e
 set -o pipefail
 
-dir=$(clipctl cm-dir)
+dir=$(clipctl cache-dir)
 cache_file=$dir/line_cache
 
 if [[ $0 == /* ]]; then

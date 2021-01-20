@@ -5,7 +5,7 @@
 
 shopt -s nullglob
 
-cache_dir=$(clipctl cm-dir)
+cache_dir=$(clipctl cache-dir)
 cache_file=$cache_dir/line_cache
 
 # Not -h, see #142

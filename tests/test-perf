@@ -4,7 +4,7 @@ msg() {
     printf '>>> %s\n' "$@" >&2
 }
 
-dir=$(clipctl cm-dir)
+dir=$(clipctl cache-dir)
 cache_file=$dir/line_cache
 
 log=$(mktemp)
