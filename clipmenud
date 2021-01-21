@@ -4,7 +4,6 @@
 : "${CM_OWN_CLIPBOARD=0}"
 : "${CM_SYNC_PRIMARY_TO_CLIPBOARD=0}"
 : "${CM_DEBUG=0}"
-: "${CM_DIR:="${XDG_RUNTIME_DIR-"${TMPDIR-/tmp}"}"}"
 
 : "${CM_MAX_CLIPS:=1000}"
 # Buffer to batch to avoid calling too much. Only used if CM_MAX_CLIPS >0.
@@ -13,9 +12,10 @@ CM_MAX_CLIPS_THRESH=$(( CM_MAX_CLIPS + 10 ))
 : "${CM_SELECTIONS:=clipboard primary}"
 read -r -a selections <<< "$CM_SELECTIONS"
 
-major_version=6
-cache_dir=$CM_DIR/clipmenu.$major_version.$USER/
+cache_dir=$(clipctl cache-dir)
 cache_file=$cache_dir/line_cache
+status_file=$cache_dir/status
+echo "enabled" > "$status_file"
 
 # lock_file: lock for *one* iteration of clipboard capture/propagation
 # session_lock_file: lock to prevent multiple clipmenud daemons
@@ -60,6 +60,7 @@ sig_disable() {
     info "Received disable signal, suspending clipboard capture"
     _CM_DISABLED=1
     _CM_FIRST_DISABLE=1
+    echo "disabled" > "$status_file"
     [[ -v _CM_CLIPNOTIFY_PID ]] && kill "$_CM_CLIPNOTIFY_PID"
 }
 
@@ -78,6 +79,7 @@ sig_enable() {
 
     info "Received enable signal, resuming clipboard capture"
     _CM_DISABLED=0
+    echo "enabled" > "$status_file"
 }
 
 kill_background_jobs() {
