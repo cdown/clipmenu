@@ -6,9 +6,6 @@ if [[ -z $1 ]] || [[ $1 == --help ]] || [[ $1 == -h ]]; then
     cat << 'EOF'
 clipctl provides controls for the clipmenud daemon.
 
-You can temporarily disable clip collection without stopping clipmenud entirely
-by running "clipctl disable". You can then reenable with "clipctl enable".
-
 Commands:
     enable: enable clip collection
     disable: disable clip collection
@@ -38,7 +35,7 @@ status_file=$cache_dir/status
 case $1 in
     enable) kill -USR2 "$clipmenud_pid" ;;
     disable) kill -USR1 "$clipmenud_pid" ;;
-    status) cat $status_file ;;
+    status) cat "$status_file" ;;
     toggle)
         if [[ $(clipctl status) == "enabled" ]]; then
             clipctl disable
@@ -46,8 +43,8 @@ case $1 in
             clipctl enable
         fi
     ;;
-    version) echo $major_version ;;
-    cache-dir) echo $cache_dir ;;
+    version) echo "$major_version" ;;
+    cache-dir) echo "$cache_dir" ;;
     *)
         printf 'Unknown command: %s\n' "$1"
         exit 1
