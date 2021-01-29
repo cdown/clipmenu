@@ -22,7 +22,7 @@ clipmenud_pid=$(pgrep -u "$(id -u)" -nf 'clipmenud$')
 case $1 in
     enable|disable|toggle|status)
         if [[ -z "$clipmenud_pid" ]]; then
-            echo "clipmenud is not running"
+            echo "clipmenud is not running" >&2
             exit 2
         fi
         ;;
@@ -46,7 +46,7 @@ case $1 in
     version) echo "$major_version" ;;
     cache-dir) echo "$cache_dir" ;;
     *)
-        printf 'Unknown command: %s\n' "$1"
+        printf 'Unknown command: %s\n' "$1" >&2
         exit 1
     ;;
 esac
