@@ -15,7 +15,6 @@ read -r -a selections <<< "$CM_SELECTIONS"
 cache_dir=$(clipctl cache-dir)
 cache_file=$cache_dir/line_cache
 status_file=$cache_dir/status
-echo "enabled" > "$status_file"
 
 # lock_file: lock for *one* iteration of clipboard capture/propagation
 # session_lock_file: lock to prevent multiple clipmenud daemons
@@ -118,6 +117,7 @@ fi
 # It's ok that this only applies to the final directory.
 # shellcheck disable=SC2174
 mkdir -p -m0700 "$cache_dir"
+echo "enabled" > "$status_file"
 
 exec {session_lock_fd}> "$session_lock_file"
 flock -x -n "$session_lock_fd" ||
