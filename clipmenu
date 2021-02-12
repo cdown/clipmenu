@@ -38,7 +38,7 @@ if [[ "$CM_LAUNCHER" == fzf ]]; then
 fi
 
 # rofi supports dmenu-like arguments through the -dmenu flag
-[[ "$CM_LAUNCHER" == rofi ]] && set -- -dmenu "$@"
+[[ "$CM_LAUNCHER" == rofi ]] && set -- -dmenu -multi-select "$@"
 
 list_clips() {
     LC_ALL=C sort -rnk 1 < "$cache_file" | cut -d' ' -f2- | awk '!seen[$0]++'
@@ -57,11 +57,25 @@ else
 fi
 
 [[ $chosen_line ]] || exit 1
-file=$cache_dir/$(cksum <<< "$chosen_line")
-[[ -f "$file" ]] || exit 2
+
+files=()
+while IFS= read -r line; do
+    file=$cache_dir/$(cksum <<< "$line")
+    files+=("$file")
+done <<< "$chosen_line"
+
+paste=()
+for file in "${files[@]}"; do
+    contents=$(cat "$file")
+    paste+=("$contents")
+done
+
+paste=$( IFS=$'\n'; echo "${paste[*]}" )
+
+ [[ $paste ]] || exit 2
 
 for selection in clipboard primary; do
-    xsel --logfile /dev/null -i --"$selection" < "$file"
+    echo "$paste" | awk 'NR>1{print PREV} {PREV=$0} END{printf("%s",$0)}' | xsel --logfile /dev/null -i --"$selection"
 done
 
 if (( CM_OUTPUT_CLIP )); then
