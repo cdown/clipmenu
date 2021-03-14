@@ -108,6 +108,7 @@ Environment variables:
 - $CM_SELECTIONS: space separated list of the selections to manage (default: "clipboard primary")
 - $CM_SYNC_PRIMARY_TO_CLIPBOARD: sync selections from primary to clipboard immediately (default: 0)
 - $CM_IGNORE_WINDOW: disable recording the clipboard in windows where the windowname matches the given regex (e.g. a password manager), do not ignore any windows if unset or empty (default: unset)
+- $CM_BACKUP: if path to backup directory is specified, its contents will be imported to the clip collection upon daemon startup 
 EOF
     exit 0
 fi
@@ -118,6 +119,11 @@ fi
 # shellcheck disable=SC2174
 mkdir -p -m0700 "$cache_dir"
 echo "enabled" > "$status_file"
+
+if  ! [[ -z CM_BACKUP ]]; then
+  cp "$CM_BACKUP"/* "$cache_dir"
+  mv "$CM_BACKUP"/line_backup "$cache_file"
+fi
 
 exec {session_lock_fd}> "$session_lock_file"
 flock -x -n "$session_lock_fd" ||
