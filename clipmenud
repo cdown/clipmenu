@@ -121,8 +121,8 @@ mkdir -p -m0700 "$cache_dir"
 echo "enabled" > "$status_file"
 
 if  ! [[ -z CM_BACKUP ]]; then
-  cp "$CM_BACKUP"/* "$cache_dir"
-  mv "$cache_dir"/line_backup "$cache_file"
+  cp -R "$CM_BACKUP/." "$cache_dir"
+  mv "$cache_dir/line_backup" "$cache_file"
 fi
 
 exec {session_lock_fd}> "$session_lock_file"
