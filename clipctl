@@ -13,6 +13,7 @@ Commands:
     toggle: toggles clip collection
     version: returns major version
     cache-dir: returns the directory used for caching
+    backup: copy the current clip collection to a user-defined location
 EOF
     exit 0
 fi
@@ -45,6 +46,12 @@ case $1 in
     ;;
     version) echo "$major_version" ;;
     cache-dir) echo "$cache_dir" ;;
+    backup)
+        read -p "Enter the full path to the backup directory: " backup_dir
+        cp "$cache_dir"/* "$backup_dir"
+        mv "$backup_dir"/line_cache "$backup_dir"/line_backup
+        rm "$backup_dir"/session_lock "$backup_dir"/status "$backup_dir"/lock
+    ;;
     *)
         printf 'Unknown command: %s\n' "$1" >&2
         exit 1
