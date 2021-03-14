@@ -122,7 +122,7 @@ echo "enabled" > "$status_file"
 
 if  ! [[ -z CM_BACKUP ]]; then
   cp "$CM_BACKUP"/* "$cache_dir"
-  mv "$CM_BACKUP"/line_backup "$cache_file"
+  mv "$cache_dir"/line_backup "$cache_file"
 fi
 
 exec {session_lock_fd}> "$session_lock_file"
