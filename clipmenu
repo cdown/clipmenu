@@ -21,6 +21,7 @@ Environment variables:
 - $CM_HISTLENGTH: specify the number of lines to show in dmenu/rofi (default: 8)
 - $CM_LAUNCHER: specify a dmenu-compatible launcher (default: dmenu)
 - $CM_OUTPUT_CLIP: if set, output clip selection to stdout
+- $CM_INPUT_CLIP: if set, accept clip selection from stdin
 EOF
     exit 0
 }
