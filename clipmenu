@@ -47,23 +47,30 @@ fi
 
 # Blacklist of non-dmenu launchers
 launcher_args=(-l "${CM_HISTLENGTH}")
-if [[ "$CM_LAUNCHER" == fzf ]]; then
-    launcher_args=()
-fi
 
-# rofi supports dmenu-like arguments through the -dmenu flag
-[[ "$CM_LAUNCHER" == rofi ]] && set -- -dmenu "$@"
-
-if [[ "$CM_LAUNCHER" == rofi-script ]]; then
-    if (( $# )); then
-        chosen_line="${!#}"
-    else
-        list_clips
-        exit
-    fi
+if (( CM_INPUT_CLIP )); then
+    chosen_line="$( cat )"
 else
-    chosen_line=$(list_clips | "$CM_LAUNCHER" "${launcher_args[@]}" "$@")
-    launcher_exit=$?
+    # Blacklist of non-dmenu launchers
+    launcher_args=(-l "${CM_HISTLENGTH}")
+    if [[ "$CM_LAUNCHER" == fzf ]]; then
+        launcher_args=()
+    fi
+
+    # rofi supports dmenu-like arguments through the -dmenu flag
+    [[ "$CM_LAUNCHER" == rofi ]] && set -- -dmenu "$@"
+
+    if [[ "$CM_LAUNCHER" == rofi-script ]]; then
+        if (( $# )); then
+            chosen_line="${!#}"
+        else
+            list_clips
+            exit
+        fi
+    else
+        chosen_line=$(list_clips | "$CM_LAUNCHER" "${launcher_args[@]}" "$@")
+        launcher_exit=$?
+    fi
 fi
 
 [[ $chosen_line ]] || exit 1
