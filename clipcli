@@ -41,8 +41,8 @@ get_clip(){
 case "$1" in
     # Not -h, see #142
     -h|--help) print_help ;;
-    -l|--list) list_clips; exit 0 ;;
-    -g|--get) get_clip "$2"; exit 0 ;;
+    list) list_clips; exit 0 ;;
+    get) get_clip "$2"; exit 0 ;;
 esac
 
 
