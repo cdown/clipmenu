@@ -32,7 +32,12 @@ list_clips() {
 }
 
 get_clip(){
-    [ $1 ] && clip_line="$1" || read; clip_line="$REPLY"
+    if [[ -n $1 ]]; then
+        clip_line="$1"
+    else
+        read;
+        clip_line="$REPLY"
+    fi
     file=$cache_dir/$(cksum <<< "$clip_line")
     [[ -f "$file" ]] || exit 2
     cat "$file"
