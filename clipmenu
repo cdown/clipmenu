@@ -49,8 +49,6 @@ else
 fi
 
 [[ $chosen_line ]] || exit 1
-# file=$cache_dir/$(cksum <<< "$chosen_line")
-# [[ -f "$file" ]] || exit 2
 clip(){ clipcli get "$chosen_line"; }
 
 for selection in clipboard primary; do
