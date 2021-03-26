@@ -50,7 +50,8 @@ fi
 launcher_args=(-l "${CM_HISTLENGTH}")
 
 if (( CM_INPUT_CLIP )); then
-    chosen_line="$( cat )"
+    read
+    chosen_line="$REPLY"
 else
     # Blacklist of non-dmenu launchers
     launcher_args=(-l "${CM_HISTLENGTH}")
