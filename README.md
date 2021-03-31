@@ -9,9 +9,20 @@ clipmenu is a simple clipboard manager using [dmenu][] (or [rofi][] with
 
 # Usage
 
+## clipmenud
+
 Start `clipmenud`, then run `clipmenu` to select something to put on the
 clipboard. For systemd users, a user service called `clipmenud` is packaged as
 part of the project.
+
+For those using a systemd unit and not using a desktop environment which does
+it automatically, you must import `$DISPLAY` so that `clipmenud` knows which X
+server to use. For example, in your `~/.xinitrc` do this prior to launching
+clipmenud:
+
+    systemctl --user import-environment DISPLAY
+
+## clipmenu
 
 You may wish to bind a shortcut in your window manager to launch `clipmenu`.
 

@@ -3,14 +3,13 @@
 : "${CM_LAUNCHER=dmenu}"
 : "${CM_HISTLENGTH=8}"
 
-major_version=6
-
 shopt -s nullglob
 
-cache_dir=$CM_DIR/clipmenu.$major_version.$USER
+cache_dir=$(clipctl cache-dir)
 cache_file=$cache_dir/line_cache
 
-if [[ $1 == --help ]] || [[ $1 == -h ]]; then
+# Not -h, see #142
+if [[ $1 == --help ]]; then
     cat << 'EOF'
 clipmenu is a simple clipboard manager using dmenu and xsel. Launch this
 when you want to select a clip.
@@ -27,6 +26,10 @@ EOF
     exit 0
 fi
 
+if ! [[ -f "$cache_file" ]]; then
+    printf '%s\n' 'No cache file yet, did you run clipmenud?'
+    exit 2
+fi
 
 # Blacklist of non-dmenu launchers
 launcher_args=(-l "${CM_HISTLENGTH}")
@@ -58,3 +61,5 @@ done
 if (( CM_OUTPUT_CLIP )); then
     clip
 fi
+
+exit "${launcher_exit:-"$?"}"

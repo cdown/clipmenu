@@ -4,10 +4,7 @@ set -x
 set -e
 set -o pipefail
 
-: "${CM_DIR="${XDG_RUNTIME_DIR-"${TMPDIR-/tmp}"}"}"
-
-major_version=6
-dir=$CM_DIR/clipmenu.$major_version.$USER
+dir=$(./clipctl cache-dir)
 cache_file=$dir/line_cache
 
 if [[ $0 == /* ]]; then
@@ -50,6 +47,7 @@ rofi() {
 
 alias xsel='shim xsel'
 alias xclip='shim xclip'
+alias clipctl='./clipctl'
 EOF
 
 chmod a+x /tmp/clipmenu
