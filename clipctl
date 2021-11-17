@@ -7,11 +7,11 @@ if [[ -z $1 ]] || [[ $1 == --help ]] || [[ $1 == -h ]]; then
 clipctl provides controls for the clipmenud daemon.
 
 Commands:
-    enable: enable clip collection
-    disable: disable clip collection
-    status: returns "enabled" or "disabled"
-    toggle: toggles clip collection
-    version: returns major version
+       enable: enable clip collection
+      disable: disable clip collection
+       status: returns "enabled" or "disabled"
+       toggle: toggles clip collection
+      version: returns major version
     cache-dir: returns the directory used for caching
 EOF
     exit 0
