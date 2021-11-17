@@ -7,6 +7,8 @@ if [[ -z $1 ]] || [[ $1 == --help ]] || [[ $1 == -h ]]; then
 clipctl provides controls for the clipmenud daemon.
 
 Commands:
+        start: start the daemon
+         stop: stop the daemon
        enable: enable clip collection
       disable: disable clip collection
        status: returns "enabled" or "disabled"
@@ -20,7 +22,13 @@ fi
 clipmenud_pid=$(pgrep -u "$(id -u)" -nf 'clipmenud$')
 
 case $1 in
-    enable|disable|toggle|status)
+    start)
+        if ! [[ -z "$clipmenud_pid" ]]; then
+            echo "clipmenud is already running" >&2
+            exit 2
+        fi
+        ;;
+    stop|enable|disable|toggle|status)
         if [[ -z "$clipmenud_pid" ]]; then
             echo "clipmenud is not running" >&2
             exit 2
@@ -33,6 +41,8 @@ cache_dir=$CM_DIR/clipmenu.$major_version.$USER
 status_file=$cache_dir/status
 
 case $1 in
+    start) clipmenud & ;;
+    stop) kill -TERM "$clipmenud_pid" ;;
     enable) kill -USR2 "$clipmenud_pid" ;;
     disable) kill -USR1 "$clipmenud_pid" ;;
     status) cat "$status_file" ;;
