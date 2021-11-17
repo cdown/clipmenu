@@ -88,12 +88,12 @@ kill_background_jobs() {
     # While we usually _are_, there are no guarantees that we're the process
     # group leader. As such, all we can do is look at the pending jobs. Bash
     # avoids a subshell here, so the job list is in the right shell.
-    local bg
-    bg=$(jobs -p)
+    local -a bg
+    readarray -t bg < <(jobs -p)
 
     # Don't log `kill' failures, since with KillMode=control-group, we're
     # racing with init.
-    [[ $bg ]] && kill -- "$bg" 2>/dev/null
+    (( ${#bg[@]} )) && kill -- "${bg[@]}" 2>/dev/null
 }
 
 if [[ $1 == --help ]] || [[ $1 == -h ]]; then
