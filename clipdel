@@ -53,22 +53,24 @@ sed_common_command="s#^[0-9]\+ ##;\\#${esc_pattern}#"
 if ! [[ $raw_pattern ]]; then
     printf '%s\n' 'No pattern provided, see --help' >&2
     exit 2
-fi
-
-exec {lock_fd}> "$lock_file"
-
-if (( CM_REAL_DELETE )) && [[ "$raw_pattern" == ".*" ]]; then
-    flock -x -w "$lock_timeout" "$lock_fd" || exit
-    rm -rf -- "$cache_dir"
-    mkdir -p -- "$cache_dir"
-    exit 0
+elif [[ "$raw_pattern" == ".*" ]]; then
+    delete_cache_dir=1
 else
     mapfile -t matches < <(
         sed -n "${sed_common_command}p" "$cache_file" |
             sort -u
     )
+fi
 
-    if (( CM_REAL_DELETE )); then
+exec {lock_fd}> "$lock_file"
+
+if (( CM_REAL_DELETE )); then
+    if (( delete_cache_dir )); then
+        flock -x -w "$lock_timeout" "$lock_fd" || exit
+        rm -rf -- "$cache_dir"
+        mkdir -p -- "$cache_dir"
+        exit 0
+    else
         flock -x -w "$lock_timeout" "$lock_fd" || exit
 
         for match in "${matches[@]}"; do
@@ -85,9 +87,9 @@ else
         mv -- "$temp" "$cache_file"
 
         flock -u "$lock_fd"
-    else
-        if (( ${#matches[@]} )); then
-            printf '%s\n' "${matches[@]}"
-        fi
     fi
+elif (( delete_cache_dir )); then
+    printf 'delete cache dir: %s\n' "$cache_dir"
+elif (( ${#matches[@]} )); then
+    printf '%s\n' "${matches[@]}"
 fi
