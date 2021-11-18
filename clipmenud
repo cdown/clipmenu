@@ -56,6 +56,11 @@ get_first_line() {
 debug() { (( CM_DEBUG )) && printf '%s\n' "$@" >&2; }
 
 sig_disable() {
+    if (( _CM_DISABLED )); then
+        info "Received disable signal but we're already disabled, so doing nothing"
+        return
+    fi
+
     info "Received disable signal, suspending clipboard capture"
     _CM_DISABLED=1
     echo "disabled" > "$status_file"
@@ -63,7 +68,7 @@ sig_disable() {
 
 sig_enable() {
     if ! (( _CM_DISABLED )); then
-        info "Received enable signal but we're not disabled, so doing nothing"
+        info "Received enable signal but we're already enabled, so doing nothing"
         return
     fi
 
