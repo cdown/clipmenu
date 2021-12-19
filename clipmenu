@@ -37,8 +37,9 @@ if [[ "$CM_LAUNCHER" == fzf ]]; then
     launcher_args=()
 fi
 
-# rofi supports dmenu-like arguments through the -dmenu flag
-[[ "$CM_LAUNCHER" == rofi ]] && set -- -dmenu "$@"
+# rofi supports dmenu-like arguments through the -dmenu flag. -p wastes space
+# in real dmenu, but rofi shows "dmenu:" anyway, so pass it here only.
+[[ "$CM_LAUNCHER" == rofi ]] && set -- -dmenu -p clipmenu "$@"
 
 list_clips() {
     LC_ALL=C sort -rnk 1 < "$cache_file" | cut -d' ' -f2- | awk '!seen[$0]++'

@@ -90,4 +90,4 @@ grep -Fxq "xsel line 2 stdin: Yes, it's selected text." "$temp"
 CM_LAUNCHER=rofi /tmp/clipmenu --foo bar > "$temp" 2>&1
 
 # We have a special case to add -dmenu for rofi
-grep -Fxq 'rofi args: -l 8 -dmenu --foo bar' "$temp"
+grep -Fxq 'rofi args: -l 8 -dmenu -p clipmenu --foo bar' "$temp"
