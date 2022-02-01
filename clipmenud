@@ -10,7 +10,6 @@
 CM_MAX_CLIPS_THRESH=$(( CM_MAX_CLIPS + 10 ))
 
 : "${CM_SELECTIONS:=clipboard primary}"
-read -r -a selections <<< "$CM_SELECTIONS"
 
 cache_dir=$(clipctl cache-dir)
 cache_file=$cache_dir/line_cache
@@ -32,24 +31,19 @@ die() {
     exit "${1?}"
 }
 
-make_line_cksums() { while read -r line; do cksum <<< "${line#* }"; done; }
-
 get_first_line() {
-    data=${1?}
+    data="${1?}"
 
     # We look for the first line matching regex /./ here because we want the
     # first line that can provide reasonable context to the user.
-    awk -v limit=300 '
-        BEGIN { printed = 0; }
-        printed == 0 && NF {
-            $0 = substr($0, 0, limit);
-            printf("%s", $0);
-            printed = 1;
+    awk '
+        printed {next}
+        NF {
+            printf("%s", substr($0, 0, 300))
+            printed = 1
         }
         END {
-            if (NR > 1)
-                printf(" (%d lines)", NR);
-            printf("\n");
+            if (NR > 1) printf(" (%d lines)", NR)
         }' <<< "$data"
 }
 
@@ -74,9 +68,9 @@ sig_enable() {
 
     # Still store the last data so we don't end up eventually putting it in the
     # clipboard if it wasn't changed
-    for selection in "${selections[@]}"; do
+    for selection in ${CM_SELECTIONS}; do
         data=$(_xsel -o --"$selection"; printf x)
-        last_data_sel[$selection]=${data%x}
+        last_data_sel[$selection]="${data%x}"
     done
 
     info "Received enable signal, resuming clipboard capture"
@@ -96,7 +90,7 @@ kill_background_jobs() {
     (( ${#bg[@]} )) && kill -- "${bg[@]}" 2>/dev/null
 }
 
-if [[ $1 == --help ]] || [[ $1 == -h ]]; then
+if [[ "$1" == '--help' ]] || [[ "$1" == '-h' ]]; then
     cat << 'EOF'
 clipmenud collects and caches what's on the clipboard. You can manage its
 operation with clipctl.
@@ -130,10 +124,12 @@ declare -A last_data_sel
 declare -A updated_sel
 
 command -v clipnotify >/dev/null 2>&1 || die 2 "clipnotify not in PATH"
-command -v xdotool >/dev/null 2>&1 && has_xdotool=1
 
-if [[ $CM_IGNORE_WINDOW ]] && ! (( has_xdotool )); then
+if  [[ "$CM_IGNORE_WINDOW" ]] &&
+    ! command -v xdotool >/dev/null 2>&1
+then
     echo "WARN: CM_IGNORE_WINDOW does not work without xdotool, which is not installed" >&2
+    unset CM_IGNORE_WINDOW
 fi
 
 exec {lock_fd}> "$lock_file"
@@ -147,15 +143,16 @@ while true; do
         # Make sure we're interruptible for the sig_{en,dis}able traps
         clipnotify &
         _CM_CLIPNOTIFY_PID="$!"
-        wait "$_CM_CLIPNOTIFY_PID"
-    fi
-
-    # Trapping a signal breaks the `wait`
-    if (( _CM_TRAP )); then
-        # Prevent spawning another clipnotify job restarting the loop
-        kill_background_jobs
-        unset _CM_TRAP
-        continue
+        
+        # Trapping a signal breaks the `wait`
+        while :; do
+            wait "$_CM_CLIPNOTIFY_PID"
+            if (( _CM_TRAP )); then
+                unset _CM_TRAP
+                continue
+            fi
+            break
+        done
     fi
 
     if (( _CM_DISABLED )); then
@@ -163,7 +160,7 @@ while true; do
         continue
     fi
 
-    if [[ $CM_IGNORE_WINDOW ]] && (( has_xdotool )); then
+    if [[ "$CM_IGNORE_WINDOW" ]]; then
         windowname="$(xdotool getactivewindow getwindowname)"
         if [[ "$windowname" =~ $CM_IGNORE_WINDOW ]]; then
             debug "ignoring clipboard because windowname \"$windowname\" matches \"${CM_IGNORE_WINDOW}\""
@@ -180,18 +177,19 @@ while true; do
         fi
     fi
 
-    for selection in "${selections[@]}"; do
+    for selection in ${CM_SELECTIONS}; do
         updated_sel[$selection]=0
 
         data=$(_xsel -o --"$selection"; printf x)
-        data=${data%x}  # avoid trailing newlines being stripped
+        data="${data%x}"  # avoid trailing newlines being stripped
 
-        [[ $data == *[^[:space:]]* ]] || continue
-        [[ $last_data == "$data" ]] && continue
-        [[ ${last_data_sel[$selection]} == "$data" ]] && continue
+        [[ "$data" != *[^[:space:]]* ]] ||
+        [[ "$last_data" == "$data"   ]] ||
+        [[ "${last_data_sel[$selection]}" == "$data" ]] && continue
 
-        if [[ $last_data && $data == "$last_data"* ]] ||
-           [[ $last_data && $data == *"$last_data" ]]; then
+        if  [[ "$last_data" ]] &&
+            [[ "$data" == "$last_data"* || "$data" == *"$last_data" ]]
+        then
             # Don't actually remove the file yet, because it might be
             # referenced by an older entry. These will be dealt with at vacuum.
             debug "$selection: $last_data is a possible partial of $data"
@@ -214,7 +212,7 @@ while true; do
         debug "Writing $cache_file_output to $cache_file"
         printf '%s\n' "$cache_file_output" >> "$cache_file"
 
-        if (( CM_OWN_CLIPBOARD )) && [[ $selection == clipboard ]]; then
+        if (( CM_OWN_CLIPBOARD )) && [[ "$selection" == clipboard ]]; then
             # Only clipboard, since apps like urxvt will unhilight for PRIMARY
             _xsel -o --clipboard | _xsel -i --clipboard
         fi
@@ -225,32 +223,34 @@ while true; do
     fi
 
     # The cache file may not exist if this is the first run and data is skipped
-    if (( CM_MAX_CLIPS )) && [[ -f "$cache_file" ]] && (( "$(wc -l < "$cache_file")" > CM_MAX_CLIPS_THRESH )); then
-        info "Trimming clip cache to CM_MAX_CLIPS ($CM_MAX_CLIPS)"
-        trunc_tmp=$(mktemp)
-        tail -n "$CM_MAX_CLIPS" "$cache_file" | uniq > "$trunc_tmp"
-        mv -- "$trunc_tmp" "$cache_file"
+    if (( CM_MAX_CLIPS )) && [[ -f "$cache_file" ]]; then
+        cache_lines_n=$( wc -l < "$cache_file" )
+        if (( cache_lines_n > CM_MAX_CLIPS_THRESH )); then
+            info "Trimming clip cache to CM_MAX_CLIPS ($CM_MAX_CLIPS)"
+            trunc_tmp=$(mktemp)
+            tail -n+$(( cache_lines_n - CM_MAX_CLIPS + 1 )) "$cache_file" > "$trunc_tmp"
+            mv -- "$trunc_tmp" "$cache_file"
 
-        # Vacuum up unreferenced clips. They may either have been
-        # unreferenced by the above CM_MAX_CLIPS code, or they may be old
-        # possible partials.
-        declare -A cksums
-        while IFS= read -r line; do
-            cksum=$(cksum <<< "$line")
-            cksums["$cksum"]="$line"
-        done < <(cut -d' ' -f2- < "$cache_file")
+            # Vacuum up unreferenced clips. They may either have been
+            # unreferenced by the above CM_MAX_CLIPS code, or they may be old
+            # possible partials.
+            declare -A cksums
+            while IFS= read -r line; do
+                cksums[ $(cksum <<< "$line") ]="$line"
+            done < <(sed 's/^[^ ]* //' < "$cache_file")
 
-        num_vacuumed=0
-        for file in "$cache_dir"/[012346789]*; do
-            cksum=${file##*/}
-            if [[ ${cksums["$cksum"]-_missing_} == _missing_ ]]; then
-                debug "Vacuuming due to lack of reference: $file"
-                (( ++num_vacuumed ))
-                rm -- "$file"
-            fi
-        done
-        unset cksums
-        info "Vacuumed $num_vacuumed clip files."
+            num_vacuumed=0
+            for file in "$cache_dir"/[0-9]*; do
+                cksum="${file##*/}"
+                if [[ "${cksums[$cksum]-_missing_}" == _missing_ ]]; then
+                    debug "Vacuuming due to lack of reference: $file"
+                    (( ++num_vacuumed ))
+                    rm -- "$file"
+                fi
+            done
+            unset cksums
+            info "Vacuumed $num_vacuumed clip files."
+        fi
     fi
 
     flock -u "$lock_fd"
