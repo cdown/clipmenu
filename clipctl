@@ -1,8 +1,8 @@
-#!/usr/bin/env bash
+#!/usr/bin/env sh
 
 : "${CM_DIR:="${XDG_RUNTIME_DIR-"${TMPDIR-/tmp}"}"}"
 
-if [[ -z $1 ]] || [[ $1 == --help ]] || [[ $1 == -h ]]; then
+if [ -z $1 ] || [ "$1" = "--help" ] || [ "$1" = "-h" ]; then
     cat << 'EOF'
 clipctl provides controls for the clipmenud daemon.
 
@@ -21,7 +21,7 @@ clipmenud_pid=$(pgrep -u "$(id -u)" -nf 'clipmenud$')
 
 case $1 in
     enable|disable|toggle|status)
-        if [[ -z "$clipmenud_pid" ]]; then
+        if [ -z "$clipmenud_pid" ]; then
             echo "clipmenud is not running" >&2
             exit 2
         fi
@@ -37,7 +37,7 @@ case $1 in
     disable) kill -USR1 "$clipmenud_pid" ;;
     status) cat "$status_file" ;;
     toggle)
-        if [[ $(clipctl status) == "enabled" ]]; then
+        if [ "$(clipctl status)" = "enabled" ]; then
             clipctl disable
         else
             clipctl enable
