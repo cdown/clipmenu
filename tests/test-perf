@@ -44,16 +44,13 @@ if ! (( NO_RECREATE )); then
 
     msg "Writing $num_files clipboard files"
 
-    for (( i = 0; i <= num_files; i++ )); do
+    stdbuf -o0 tr -dc 'a-zA-Z0-9' < /dev/urandom \
+    |stdbuf -oL fold -w "$(( RANDOM % 10000 + 1 ))" \
+    |for (( i = 0; i <= num_files; i++ )); do
         (( i % 100 )) || printf '%s... ' "$i"
 
-        line_len=$(( (RANDOM % 10000) + 1 ))
-        num_lines=$(( (RANDOM % 10) + 1 ))
-        data=$(
-            tr -dc 'a-zA-Z0-9' < /dev/urandom |
-                fold -w "$line_len" |
-                head -"$num_lines"
-        )
+        num_lines=$(( RANDOM % 10 + 1 ))
+        data=$(head -"$num_lines")
         read -r first_line_raw <<< "$data"
         printf -v first_line '%s (%s lines)\n' "$first_line_raw" "$num_lines"
         printf '%d %s' "$i" "$first_line" >> "$cache_file"
