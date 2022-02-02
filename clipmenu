@@ -1,15 +1,16 @@
-#!/usr/bin/env bash
+#!/usr/bin/env sh
 
 : "${CM_LAUNCHER=dmenu}"
 : "${CM_HISTLENGTH=8}"
 
-shopt -s nullglob
+# FIXME: question - do we need nullglob there?
+#~ shopt -s nullglob
 
 cache_dir=$(clipctl cache-dir)
 cache_file=$cache_dir/line_cache
 
 # Not -h, see #142
-if [[ $1 == --help ]]; then
+if [ "$1" = '--help' ]; then
     cat << 'EOF'
 clipmenu is a simple clipboard manager using dmenu and xsel. Launch this
 when you want to select a clip.
@@ -26,46 +27,46 @@ EOF
     exit 0
 fi
 
-if ! [[ -f "$cache_file" ]]; then
+if ! [ -f "$cache_file" ]; then
     printf '%s\n' 'No cache file yet, did you run clipmenud?'
     exit 2
 fi
 
 # Blacklist of non-dmenu launchers
-launcher_args=(-l "${CM_HISTLENGTH}")
-if [[ "$CM_LAUNCHER" == fzf ]]; then
-    launcher_args=()
+launcher_args='-l "${CM_HISTLENGTH}"'
+if [ "$CM_LAUNCHER" = 'fzf' ]; then
+    launcher_args=
 fi
 
 # rofi supports dmenu-like arguments through the -dmenu flag. -p wastes space
 # in real dmenu, but rofi shows "dmenu:" anyway, so pass it here only.
-[[ "$CM_LAUNCHER" == rofi ]] && set -- -dmenu -p clipmenu "$@"
+[ "$CM_LAUNCHER" = 'rofi' ] && set -- -dmenu -p clipmenu "$@"
 
 list_clips() {
     LC_ALL=C sort -rnk 1 < "$cache_file" | sed 's/^[^ ]* //' | awk '!seen[$0]++'
 }
 
-if [[ "$CM_LAUNCHER" == rofi-script ]]; then
-    if (( $# )); then
+if [ "$CM_LAUNCHER" = 'rofi-script' ]; then
+    if [ $# -gt 0 ]; then
         chosen_line="${!#}"
     else
         list_clips
         exit
     fi
 else
-    chosen_line=$(list_clips | "$CM_LAUNCHER" "${launcher_args[@]}" "$@")
+    chosen_line=$(list_clips | eval "$CM_LAUNCHER ${launcher_args}" "$@")
     launcher_exit=$?
 fi
 
-[[ $chosen_line ]] || exit 1
-file=$cache_dir/$(cksum <<< "$chosen_line")
-[[ -f "$file" ]] || exit 2
+[ "$chosen_line" ] || exit 1
+file=$cache_dir/$(printf '%s' "$chosen_line" | cksum)
+[ -f "$file" ] || exit 2
 
 for selection in clipboard primary; do
     xsel --logfile /dev/null -i --"$selection" < "$file"
 done
 
-if (( CM_OUTPUT_CLIP )); then
+if [ $(( CM_OUTPUT_CLIP )) -ne 0 ]; then
     cat "$file"
 fi
 
