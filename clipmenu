@@ -45,23 +45,41 @@ fi
 # in real dmenu, but rofi shows "dmenu:" anyway, so pass it here only.
 [ "$CM_LAUNCHER" = 'rofi' ] && set -- -dmenu -p clipmenu "$@"
 
+warn() { echo "WARNING: $*" >&2; }
+
 list_clips() {
-    if [ ${CM_BUFFERS} -eq 0 ]; then
+    case ${CM_BUFFERS} in
+    0) false ;;
+    1) [ "$cache_file-b1" -nt "$cache_file" ] ;;
+    *) [ "$cache_file-b2" -nt "$cache_file" ] ;;
+    esac
+    need_update=$?
+
+    [ ${CM_BUFFERS} -ge 1 ] && {
+        [ ${need_update} -eq 0 ] \
+        || LC_ALL=C sort -ruk 2 < "$cache_file" > "$cache_file-b1" \
+        || {
+            warn 'Downgrading buffers number to 0'
+            rm "$cache_file-b1"
+            false
+        }
+    }||{
         LC_ALL=C sort -rnk 1 < "$cache_file" | sed 's/^[^ ]* //' | awk '!seen[$0]++'
-        return
-    fi
-    [ "$cache_file-a" -nt "$cache_file" ] || LC_ALL=C sort -ruk 2 < "$cache_file" > "$cache_file-a"
-    if [ ${CM_BUFFERS} -le 1 ]; then
-        LC_ALL=C sort -rnk 1 < "$cache_file-a" | sed 's/^[^ ]* //'
-        return
-    fi
-    [ "$cache_file-b" -nt "$cache_file-a" ] || LC_ALL=C sort -rnk 1 < "$cache_file-a" > "$cache_file-b"
-    if [ ${CM_BUFFERS} -le 2 ]; then
-        sed 's/^[^ ]* //' < "$cache_file-b"
-        return
-    fi
-    [ "$cache_file-c" -nt "$cache_file-b" ] || sed 's/^[^ ]* //' < "$cache_file-b" > "$cache_file-c"
-    cat "$cache_file-c"
+        return;
+    }
+    [ ${CM_BUFFERS} -ge 2 ] && {
+        [ ${need_update} -eq 0 ] || {
+            LC_ALL=C sort -rnk 1 < "$cache_file-b1" | sed 's/^[^ ]* //' > "$cache_file-b2" \
+            && rm "$cache_file-b1" \
+            || {
+                warn 'Downgrading buffers number to 1'
+                rm "$cache_file-b2"
+                false
+            }
+        }
+    } \
+    && cat "$cache_file-b2" \
+    || LC_ALL=C sort -rnk 1 < "$cache_file-b1" | sed 's/^[^ ]* //'
 }
 
 if [ "$CM_LAUNCHER" = 'rofi-script' ]; then
