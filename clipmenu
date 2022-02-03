@@ -2,12 +2,14 @@
 
 : "${CM_LAUNCHER=dmenu}"
 : "${CM_HISTLENGTH=8}"
+: "${CM_BUFFERS=0}"
 
 # FIXME: question - do we need nullglob there?
 #~ shopt -s nullglob
 
 cache_dir=$(clipctl cache-dir)
 cache_file=$cache_dir/line_cache
+CM_BUFFERS=$((CM_BUFFERS))
 
 # Not -h, see #142
 if [ "$1" = '--help' ]; then
@@ -23,6 +25,7 @@ Environment variables:
 - $CM_HISTLENGTH: specify the number of lines to show in dmenu/rofi (default: 8)
 - $CM_LAUNCHER: specify a dmenu-compatible launcher (default: dmenu)
 - $CM_OUTPUT_CLIP: if set, output clip selection to stdout
+- $CM_BUFFERS: use itermediate cache buffers for higher performance at the cost of memory usage, 0 to 3 (default: 0)
 EOF
     exit 0
 fi
@@ -43,7 +46,22 @@ fi
 [ "$CM_LAUNCHER" = 'rofi' ] && set -- -dmenu -p clipmenu "$@"
 
 list_clips() {
-    LC_ALL=C sort -rnk 1 < "$cache_file" | sed 's/^[^ ]* //' | awk '!seen[$0]++'
+    if [ ${CM_BUFFERS} -eq 0 ]; then
+        LC_ALL=C sort -rnk 1 < "$cache_file" | sed 's/^[^ ]* //' | awk '!seen[$0]++'
+        return
+    fi
+    [ "$cache_file-a" -nt "$cache_file" ] || LC_ALL=C sort -ruk 2 < "$cache_file" > "$cache_file-a"
+    if [ ${CM_BUFFERS} -le 1 ]; then
+        LC_ALL=C sort -rnk 1 < "$cache_file-a" | sed 's/^[^ ]* //'
+        return
+    fi
+    [ "$cache_file-b" -nt "$cache_file-a" ] || LC_ALL=C sort -rnk 1 < "$cache_file-a" > "$cache_file-b"
+    if [ ${CM_BUFFERS} -le 2 ]; then
+        sed 's/^[^ ]* //' < "$cache_file-b"
+        return
+    fi
+    [ "$cache_file-c" -nt "$cache_file-b" ] || sed 's/^[^ ]* //' < "$cache_file-b" > "$cache_file-c"
+    cat "$cache_file-c"
 }
 
 if [ "$CM_LAUNCHER" = 'rofi-script' ]; then
