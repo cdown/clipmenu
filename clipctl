@@ -32,15 +32,19 @@ major_version=6
 cache_dir=$CM_DIR/clipmenu.$major_version.$USER
 status_file=$cache_dir/status
 
+_enable()  { kill -USR2 "$clipmenud_pid"; }
+_disable() { kill -USR1 "$clipmenud_pid"; }
+_status()  { cat "$status_file"; }
+
 case $1 in
-    enable) kill -USR2 "$clipmenud_pid" ;;
-    disable) kill -USR1 "$clipmenud_pid" ;;
-    status) cat "$status_file" ;;
+    enable) _enable ;;
+    disable) _disable ;;
+    status) _status ;;
     toggle)
-        if [ "$(clipctl status)" = "enabled" ]; then
-            clipctl disable
+        if [ "$(_status)" = "enabled" ]; then
+            _disable
         else
-            clipctl enable
+            _enable
         fi
     ;;
     version) echo "$major_version" ;;
