@@ -228,27 +228,26 @@ while true; do
         if (( cache_lines_n > CM_MAX_CLIPS_THRESH )); then
             info "Trimming clip cache to CM_MAX_CLIPS ($CM_MAX_CLIPS)"
             trunc_tmp=$(mktemp)
-            tail -n+$(( cache_lines_n - CM_MAX_CLIPS + 1 )) "$cache_file" > "$trunc_tmp"
-            mv -- "$trunc_tmp" "$cache_file"
 
             # Vacuum up unreferenced clips. They may either have been
             # unreferenced by the above CM_MAX_CLIPS code, or they may be old
             # possible partials.
-            declare -A cksums
-            while IFS= read -r line; do
-                cksums[ $(cksum <<< "$line") ]="$line"
-            done < <(sed 's/^[^ ]* //' < "$cache_file")
 
-            num_vacuumed=0
-            for file in "$cache_dir"/[0-9]*; do
-                cksum="${file##*/}"
-                if [[ "${cksums[$cksum]-_missing_}" == _missing_ ]]; then
-                    debug "Vacuuming due to lack of reference: $file"
-                    (( ++num_vacuumed ))
-                    rm -- "$file"
-                fi
-            done
-            unset cksums
+            num_vacuumed=$(( cache_lines_n - CM_MAX_CLIPS ))
+            exec 3<"$cache_file"
+            head -n ${num_vacuumed} <&3 | sed 's/^[^ ]* //' \
+            |while IFS= read -r line; do
+                cksum <<< "$line"
+             done \
+            |sed -e '{
+                s|^|'"${cache_dir}"'/|; p
+                '"$( ((CM_DEBUG)) && printf 's|^|Vacuuming due to lack of reference: |; w /dev/null' )"'
+             }' \
+            |xargs -d'\n' rm -f --
+            cat <&3 > "$trunc_tmp"
+            exec 3<&-
+            mv -- "$trunc_tmp" "$cache_file"
+
             info "Vacuumed $num_vacuumed clip files."
         fi
     fi
