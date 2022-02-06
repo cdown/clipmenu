@@ -134,25 +134,13 @@ fi
 
 exec {lock_fd}> "$lock_file"
 
-trap '_CM_TRAP=1; sig_disable' USR1
-trap '_CM_TRAP=1; sig_enable' USR2
+trap 'sig_disable' USR1
+trap 'sig_enable' USR2
 trap 'trap - INT TERM EXIT; kill_background_jobs; exit 0' INT TERM EXIT
 
 while true; do
-    if ! (( CM_ONESHOT )); then
-        # Make sure we're interruptible for the sig_{en,dis}able traps
-        clipnotify &
-        _CM_CLIPNOTIFY_PID="$!"
-        
-        # Trapping a signal breaks the `wait`
-        while :; do
-            wait "$_CM_CLIPNOTIFY_PID"
-            if (( _CM_TRAP )); then
-                unset _CM_TRAP
-                continue
-            fi
-            break
-        done
+    if ! (( CM_ONESHOT )) && ! IFS= read -r event; then
+        break
     fi
 
     if (( _CM_DISABLED )); then
@@ -255,4 +243,4 @@ while true; do
     flock -u "$lock_fd"
 
     (( CM_ONESHOT )) && break
-done
+done < <( exec stdbuf -oL clipnotify clip_event )
