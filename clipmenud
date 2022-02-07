@@ -203,7 +203,7 @@ while true; do
             # Don't actually remove the file yet, because it might be
             # referenced by an older entry. These will be dealt with at vacuum.
             debug "$selection: $last_data is a possible partial of $data"
-            previous_size=$(wc -c <<< "$last_cache_file_output")
+            previous_size=$(stat -c '%s' --cached=never "$last_cache_file_output")
             truncate -s -"$previous_size" "$cache_file"
         fi
 
