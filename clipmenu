@@ -84,7 +84,7 @@ list_clips() {
 
 if [ "$CM_LAUNCHER" = 'rofi-script' ]; then
     if [ $# -gt 0 ]; then
-        chosen_line="${!#}"
+        chosen_line="${1}"
     else
         list_clips
         exit
@@ -95,7 +95,7 @@ else
 fi
 
 [ "$chosen_line" ] || exit 1
-file=$cache_dir/$(printf '%s' "$chosen_line" | cksum)
+file=$cache_dir/$(printf '%s\n' "$chosen_line" | cksum)
 [ -f "$file" ] || exit 2
 
 for selection in clipboard primary; do
