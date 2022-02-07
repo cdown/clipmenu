@@ -144,19 +144,26 @@ fi
 
 exec {VACUUM}> >(
     stdbuf -oL sed 's/^[^ ]* //' \
-    |while IFS= read -r line; do
-        cksum <<< "$line"
-     done \
-    |stdbuf -oL sed -n '{
-        / 1$/{p;n}
-        / 1$/!s|^|'"${cache_dir}"'/|; p
-        '"$( ((CM_DEBUG)) && printf 's|^|Vacuuming due to lack of reference: |; w /dev/stderr' )"'
-     }' \
-    |while :; do
-        stdbuf -oL sed -n '/ 1$/!{ p;n }; / 1$/q' \
-        | xargs -d'\n' rm -f --
-        debug 'Vacuuming finished'
-     done
+    |stdbuf -oL awk \
+        -v dir="${cache_dir}"    \
+        -v debug=$((CM_DEBUG))   \
+        -v cksum=cksum           \
+        -v rmcmd="xargs -d'\\n' -- rm -f --" '
+    /^$/ {
+        close (rmcmd)
+        if (debug)
+            print "Vacuumed "(NR-1)" clip files."
+        NR = 0
+        next
+    }{
+        print $0 |& cksum
+        close (cksum, "TO")
+        cksum |& getline file
+        close (cksum, "FROM")
+        file = dir "/" file
+        print file | rmcmd
+    }
+    debug {print "Vacuuming due to lack of reference: "file >"/dev/stderr"}'
 )
 
 while true; do
@@ -238,7 +245,6 @@ while true; do
         if (( cache_lines_n > CM_MAX_CLIPS_THRESH )); then
             num_vacuumed=$(( cache_lines_n - CM_MAX_CLIPS ))
             info "Trimming clip cache to CM_MAX_CLIPS ($CM_MAX_CLIPS)"
-            info "Sending $num_vacuumed clip files into vacuum."
             trunc_tmp=$( mktemp )
 
             # Vacuum up unreferenced clips. They may either have been
