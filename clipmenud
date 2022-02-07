@@ -138,6 +138,27 @@ trap 'sig_disable' USR1
 trap 'sig_enable' USR2
 trap 'trap - INT TERM EXIT; kill_background_jobs; exit 0' INT TERM EXIT
 
+if [[ "$CM_IGNORE_WINDOW" ]]; then
+    coproc XDOTOOL { stdbuf -oL xdotool -; }
+fi
+
+exec {VACUUM}> >(
+    stdbuf -oL sed 's/^[^ ]* //' \
+    |while IFS= read -r line; do
+        cksum <<< "$line"
+     done \
+    |stdbuf -oL sed -n '{
+        / 1$/{p;n}
+        / 1$/!s|^|'"${cache_dir}"'/|; p
+        '"$( ((CM_DEBUG)) && printf 's|^|Vacuuming due to lack of reference: |; w /dev/stderr' )"'
+     }' \
+    |while :; do
+        stdbuf -oL sed -n '/ 1$/!{ p;n }; / 1$/q' \
+        | xargs -d'\n' rm -f --
+        debug 'Vacuuming finished'
+     done
+)
+
 while true; do
     if ! (( CM_ONESHOT )) && ! IFS= read -r event; then
         break
@@ -149,7 +170,8 @@ while true; do
     fi
 
     if [[ "$CM_IGNORE_WINDOW" ]]; then
-        windowname="$(xdotool getactivewindow getwindowname)"
+        printf 'getactivewindow getwindowname\n' >&${XDOTOOL[1]}
+        read windowname <&${XDOTOOL[0]}
         if [[ "$windowname" =~ $CM_IGNORE_WINDOW ]]; then
             debug "ignoring clipboard because windowname \"$windowname\" matches \"${CM_IGNORE_WINDOW}\""
             continue
@@ -214,29 +236,21 @@ while true; do
     if (( CM_MAX_CLIPS )) && [[ -f "$cache_file" ]]; then
         cache_lines_n=$( wc -l < "$cache_file" )
         if (( cache_lines_n > CM_MAX_CLIPS_THRESH )); then
+            num_vacuumed=$(( cache_lines_n - CM_MAX_CLIPS ))
             info "Trimming clip cache to CM_MAX_CLIPS ($CM_MAX_CLIPS)"
-            trunc_tmp=$(mktemp)
+            info "Sending $num_vacuumed clip files into vacuum."
+            trunc_tmp=$( mktemp )
 
             # Vacuum up unreferenced clips. They may either have been
             # unreferenced by the above CM_MAX_CLIPS code, or they may be old
             # possible partials.
 
-            num_vacuumed=$(( cache_lines_n - CM_MAX_CLIPS ))
-            exec 3<"$cache_file"
-            head -n ${num_vacuumed} <&3 | sed 's/^[^ ]* //' \
-            |while IFS= read -r line; do
-                cksum <<< "$line"
-             done \
-            |sed -e '{
-                s|^|'"${cache_dir}"'/|; p
-                '"$( ((CM_DEBUG)) && printf 's|^|Vacuuming due to lack of reference: |; w /dev/null' )"'
-             }' \
-            |xargs -d'\n' rm -f --
-            cat <&3 > "$trunc_tmp"
-            exec 3<&-
+            exec {cache_fd}<"$cache_file"
+            head -n ${num_vacuumed} <&${cache_fd} >&${VACUUM}
+            echo >&${VACUUM}
+            cat <&${cache_fd} > "$trunc_tmp"
+            exec {cache_fd}<&-
             mv -- "$trunc_tmp" "$cache_file"
-
-            info "Vacuumed $num_vacuumed clip files."
         fi
     fi
 
