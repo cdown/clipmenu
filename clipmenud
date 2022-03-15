@@ -96,6 +96,10 @@ kill_background_jobs() {
     (( ${#bg[@]} )) && kill -- "${bg[@]}" 2>/dev/null
 }
 
+# Avoid clipmenu showing "no cache file yet" if we launched it before selecting
+# anything
+touch -- "$cache_file"
+
 if [[ $1 == --help ]] || [[ $1 == -h ]]; then
     cat << 'EOF'
 clipmenud collects and caches what's on the clipboard. You can manage its
