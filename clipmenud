@@ -152,6 +152,11 @@ while true; do
         clipnotify &
         _CM_CLIPNOTIFY_PID="$!"
         wait "$_CM_CLIPNOTIFY_PID"
+        if [[ $? -ne 0 ]]; then
+            if ! xset q &>/dev/null; then
+                die 2 'Is your X server running?'
+            fi
+        fi
     fi
 
     # Trapping a signal breaks the `wait`
