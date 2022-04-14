@@ -151,7 +151,11 @@ while true; do
         # Make sure we're interruptible for the sig_{en,dis}able traps
         clipnotify &
         _CM_CLIPNOTIFY_PID="$!"
-        wait "$_CM_CLIPNOTIFY_PID"
+        if ! wait "$_CM_CLIPNOTIFY_PID"; then
+            # X server dead?
+            sleep 10
+            continue
+        fi
     fi
 
     # Trapping a signal breaks the `wait`
