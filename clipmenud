@@ -153,9 +153,8 @@ while true; do
         _CM_CLIPNOTIFY_PID="$!"
         wait "$_CM_CLIPNOTIFY_PID"
         if [[ $? -ne 0 ]]; then
-            if ! xset q &>/dev/null; then
-                die 2 'Is your X server running?'
-            fi
+            #clipnotify returned non zero exit code. X server might be closed.
+            sleep 10
         fi
     fi
 
