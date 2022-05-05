@@ -3,6 +3,7 @@
 : "${CM_ONESHOT=0}"
 : "${CM_OWN_CLIPBOARD=0}"
 : "${CM_SYNC_PRIMARY_TO_CLIPBOARD=0}"
+: "${CM_SYNC_CLIPBOARD_TO_PRIMARY=0}"
 : "${CM_DEBUG=0}"
 
 : "${CM_MAX_CLIPS:=1000}"
@@ -114,6 +115,7 @@ Environment variables:
 - $CM_OWN_CLIPBOARD: take ownership of the clipboard. Note: this may cause missed copies if some other application also handles the clipboard directly (default: 0)
 - $CM_SELECTIONS: space separated list of the selections to manage (default: "clipboard primary")
 - $CM_SYNC_PRIMARY_TO_CLIPBOARD: sync selections from primary to clipboard immediately (default: 0)
+- $CM_SYNC_CLIPBOARD_TO_PRIMARY: sync selections from clipboard to primary immediately (default: 0)
 - $CM_IGNORE_WINDOW: disable recording the clipboard in windows where the windowname matches the given regex (e.g. a password manager), do not ignore any windows if unset or empty (default: unset)
 EOF
     exit 0
@@ -230,6 +232,9 @@ while true; do
 
     if (( CM_SYNC_PRIMARY_TO_CLIPBOARD )) && (( updated_sel[primary] )); then
         _xsel -o --primary | _xsel -i --clipboard
+    fi
+    if (( CM_SYNC_CLIPBOARD_TO_PRIMARY )) && (( updated_sel[clipboard] )); then
+        _xsel -o --clipboard | _xsel -i --primary
     fi
 
     # The cache file may not exist if this is the first run and data is skipped
