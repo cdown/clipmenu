@@ -62,7 +62,7 @@ file=$cache_dir/$(cksum <<< "$chosen_line")
 [[ -f "$file" ]] || exit 2
 
 for selection in clipboard primary; do
-    xsel --logfile /dev/null -i --"$selection" < "$file"
+    xclip -i -sel "$selection" -t UTF8_STRING < "$file"
 done
 
 if (( CM_OUTPUT_CLIP )); then

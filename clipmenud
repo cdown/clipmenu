@@ -24,7 +24,7 @@ session_lock_file=$cache_dir/session_lock
 lock_timeout=2
 has_xdotool=0
 
-_xsel() { timeout 1 xsel --logfile /dev/null "$@"; }
+_xclip() { timeout 1 xclip -t UTF8_STRING "$@"; }
 
 error() { printf 'ERROR: %s\n' "${1?}" >&2; }
 info() { printf 'INFO: %s\n' "${1?}"; }
@@ -76,7 +76,7 @@ sig_enable() {
     # Still store the last data so we don't end up eventually putting it in the
     # clipboard if it wasn't changed
     for selection in "${selections[@]}"; do
-        data=$(_xsel -o --"$selection"; printf x)
+        data=$(_xclip -o -sel "$selection"; printf x)
         last_data_sel[$selection]=${data%x}
     done
 
@@ -193,7 +193,7 @@ while true; do
     for selection in "${selections[@]}"; do
         updated_sel[$selection]=0
 
-        data=$(_xsel -o --"$selection"; printf x)
+        data=$(_xclip -o -sel "$selection"; printf x)
         data=${data%x}  # avoid trailing newlines being stripped
 
         [[ $data == *[^[:space:]]* ]] || continue
@@ -226,15 +226,15 @@ while true; do
 
         if (( CM_OWN_CLIPBOARD )) && [[ $selection == clipboard ]]; then
             # Only clipboard, since apps like urxvt will unhilight for PRIMARY
-            _xsel -o --clipboard | _xsel -i --clipboard
+            _xclip -o -sel clipboard | _xclip -i -sel clipboard
         fi
     done
 
     if (( CM_SYNC_PRIMARY_TO_CLIPBOARD )) && (( updated_sel[primary] )); then
-        _xsel -o --primary | _xsel -i --clipboard
+        _xclip -o -sel primary | _xclip -i -sel clipboard
     fi
     if (( CM_SYNC_CLIPBOARD_TO_PRIMARY )) && (( updated_sel[clipboard] )); then
-        _xsel -o --clipboard | _xsel -i --primary
+        _xclip -o -sel clipboard | _xclip -i -sel primary
     fi
 
     # The cache file may not exist if this is the first run and data is skipped
