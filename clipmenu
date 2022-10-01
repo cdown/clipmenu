@@ -35,6 +35,19 @@ fi
 launcher_args=(-l "${CM_HISTLENGTH}")
 if [[ "$CM_LAUNCHER" == fzf ]]; then
     launcher_args=()
+    
+    # otherwise `cache_dir` won't be passed to `clip`
+    export cache_dir
+    
+    # this function gives the clip file matching selected line in fzf
+    # use it in fzf args, for instance: `--preview="cat \"$(clip {})\"`
+    clip() {
+        printf %s "${cache_dir}/$(cksum <<<"$1")"
+    }
+    
+    # the function has to be exported, otherwise it won't be available to fzf
+    # Cf. https://github.com/junegunn/fzf/issues/2762#issuecomment-1072108653
+    export -f clip
 fi
 
 # rofi supports dmenu-like arguments through the -dmenu flag. -p wastes space
