@@ -4,17 +4,11 @@ set -x
 set -e
 set -o pipefail
 
-dir=$(./clipctl cache-dir)
-cache_file=$dir/line_cache
+# shellcheck disable=SC1091
+source "${BASH_SOURCE[0]%/*}/setup.sh"
 
-if [[ $0 == /* ]]; then
-    location=${0%/*}
-else
-    location=$PWD/${0#./}
-    location=${location%/*}
-fi
 
-cat - "$location/../clipmenu" > /tmp/clipmenu << 'EOF'
+cat - "${toplevel?}/clipmenu" > /tmp/clipmenu << 'EOF'
 #!/usr/bin/env bash
 
 shopt -s expand_aliases
@@ -52,10 +46,10 @@ EOF
 
 chmod a+x /tmp/clipmenu
 
-rm -rf "$dir"
+rm -rf "${dir?}"
 mkdir -p "$dir"
 
-cat > "$cache_file" << 'EOF'
+cat > "${cache_file?}" << 'EOF'
 1234 Selected text. (2 lines)
 1235 Selected text 2. (2 lines)
 EOF
