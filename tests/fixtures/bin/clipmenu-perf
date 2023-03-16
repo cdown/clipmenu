@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
 
-exec 3>&2 2> >(tee "${log?}" |
+exec {BASH_XTRACEFD}> >(tee "${log?}" |
                  sed -u 's/^.*$/now/' |
                  date -f - +%s.%N > "${tim?}")
+
+export BASH_XTRACEFD
+
 set -x
 
 dmenu() { :; }
