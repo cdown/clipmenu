@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
 
+msg() {
+    printf '>>> %s\n' "$@" >&2
+}
+
 toplevel() {
     git rev-parse --show-toplevel 2>/dev/null && return
     readlink -f "${BASH_SOURCE[0]}/../.." 2>/dev/null && return

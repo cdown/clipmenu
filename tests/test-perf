@@ -1,9 +1,5 @@
 #!/usr/bin/env bash
 
-msg() {
-    printf '>>> %s\n' "$@" >&2
-}
-
 # shellcheck disable=SC1091
 source "${BASH_SOURCE[0]%/*}/setup.sh"
 
