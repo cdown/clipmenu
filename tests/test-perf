@@ -11,23 +11,6 @@ log="${tempdir?}/log"
 tim="${tempdir}/tim"
 num_files=1500
 
-msg 'Setting up edited clipmenu'
-
-cat - "${toplevel?}/clipmenu" > "${tempdir}/clipmenu" << EOF
-#!/usr/bin/env bash
-
-exec 3>&2 2> >(tee "$log" |
-                 sed -u 's/^.*$/now/' |
-                 date -f - +%s.%N > "$tim")
-set -x
-
-dmenu() { :; }
-xsel() { :; }
-
-EOF
-
-chmod a+x "${tempdir}/clipmenu"
-
 if ! (( NO_RECREATE )); then
     rm -rf "${dir?}"
     mkdir -p "$dir"
@@ -56,9 +39,9 @@ else
     msg 'Not nuking/creating new clipmenu files'
 fi
 
-msg 'Running modified clipmenu'
+msg 'Running clipmenu performance-testing wrapper'
 
-time "${tempdir}/clipmenu"
+time log="$log" tim="$tim" clipmenu-perf
 
 (( TIME_ONLY )) && exit 0
 

@@ -15,44 +15,6 @@ cleanup_pre() {
     fi
 }
 
-cat - "${toplevel?}/clipmenu" > "${tempdir}/clipmenu" << 'EOF'
-#!/usr/bin/env bash
-
-shopt -s expand_aliases
-
-shim() {
-    printf '%s args:' "$1" >&2
-    printf ' %q' "${@:2}" >&2
-    printf '\n' >&2
-
-    i=0
-
-    while IFS= read -r line; do
-        let i++
-        printf '%s line %d stdin: %s\n' "$1" "$i" "$line" >&2
-    done
-
-    if [[ -v SHIM_STDOUT ]]; then
-        printf '%s\n' "$SHIM_STDOUT"
-    fi
-}
-
-# Cannot be an alias due to expansion order with $CM_LAUNCHER
-dmenu() {
-    SHIM_STDOUT="Selected text. (2 lines)" shim dmenu "$@"
-}
-
-rofi() {
-    SHIM_STDOUT="Selected text. (2 lines)" shim rofi "$@"
-}
-
-alias xsel='shim xsel'
-alias xclip='shim xclip'
-alias clipctl='./clipctl'
-EOF
-
-chmod a+x "${tempdir}/clipmenu"
-
 rm -rf "${dir?}"
 mkdir -p "$dir"
 
@@ -68,7 +30,7 @@ EOF
 
 ### TESTS ###
 
-"${tempdir}/clipmenu" --foo bar > "$temp" 2>&1
+clipmenu --foo bar > "$temp" 2>&1
 
 # Arguments are transparently passed to dmenu
 grep -Fxq 'dmenu args: -l 8 --foo bar' "$temp"
@@ -84,7 +46,7 @@ grep -Fxq 'xsel args: --logfile /dev/null -i --primary' "$temp"
 grep -Fxq 'xsel line 1 stdin: Selected text.' "$temp"
 grep -Fxq "xsel line 2 stdin: Yes, it's selected text." "$temp"
 
-CM_LAUNCHER=rofi "${tempdir}/clipmenu" --foo bar > "$temp" 2>&1
+CM_LAUNCHER=rofi clipmenu --foo bar > "$temp" 2>&1
 
 # We have a special case to add -dmenu for rofi
 grep -Fxq 'rofi args: -l 8 -dmenu -p clipmenu --foo bar' "$temp"

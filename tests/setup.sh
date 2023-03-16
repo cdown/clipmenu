@@ -20,7 +20,7 @@ cleanup() {
 
 toplevel="$(toplevel)"
 
-export PATH="${toplevel}${PATH:+:${PATH}}"
+export PATH="${toplevel}/tests/fixtures/bin:${toplevel}${PATH:+:${PATH}}"
 
 tempdir="$(mktemp -d)"
 

@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+
+exec 3>&2 2> >(tee "${log?}" |
+                 sed -u 's/^.*$/now/' |
+                 date -f - +%s.%N > "${tim?}")
+set -x
+
+dmenu() { :; }
+xsel() { :; }
+
+# shellcheck disable=SC1091
+source clipmenu "$@"

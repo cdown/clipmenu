@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+
+# shellcheck disable=SC1091
+SHIM_STDOUT="Selected text. (2 lines)" source clipmenu-test-shim "$@"
