@@ -7,8 +7,15 @@ set -o pipefail
 # shellcheck disable=SC1091
 source "${BASH_SOURCE[0]%/*}/setup.sh"
 
+temp="${tempdir?}/out"
 
-cat - "${toplevel?}/clipmenu" > /tmp/clipmenu << 'EOF'
+cleanup_pre() {
+    if [[ -n "${temp:-}" ]] && [[ -f "$temp" ]]; then
+        cat "$temp"
+    fi
+}
+
+cat - "${toplevel?}/clipmenu" > "${tempdir}/clipmenu" << 'EOF'
 #!/usr/bin/env bash
 
 shopt -s expand_aliases
@@ -44,7 +51,7 @@ alias xclip='shim xclip'
 alias clipctl='./clipctl'
 EOF
 
-chmod a+x /tmp/clipmenu
+chmod a+x "${tempdir}/clipmenu"
 
 rm -rf "${dir?}"
 mkdir -p "$dir"
@@ -61,11 +68,7 @@ EOF
 
 ### TESTS ###
 
-temp=$(mktemp)
-
-trap 'cat "$temp"' EXIT
-
-/tmp/clipmenu --foo bar > "$temp" 2>&1
+"${tempdir}/clipmenu" --foo bar > "$temp" 2>&1
 
 # Arguments are transparently passed to dmenu
 grep -Fxq 'dmenu args: -l 8 --foo bar' "$temp"
@@ -81,7 +84,7 @@ grep -Fxq 'xsel args: --logfile /dev/null -i --primary' "$temp"
 grep -Fxq 'xsel line 1 stdin: Selected text.' "$temp"
 grep -Fxq "xsel line 2 stdin: Yes, it's selected text." "$temp"
 
-CM_LAUNCHER=rofi /tmp/clipmenu --foo bar > "$temp" 2>&1
+CM_LAUNCHER=rofi "${tempdir}/clipmenu" --foo bar > "$temp" 2>&1
 
 # We have a special case to add -dmenu for rofi
 grep -Fxq 'rofi args: -l 8 -dmenu -p clipmenu --foo bar' "$temp"

@@ -7,16 +7,13 @@ msg() {
 # shellcheck disable=SC1091
 source "${BASH_SOURCE[0]%/*}/setup.sh"
 
-log=$(mktemp)
-tim=$(mktemp)
-clipmenu_shim=$(mktemp)
+log="${tempdir?}/log"
+tim="${tempdir}/tim"
 num_files=1500
-
-trap 'rm -f -- "$log" "$tim" "$clipmenu_shim"' EXIT
 
 msg 'Setting up edited clipmenu'
 
-cat - "${toplevel?}/clipmenu" > /tmp/clipmenu << EOF
+cat - "${toplevel?}/clipmenu" > "${tempdir}/clipmenu" << EOF
 #!/usr/bin/env bash
 
 exec 3>&2 2> >(tee "$log" |
@@ -29,7 +26,7 @@ xsel() { :; }
 
 EOF
 
-chmod a+x /tmp/clipmenu
+chmod a+x "${tempdir}/clipmenu"
 
 if ! (( NO_RECREATE )); then
     rm -rf "${dir?}"
@@ -61,7 +58,7 @@ fi
 
 msg 'Running modified clipmenu'
 
-time /tmp/clipmenu
+time "${tempdir}/clipmenu"
 
 (( TIME_ONLY )) && exit 0
 
