@@ -28,6 +28,10 @@ cleanup() {
     fi
 }
 
+# Show contextual data in execution tracing (`set -x`) output
+PS4='+ ${BASH_SOURCE[0]##*/}@${LINENO}${FUNCNAME[0]:+${FUNCNAME[0]}()}: '
+export PS4
+
 toplevel="$(toplevel)"
 
 export PATH="${toplevel}/tests/fixtures/bin:${toplevel}${PATH:+:${PATH}}"
