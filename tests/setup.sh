@@ -11,6 +11,12 @@ toplevel() {
 }
 
 cleanup() {
+    local rc="$?"
+
+    if (( rc != 0 )); then
+        msg "ERROR: '${BASH_COMMAND}' exited with status '$rc'"
+    fi
+
     if command -v cleanup_pre &>/dev/null; then
         cleanup_pre
     fi
