@@ -9,11 +9,23 @@ num_files=1500
 
 if ! (( NO_RECREATE )); then
     rm -rf "${dir?}"
+fi
+
+if ! [[ -d "${dir?}" ]]; then
     mkdir -p "$dir"
+fi
 
-    msg "Writing $num_files clipboard files"
+num_need="$num_files"
+for child in "$dir"/*; do
+    if [[ -f "$child" ]] && ! [[ "$child" -ef "${cache_file?}" ]]; then
+        (( num_need-- ))
+    fi
+done
 
-    for (( i = 0; i <= num_files; i++ )); do
+if (( num_need > 0 )); then
+    msg "Writing $num_need clipboard files"
+
+    for (( i = 0; i <= num_need; i++ )); do
         (( i % 100 )) || printf '%s... ' "$i"
 
         line_len=$(( (RANDOM % 10000) + 1 ))
