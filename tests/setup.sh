@@ -40,7 +40,14 @@ tempdir="$(mktemp -d)"
 
 trap cleanup EXIT
 
-export CM_DIR="$tempdir"
+if (( NO_RECREATE )); then
+    dir=$(clipctl cache-dir)
+    CM_DIR="${dir}/tests/${BASH_SOURCE[1]##*/}"
+else
+    CM_DIR="$tempdir"
+fi
+
+export CM_DIR
 
 dir=$(clipctl cache-dir)
 
