@@ -65,14 +65,18 @@ configurations that are known to work:
 - `rofi`
 - `rofi-script`, for [rofi's script mode][]
 
+Additionally, clipmenu supports a [custom launcher mode][] for implementing
+custom launcher behavior.
+
 ## The clipmenu launcher protocol
 
-The clipmenu launcher protocol consists of two interprocess communication
+The clipmenu launcher protocol consists of three interprocess communication
 methods.  clipmenu calls the launcher command as follows:
 
 1. With its standard input set to a newline-separated stream of available
-   clipboard selections, and
-2. With a potentially-empty list of command line arguments.
+   clipboard selections,
+2. With a potentially-empty list of command line arguments, and
+3. With certain environment variables set (in [custom launcher mode][]).
 
 The command line arguments convention is:
 
@@ -124,10 +128,11 @@ environment variable.  Supported values are:
 2. `fzf` - pass fzf-appropriate arguments
 3. `rofi` - pass rofi-appropriate arguments
 4. `rofi-script` - follow [rofi's script mode][] protocol
+5. `custom` - see the section on [custom launcher mode][]
 
 Note that if you:
 
-1. Set `CM_LAUNCHER_TYPE` to any value other than the four listed above,
+1. Set `CM_LAUNCHER_TYPE` to any value other than the five listed above,
 
 **or**
 
@@ -136,6 +141,29 @@ Note that if you:
 
 then clipmenu assumes `CM_LAUNCHER` is dmenu-compatible; that is, clipmenu
 will invoke the launcher with dmenu-appropriate arguments.
+
+## Using a custom launcher
+
+In custom laucher mode, clipmenu follows the typical [launcher
+protocol](#the-clipmenu-launcher-protocol) and also sets the following
+environment variables:
+
+1. `CM_DMENU_ARGS` - contains shell-quoted arguments appropriate to pass to
+   `dmenu`
+2. `CM_FZF_ARGS` - contains shell-quoted arguments appropriate to pass to
+   `fzf`
+3. `CM_ROFI_ARGS` - contains shell-quoted arguments appropriate to pass to
+   `rofi`
+
+You can use this information for purposes like selecting a "real" launcher
+implementation based upon whether you've started clipmenu from a terminal or
+not:
+
+    if detect-terminal-somehow; then
+        exec fzf $CM_FZF_ARGS "$@"
+    else
+        exec dmenu $CM_DMENU_ARGS "$@"
+    fi
 
 # Installation
 
@@ -172,3 +200,4 @@ it should be fairly self-explanatory. However, at the most basic level:
 [rofi]: https://github.com/DaveDavenport/Rofi
 [xsel]: http://www.vergenet.net/~conrad/software/xsel/
 [rofi's script mode]: https://github.com/davatorium/rofi-scripts/tree/master/mode-scripts
+[custom launcher mode]: #using-a-custom-launcher

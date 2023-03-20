@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+
+set -eu
+
+# `CM_DMENU_ARGS` is shell-quoted.
+# shellcheck disable=SC1091,SC2086
+source dmenu ${CM_DMENU_ARGS:-} "$@"

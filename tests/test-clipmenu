@@ -70,8 +70,17 @@ if grep -xq "Unrecognized CM_LAUNCHER_TYPE '[^']*'; assuming 'dmenu'-type launch
 fi
 
 # clipmenu should (by default) treat the path to an executable whose basename
-# is `rofi-script` as a dmenu-compatible launcher.
-CM_LAUNCHER="${toplevel?}/tests/fixtures/bin/rofi-script" \
-    clipmenu --foo bar > "$temp" 2>&1 || :
+# is `rofi-script` or `custom` as a dmenu-compatible launcher.
+for launcher in rofi-script custom; do
+    CM_LAUNCHER="${toplevel?}/tests/fixtures/bin/${launcher}" \
+        clipmenu --foo bar > "$temp" 2>&1 || :
 
-grep -Fxq "rofi-script args: -l 8 --foo bar" "$temp"
+    grep -Fxq "${launcher} args: -l 8 --foo bar" "$temp"
+done
+
+# Custom launcher type; `mylauncher` uses `CM_DMENU_ARGS` to execute `dmenu`
+CM_LAUNCHER="${toplevel?}/tests/fixtures/bin/mylauncher" \
+    CM_LAUNCHER_TYPE=custom \
+    clipmenu --foo bar > "$temp" 2>&1
+
+grep -Fxq 'mylauncher args: -l 8 --foo bar' "$temp"
