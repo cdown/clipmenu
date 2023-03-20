@@ -1,7 +1,8 @@
 [![Tests](https://img.shields.io/travis/cdown/clipmenu/develop.svg)](https://travis-ci.org/cdown/clipmenu)
 
-clipmenu is a simple clipboard manager using [dmenu][] (or [rofi][] with
-`CM_LAUNCHER=rofi`) and [xsel][].
+clipmenu is a simple clipboard manager using [dmenu][]* and [xsel][].
+
+*Or another [supported launcher](#supported-launchers)
 
 # Demo
 
@@ -26,9 +27,10 @@ clipmenud:
 
 You may wish to bind a shortcut in your window manager to launch `clipmenu`.
 
-All args passed to clipmenu are transparently dispatched to dmenu. That is, if
-you usually call dmenu with args to set colours and other properties, you can
-invoke clipmenu in exactly the same way to get the same effect, like so:
+All args passed to clipmenu are transparently dispatched to dmenu (or another
+[supported launcher](#supported-launchers)). That is, if you usually call dmenu
+with args to set colours and other properties, you can invoke clipmenu in
+exactly the same way to get the same effect, like so:
 
     clipmenu -i -fn Terminus:size=8 -nb '#002b36' -nf '#839496' -sb '#073642' -sf '#93a1a1'
 
