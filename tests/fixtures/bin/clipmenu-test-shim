@@ -7,7 +7,7 @@ printf '\n' >&2
 i=0
 
 while IFS= read -r line; do
-    let i++
+    i="$(( i + 1 ))"
     printf '%s line %d stdin: %s\n' "${0##*/}" "$i" "$line" >&2
 done
 
