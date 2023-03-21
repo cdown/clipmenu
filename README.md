@@ -66,6 +66,34 @@ configurations that are known to work:
 - `rofi-script`, for [rofi's script
   mode](https://github.com/davatorium/rofi-scripts/tree/master/mode-scripts)
 
+## The clipmenu launcher protocol
+
+The clipmenu launcher protocol consists of two interprocess communication
+methods.  clipmenu calls the launcher command as follows:
+
+1. With its standard input set to a newline-separated stream of available
+   clipboard selections, and
+2. With a potentially-empty list of command line arguments.
+
+The command line arguments convention is:
+
+    <launcher-command> [<launcher-specific-arguments...>] [<pass-through-arguments...>]
+
+Where:
+
+1. `<launcher-specific-arguments...>` is a potentially-empty list of arguments
+   specific to [the selected launcher](#specifying-a-launcher), and
+2. `<pass-through-arguments...>` is the potentially-empty list of arguments
+   provided to [clipmenu itself](#clipmenu).
+
+For instance, when invoked like so:
+
+    CM_LAUNCHER=rofi CM_HISTLENGTH=12 clipmenu -i -fn Terminus:size=8 -nb '#002b36' -nf '#839496' -sb '#073642' -sf '#93a1a1'
+
+clipmenu will invoke rofi like so:
+
+    rofi -dmenu -p clipmenu -l 12 -i -fn Terminus:size=8 -nb '#002b36' -nf '#839496' -sb '#073642' -sf '#93a1a1'
+
 # Installation
 
 Several distributions, including Arch and Nix, provide clipmenu as an official
