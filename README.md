@@ -94,6 +94,18 @@ clipmenu will invoke rofi like so:
 
     rofi -dmenu -p clipmenu -l 12 -i -fn Terminus:size=8 -nb '#002b36' -nf '#839496' -sb '#073642' -sf '#93a1a1'
 
+## Specifying a launcher
+
+To tell clipmenu which launcher to use, define `CM_LAUNCHER` as follows:
+
+    # clipmenu uses the command named `mylauncher`
+    CM_LAUNCHER=mylauncher
+
+Or:
+
+    # clipmenu uses the specified launcher path
+    CM_LAUNCHER=/path/to/mylauncher
+
 # Installation
 
 Several distributions, including Arch and Nix, provide clipmenu as an official

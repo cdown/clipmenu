@@ -46,7 +46,7 @@ grep -Fxq 'xsel args: --logfile /dev/null -i --primary' "$temp"
 grep -Fxq 'xsel line 1 stdin: Selected text.' "$temp"
 grep -Fxq "xsel line 2 stdin: Yes, it's selected text." "$temp"
 
-CM_LAUNCHER=rofi clipmenu --foo bar > "$temp" 2>&1
+CM_LAUNCHER="${toplevel?}/tests/fixtures/bin/rofi" clipmenu --foo bar > "$temp" 2>&1
 
 # We have a special case to add -dmenu for rofi
-grep -Fxq 'rofi args: -l 8 -dmenu -p clipmenu --foo bar' "$temp"
+grep -Fxq 'rofi args: -dmenu -p clipmenu -l 8 --foo bar' "$temp"

@@ -20,7 +20,7 @@ Environment variables:
 
 - $CM_DIR: specify the base directory to store the cache dir in (default: $XDG_RUNTIME_DIR, $TMPDIR, or /tmp)
 - $CM_HISTLENGTH: specify the number of lines to show in dmenu/rofi (default: 8)
-- $CM_LAUNCHER: specify a dmenu-compatible launcher (default: dmenu)
+- $CM_LAUNCHER: specify the name or path of a dmenu-compatible launcher (default: dmenu)
 - $CM_OUTPUT_CLIP: if set, output clip selection to stdout
 EOF
     exit 0
@@ -32,18 +32,47 @@ if ! [[ -f "$cache_file" ]]; then
 fi
 
 # Blacklist of non-dmenu launchers
-launcher_args=(-l "${CM_HISTLENGTH}")
-if [[ "$CM_LAUNCHER" == fzf ]]; then
-    launcher_args=()
-fi
+dmenu_launcher_args=(-l "${CM_HISTLENGTH}")
+fzf_launcher_args=()
 
 # rofi supports dmenu-like arguments through the -dmenu flag. -p wastes space
 # in real dmenu, but rofi shows "dmenu:" anyway, so pass it here only.
-[[ "$CM_LAUNCHER" == rofi ]] && set -- -dmenu -p clipmenu "$@"
+rofi_launcher_args=(-dmenu -p clipmenu "${dmenu_launcher_args[@]}")
+
+run_launcher() {
+    "${CM_LAUNCHER?internal error: CM_LAUNCHER must be defined}" "$@"
+}
+
+invoke_dmenu_launcher() {
+    run_launcher "${dmenu_launcher_args[@]}" "$@"
+}
+
+invoke_fzf_launcher() {
+    run_launcher "${fzf_launcher_args[@]}" "$@"
+}
+
+invoke_rofi_launcher() {
+    run_launcher "${rofi_launcher_args[@]}" "$@"
+}
+
+invoke_launcher() {
+    "invoke_${CM_LAUNCHER_TYPE?internal error: CM_LAUNCHER_TYPE must be defined}_launcher" "$@"
+}
 
 list_clips() {
     LC_ALL=C sort -rnk 1 < "$cache_file" | cut -d' ' -f2- | awk '!seen[$0]++'
 }
+
+CM_LAUNCHER_TYPE="${CM_LAUNCHER##*/}"
+
+case "$CM_LAUNCHER_TYPE" in
+    dmenu|fzf|rofi)
+        # NOP
+        ;;
+    *)
+        CM_LAUNCHER_TYPE=dmenu
+        ;;
+esac
 
 if [[ "$CM_LAUNCHER" == rofi-script ]]; then
     if (( $# )); then
@@ -53,7 +82,7 @@ if [[ "$CM_LAUNCHER" == rofi-script ]]; then
         exit
     fi
 else
-    chosen_line=$(list_clips | "$CM_LAUNCHER" "${launcher_args[@]}" "$@")
+    chosen_line=$(list_clips | invoke_launcher "$@")
     launcher_exit=$?
 fi
 
