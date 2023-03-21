@@ -50,3 +50,28 @@ CM_LAUNCHER="${toplevel?}/tests/fixtures/bin/rofi" clipmenu --foo bar > "$temp" 
 
 # We have a special case to add -dmenu for rofi
 grep -Fxq 'rofi args: -dmenu -p clipmenu -l 8 --foo bar' "$temp"
+
+# clipmenu should issue a warning message if the user specified an unrecognized
+# CM_LAUNCHER_TYPE value
+unrecognized_launcher_type="foobar-${RANDOM}"
+CM_LAUNCHER="/not/really/a/launcher-${RANDOM}" \
+    CM_LAUNCHER_TYPE="$unrecognized_launcher_type" \
+    clipmenu --foo bar > "$temp" 2>&1 || :
+
+grep -Fxq "Unrecognized CM_LAUNCHER_TYPE '${unrecognized_launcher_type}'; assuming 'dmenu'-type launcher." "$temp"
+
+# clipmenu should *not* issue a warning message if the user specified a
+# CM_LAUNCHER value whose basename is not a recognized CM_LAUNCHER_TYPE value
+CM_LAUNCHER="/not/really/a/launcher-${RANDOM}" \
+    clipmenu --foo bar > "$temp" 2>&1 || :
+
+if grep -xq "Unrecognized CM_LAUNCHER_TYPE '[^']*'; assuming 'dmenu'-type launcher." "$temp"; then
+    exit 1
+fi
+
+# clipmenu should (by default) treat the path to an executable whose basename
+# is `rofi-script` as a dmenu-compatible launcher.
+CM_LAUNCHER="${toplevel?}/tests/fixtures/bin/rofi-script" \
+    clipmenu --foo bar > "$temp" 2>&1 || :
+
+grep -Fxq "rofi-script args: -l 8 --foo bar" "$temp"

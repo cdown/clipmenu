@@ -63,8 +63,7 @@ configurations that are known to work:
 - `dmenu` (the default)
 - `fzf`
 - `rofi`
-- `rofi-script`, for [rofi's script
-  mode](https://github.com/davatorium/rofi-scripts/tree/master/mode-scripts)
+- `rofi-script`, for [rofi's script mode][]
 
 ## The clipmenu launcher protocol
 
@@ -106,6 +105,38 @@ Or:
     # clipmenu uses the specified launcher path
     CM_LAUNCHER=/path/to/mylauncher
 
+## Specifying the launcher type
+
+clipmenu supports [several launchers](#supported-launchers), primarily by
+passing appropriate command-line arguments to the command specified in the
+`CM_LAUNCHER` environment variable (or `dmenu` if `CM_LAUNCHER` is unset).
+
+By default, clipmenu detects the launcher type by inspecting the basename of
+the launcher command.  That is, when the basename of `CM_LAUNCHER` is `dmenu`,
+clipmenu will call the launcher with `dmenu`-appropriate arguments, when the
+basename is `rofi`, clipmenu will call the launcher with `rofi`-appropriate
+arguments, and so on.
+
+To override this detection logic, you can define the `CM_LAUNCHER_TYPE`
+environment variable.  Supported values are:
+
+1. `dmenu` - pass dmenu-appropriate arguments
+2. `fzf` - pass fzf-appropriate arguments
+3. `rofi` - pass rofi-appropriate arguments
+4. `rofi-script` - follow [rofi's script mode][] protocol
+
+Note that if you:
+
+1. Set `CM_LAUNCHER_TYPE` to any value other than the four listed above,
+
+**or**
+
+2. Leave `CM_LAUNCHER_TYPE` unset and set `CM_LAUNCHER` to a value whose
+   basename is something other than `dmenu`, `fzf`, or `rofi`,
+
+then clipmenu assumes `CM_LAUNCHER` is dmenu-compatible; that is, clipmenu
+will invoke the launcher with dmenu-appropriate arguments.
+
 # Installation
 
 Several distributions, including Arch and Nix, provide clipmenu as an official
@@ -140,3 +171,4 @@ it should be fairly self-explanatory. However, at the most basic level:
 [dmenu]: http://tools.suckless.org/dmenu/
 [rofi]: https://github.com/DaveDavenport/Rofi
 [xsel]: http://www.vergenet.net/~conrad/software/xsel/
+[rofi's script mode]: https://github.com/davatorium/rofi-scripts/tree/master/mode-scripts
