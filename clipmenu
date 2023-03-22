@@ -120,7 +120,20 @@ esac
 # which is also a safe and appropriate value for CM_LAUNCHER.
 : "${CM_LAUNCHER="$CM_LAUNCHER_TYPE"}"
 
+# https://github.com/davatorium/rofi/blob/38c102d63b51488299fad4189beb5bbf3e7ca5ae/doc/rofi-script.5.markdown
 if [[ "$CM_LAUNCHER_TYPE" == rofi-script ]]; then
+    # See this for how to to set rofi options while in script mode:
+    # https://github.com/davatorium/rofi/blob/38c102d63b51488299fad4189beb5bbf3e7ca5ae/doc/rofi-script.5.markdown#passing-mode-options
+
+    # Set the rofi prompt to "clipmenu"
+    printf -- '\0prompt\x1fclipmenu\n'
+
+    # Disable custom input; user may only select a listed entry -- since we
+    # list all available clipboard selections, a query result that doesn't
+    # match anything will cause this script to exit (a) with a nonzero value
+    # and (b) without putting anything into the selection buffers.
+    printf -- '\0no-custom\x1ftrue\n'
+
     if (( $# )); then
         chosen_line="${!#}"
     else
