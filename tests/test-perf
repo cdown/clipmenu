@@ -1,50 +1,31 @@
 #!/usr/bin/env bash
 
-msg() {
-    printf '>>> %s\n' "$@" >&2
-}
+# shellcheck disable=SC1091
+source "${BASH_SOURCE[0]%/*}/setup.sh"
 
-dir=$(clipctl cache-dir)
-cache_file=$dir/line_cache
-
-log=$(mktemp)
-tim=$(mktemp)
-clipmenu_shim=$(mktemp)
+log="${tempdir?}/log"
+tim="${tempdir}/tim"
 num_files=1500
 
-trap 'rm -f -- "$log" "$tim" "$clipmenu_shim"' EXIT
-
-if [[ $0 == /* ]]; then
-    location=${0%/*}
-else
-    location=$PWD/${0#./}
-    location=${location%/*}
+if ! (( NO_RECREATE )); then
+    rm -rf "${dir?}"
 fi
 
-msg 'Setting up edited clipmenu'
-
-cat - "$location/../clipmenu" > /tmp/clipmenu << EOF
-#!/usr/bin/env bash
-
-exec 3>&2 2> >(tee "$log" |
-                 sed -u 's/^.*$/now/' |
-                 date -f - +%s.%N > "$tim")
-set -x
-
-dmenu() { :; }
-xsel() { :; }
-
-EOF
-
-chmod a+x /tmp/clipmenu
-
-if ! (( NO_RECREATE )); then
-    rm -rf "$dir"
+if ! [[ -d "${dir?}" ]]; then
     mkdir -p "$dir"
+fi
 
-    msg "Writing $num_files clipboard files"
+num_need="$num_files"
+for child in "$dir"/*; do
+    if [[ -f "$child" ]] && ! [[ "$child" -ef "${cache_file?}" ]]; then
+        (( num_need-- ))
+    fi
+done
 
-    for (( i = 0; i <= num_files; i++ )); do
+if (( num_need > 0 )); then
+    msg "Writing $num_need clipboard files"
+
+    for (( i = 0; i <= num_need; i++ )); do
         (( i % 100 )) || printf '%s... ' "$i"
 
         line_len=$(( (RANDOM % 10000) + 1 ))
@@ -56,7 +37,7 @@ if ! (( NO_RECREATE )); then
         )
         read -r first_line_raw <<< "$data"
         printf -v first_line '%s (%s lines)\n' "$first_line_raw" "$num_lines"
-        printf '%d %s' "$i" "$first_line" >> "$cache_file"
+        printf '%d %s' "$i" "$first_line" >> "${cache_file?}"
         fn=$dir/$(cksum <<< "$first_line")
         printf '%s' "$data" > "$fn"
     done
@@ -66,9 +47,9 @@ else
     msg 'Not nuking/creating new clipmenu files'
 fi
 
-msg 'Running modified clipmenu'
+msg 'Running clipmenu performance-testing wrapper'
 
-time /tmp/clipmenu
+time log="$log" tim="$tim" clipmenu-perf
 
 (( TIME_ONLY )) && exit 0
 
