@@ -140,7 +140,9 @@ Note that if you:
    basename is something other than `dmenu`, `fzf`, or `rofi`,
 
 then clipmenu assumes `CM_LAUNCHER` is dmenu-compatible; that is, clipmenu
-will invoke the launcher with dmenu-appropriate arguments.
+will invoke the launcher with dmenu-appropriate arguments -- **unless**
+clipmenu detects that it is running under [rofi's script mode][], in which case
+it will follow the script mode protocol.
 
 ## Using a custom launcher
 

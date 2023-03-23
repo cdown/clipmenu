@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 
-: "${CM_LAUNCHER=dmenu}"
 : "${CM_HISTLENGTH=8}"
 
 shopt -s nullglob
@@ -87,23 +86,39 @@ case "${CM_LAUNCHER_TYPE:-}" in
             exit 2
         fi
         ;;
-    '')
-        CM_LAUNCHER_TYPE="${CM_LAUNCHER##*/}"
+    *)
+        if [[ -v CM_LAUNCHER ]]; then
+            launcher_type="${CM_LAUNCHER##*/}"
+        fi
 
-        case "$CM_LAUNCHER_TYPE" in
+        case "${launcher_type:-}" in
             dmenu|fzf|rofi)
                 # NOP
                 ;;
             *)
-                CM_LAUNCHER_TYPE=dmenu
+                if [[ -v ROFI_RETV ]]; then
+                    launcher_type=rofi-script
+                else
+                    launcher_type=dmenu
+                fi
                 ;;
         esac
-        ;;
-    *)
-        printf 1>&2 -- "Unrecognized CM_LAUNCHER_TYPE '%s'; assuming 'dmenu'-type launcher.\\n" "$CM_LAUNCHER_TYPE"
-        CM_LAUNCHER_TYPE=dmenu
+
+        if [[ "$launcher_type" != "${CM_LAUNCHER_TYPE:-}" ]]; then
+            if [[ -v CM_LAUNCHER_TYPE ]]; then
+                printf 1>&2 -- "Unrecognized CM_LAUNCHER_TYPE '%s'; assuming '%s'-type launcher.\\n" \
+                    "$CM_LAUNCHER_TYPE" "$launcher_type"
+            fi
+
+            CM_LAUNCHER_TYPE="$launcher_type"
+        fi
         ;;
 esac
+
+# If we've gotten this far and CM_LAUNCHER is unset, then we know that
+# CM_LAUNCHER_TYPE contains one of "dmenu", "fzf", "rofi", or "rofi-script",
+# which is also a safe and appropriate value for CM_LAUNCHER.
+: "${CM_LAUNCHER="$CM_LAUNCHER_TYPE"}"
 
 if [[ "$CM_LAUNCHER_TYPE" == rofi-script ]]; then
     if (( $# )); then
