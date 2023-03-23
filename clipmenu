@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 
-: "${CM_LAUNCHER=dmenu}"
 : "${CM_HISTLENGTH=8}"
 
 shopt -s nullglob
@@ -20,8 +19,9 @@ Environment variables:
 
 - $CM_DIR: specify the base directory to store the cache dir in (default: $XDG_RUNTIME_DIR, $TMPDIR, or /tmp)
 - $CM_HISTLENGTH: specify the number of lines to show in dmenu/rofi (default: 8)
-- $CM_LAUNCHER: specify a dmenu-compatible launcher (default: dmenu)
-- $CM_OUTPUT_CLIP: if set, output clip selection to stdout
+- $CM_LAUNCHER: specify the name or path of a supported launcher (default: dmenu)
+- $CM_LAUNCHER_TYPE: the type of launcher implementation (supported: dmenu, fzf, custom, rofi, rofi-script; default: dmenu)
+- $CM_OUTPUT_CLIP: if set, output clip selectikn to stdout
 EOF
     exit 0
 fi
@@ -32,20 +32,95 @@ if ! [[ -f "$cache_file" ]]; then
 fi
 
 # Blacklist of non-dmenu launchers
-launcher_args=(-l "${CM_HISTLENGTH}")
-if [[ "$CM_LAUNCHER" == fzf ]]; then
-    launcher_args=()
-fi
+dmenu_launcher_args=(-l "${CM_HISTLENGTH}")
+fzf_launcher_args=()
 
 # rofi supports dmenu-like arguments through the -dmenu flag. -p wastes space
 # in real dmenu, but rofi shows "dmenu:" anyway, so pass it here only.
-[[ "$CM_LAUNCHER" == rofi ]] && set -- -dmenu -p clipmenu "$@"
+rofi_launcher_args=(-dmenu -p clipmenu "${dmenu_launcher_args[@]}")
+
+run_launcher() {
+    "${CM_LAUNCHER?internal error: CM_LAUNCHER must be defined}" "$@"
+}
+
+invoke_dmenu_launcher() {
+    run_launcher "${dmenu_launcher_args[@]}" "$@"
+}
+
+invoke_fzf_launcher() {
+    run_launcher "${fzf_launcher_args[@]}" "$@"
+}
+
+invoke_rofi_launcher() {
+    run_launcher "${rofi_launcher_args[@]}" "$@"
+}
+
+invoke_custom_launcher() {
+    local dmenu_args fzf_args rofi_args
+
+    printf -v dmenu_args '%q ' "${dmenu_launcher_args[@]}"
+    printf -v fzf_args '%q ' "${fzf_launcher_args[@]}"
+    printf -v rofi_args '%q ' "${rofi_launcher_args[@]}"
+
+    CM_DMENU_ARGS="$dmenu_args" \
+        CM_FZF_ARGS="$fzf_args" \
+        CM_ROFI_ARGS="$rofi_args" \
+        run_launcher "$@"
+}
+
+invoke_launcher() {
+    "invoke_${CM_LAUNCHER_TYPE?internal error: CM_LAUNCHER_TYPE must be defined}_launcher" "$@"
+}
 
 list_clips() {
     LC_ALL=C sort -rnk 1 < "$cache_file" | cut -d' ' -f2- | awk '!seen[$0]++'
 }
 
-if [[ "$CM_LAUNCHER" == rofi-script ]]; then
+case "${CM_LAUNCHER_TYPE:-}" in
+    dmenu|fzf|rofi|rofi-script)
+        # NOP
+        ;;
+    custom)
+        if ! [[ -v CM_LAUNCHER ]]; then
+            printf 1>&2 -- "CM_LAUNCHER must be set when using CM_LAUNCHER_TYPE 'custom'\\n"
+            exit 2
+        fi
+        ;;
+    *)
+        if [[ -v CM_LAUNCHER ]]; then
+            launcher_type="${CM_LAUNCHER##*/}"
+        fi
+
+        case "${launcher_type:-}" in
+            dmenu|fzf|rofi)
+                # NOP
+                ;;
+            *)
+                if [[ -v ROFI_RETV ]]; then
+                    launcher_type=rofi-script
+                else
+                    launcher_type=dmenu
+                fi
+                ;;
+        esac
+
+        if [[ "$launcher_type" != "${CM_LAUNCHER_TYPE:-}" ]]; then
+            if [[ -v CM_LAUNCHER_TYPE ]]; then
+                printf 1>&2 -- "Unrecognized CM_LAUNCHER_TYPE '%s'; assuming '%s'-type launcher.\\n" \
+                    "$CM_LAUNCHER_TYPE" "$launcher_type"
+            fi
+
+            CM_LAUNCHER_TYPE="$launcher_type"
+        fi
+        ;;
+esac
+
+# If we've gotten this far and CM_LAUNCHER is unset, then we know that
+# CM_LAUNCHER_TYPE contains one of "dmenu", "fzf", "rofi", or "rofi-script",
+# which is also a safe and appropriate value for CM_LAUNCHER.
+: "${CM_LAUNCHER="$CM_LAUNCHER_TYPE"}"
+
+if [[ "$CM_LAUNCHER_TYPE" == rofi-script ]]; then
     if (( $# )); then
         chosen_line="${!#}"
     else
@@ -53,7 +128,7 @@ if [[ "$CM_LAUNCHER" == rofi-script ]]; then
         exit
     fi
 else
-    chosen_line=$(list_clips | "$CM_LAUNCHER" "${launcher_args[@]}" "$@")
+    chosen_line=$(list_clips | invoke_launcher "$@")
     launcher_exit=$?
 fi
 
