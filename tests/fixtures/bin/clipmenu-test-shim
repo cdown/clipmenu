@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+
+printf '%s args:' "${0##*/}" >&2
+printf ' %q' "$@" >&2
+printf '\n' >&2
+
+i=0
+
+while IFS= read -r line; do
+    let i++
+    printf '%s line %d stdin: %s\n' "${0##*/}" "$i" "$line" >&2
+done
+
+if [[ -v SHIM_STDOUT ]]; then
+    printf '%s\n' "$SHIM_STDOUT"
+fi
