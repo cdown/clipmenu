@@ -65,7 +65,7 @@ for selection in clipboard primary; do
     xsel --logfile /dev/null -i --"$selection" < "$file"
 done
 
-if (( CM_OUTPUT_CLIP )); then
+if [[ -v CM_OUTPUT_CLIP ]]; then
     cat "$file"
 fi
 
