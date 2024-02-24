@@ -23,6 +23,7 @@ lock_file=$cache_dir/lock
 session_lock_file=$cache_dir/session_lock
 lock_timeout=2
 has_xdotool=0
+has_clipnotify_loop=0
 
 _xsel() { timeout 1 xsel --logfile /dev/null "$@"; }
 
@@ -137,6 +138,9 @@ declare -A updated_sel
 
 command -v clipnotify >/dev/null 2>&1 || die 2 "clipnotify not in PATH"
 command -v xdotool >/dev/null 2>&1 && has_xdotool=1
+# older clipnotify doesn't have any help output, hence the `timeout`
+timeout 0.1 clipnotify -h >/dev/null 2>&1 && has_clipnotify_loop=1
+! (( has_clipnotify_loop )) && debug "clipnotify doesn't support loop option."
 
 if [[ $CM_IGNORE_WINDOW ]] && ! (( has_xdotool )); then
     echo "WARN: CM_IGNORE_WINDOW does not work without xdotool, which is not installed" >&2
@@ -149,11 +153,21 @@ trap '_CM_TRAP=1; sig_enable' USR2
 trap 'trap - INT TERM EXIT; kill_background_jobs; exit 0' INT TERM EXIT
 
 while true; do
-    if ! (( CM_ONESHOT )); then
+    if ! (( CM_ONESHOT )) && ! (( has_clipnotify_loop )); then
         # Make sure we're interruptible for the sig_{en,dis}able traps
         clipnotify &
         _CM_CLIPNOTIFY_PID="$!"
         if ! wait "$_CM_CLIPNOTIFY_PID" && ! (( _CM_TRAP )); then
+            # X server dead?
+            sleep 10
+            continue
+        fi
+    elif ! (( CM_ONESHOT )) && (( has_clipnotify_loop )); then
+        # TODO: is hardcoding 64 like this a good idea?
+        if ! { : >&64; } 2>/dev/null; then
+            exec 64<> <(clipnotify -l)
+        fi
+        if ! read -r _  <&64 && ! (( _CM_TRAP )); then
             # X server dead?
             sleep 10
             continue
