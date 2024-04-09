@@ -237,6 +237,9 @@ static int handle_property_notify(const XPropertyEvent *pe) {
 
     dbg("Received notification that selection conversion is ready\n");
     char *text = get_clipboard_text();
+    char line[CS_SNIP_LINE_SIZE];
+    first_line(text, line);
+    dbg("First line: %s\n", line);
 
     if (is_salient_text(text)) {
         uint64_t hash = store_clip(text);

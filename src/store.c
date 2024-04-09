@@ -351,7 +351,7 @@ static uint64_t djb64_hash(const char *buf) {
  * @text: The input text buffer
  * @out: The output buffer. Must be at least CS_SNIP_LINE_SIZE bytes
  */
-static size_t first_line(const char *text, char *out) {
+size_t first_line(const char *text, char *out) {
     bool found = false;
     size_t nr_lines = 0;
     const char *cur = text;

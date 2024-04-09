@@ -171,4 +171,6 @@ int _must_use_ _nonnull_n_(1, 4)
                size_t age, const char *content, uint64_t *out_hash);
 int _nonnull_ cs_len(struct clip_store *cs, size_t *out_len);
 
+size_t _nonnull_ first_line(const char *text, char *out);
+
 #endif
