@@ -1,0 +1,88 @@
+#ifndef CM_CONFIG_H
+#define CM_CONFIG_H
+
+#include <X11/Xlib.h>
+#include <limits.h>
+#include <regex.h>
+#include <stdbool.h>
+#include <stdio.h>
+
+#include "util.h"
+
+struct selection {
+    const char *name;
+    bool active;
+    Atom *atom;
+};
+enum selection_type {
+    CM_SEL_CLIPBOARD,
+    CM_SEL_PRIMARY,
+    CM_SEL_SECONDARY,
+    CM_SEL_MAX
+};
+struct ignore_window {
+    bool set;
+    regex_t rgx;
+};
+enum launcher_known {
+    LAUNCHER_ROFI,
+    LAUNCHER_CUSTOM,
+};
+struct launcher {
+    enum launcher_known ltype;
+    char *custom;
+};
+struct config {
+    bool ready;
+    bool debug;
+    char *runtime_dir;
+    int max_clips;
+    int max_clips_batch;
+    int oneshot;
+    bool own_clipboard;
+    struct selection *selections;
+    struct ignore_window ignore_window;
+    struct launcher launcher;
+    bool launcher_pass_dmenu_args;
+};
+typedef int (*conversion_func_t)(const char *, void *);
+struct config_entry {
+    const char *config_key;
+    const char *env_var;
+    void *value;
+    conversion_func_t convert;
+    const char *default_value;
+    bool is_set;
+};
+
+char *get_cache_dir(struct config *cfg);
+
+/**
+ * Define a function that generates and caches a path within the application's
+ * cache directory.
+ *
+ * For example, DEFINE_GET_PATH_FUNCTION(foo) defines a function `get_foo_path`
+ * that returns the path to "foo" within the cache directory.
+ */
+#define DEFINE_GET_PATH_FUNCTION(name)                                         \
+    static inline char *get_##name##_path(struct config *cfg) {                \
+        static char path[PATH_MAX];                                            \
+        /* Just in case the config changed, do the write anyway */             \
+        snprintf_safe(path, PATH_MAX, "%s/" #name, get_cache_dir(cfg));        \
+        return path;                                                           \
+    }
+
+DEFINE_GET_PATH_FUNCTION(line_cache)
+DEFINE_GET_PATH_FUNCTION(enabled)
+
+extern const char *prog_name;
+struct config _nonnull_ setup(const char *inner_prog_name);
+
+int convert_bool(const char *str, void *output);
+int convert_int(const char *str, void *output);
+int convert_ignore_window(const char *str, void *output);
+int config_setup_internal(FILE *file, struct config *cfg);
+void config_free(struct config *cfg);
+DEFINE_DROP_FUNC_PTR(struct config, config_free)
+
+#endif

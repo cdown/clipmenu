@@ -1,0 +1,155 @@
+#!/usr/bin/bash -ex
+
+cd "${0%/*}"/..
+make clean debug
+cd src
+
+export PATH=$PWD:$PATH
+export CM_CONFIG=$(mktemp)
+export CM_DIR=$(mktemp -d)
+export CM_DEBUG=1
+
+launcher=$(mktemp)
+l_out=$(mktemp)
+
+cat > "$launcher" << EOF
+#!/bin/bash
+
+cat > "$l_out"
+
+if [[ \$SELECT ]]; then
+    printf '%s\\n' "\$SELECT"
+fi
+EOF
+chmod a+x "$launcher"
+export CM_LAUNCHER="$launcher"
+
+kill_background_jobs() {
+    local -a bg
+    readarray -t bg < <(jobs -p)
+    (( ${#bg[@]} )) && kill -- "${bg[@]}" 2>/dev/null
+}
+
+primary() {
+    printf '%s' "${1?}" | xsel -p
+}
+
+trap 'kill_background_jobs' EXIT
+
+settle() {
+    sleep 0.2
+}
+
+check_nr_clips() {
+    if [[ $SELECT ]]; then
+        clipmenu
+    else
+        # On no selection, we exit 1. Avoid masking real problems by only doing
+        # it when no selection is specified.
+        clipmenu || true
+    fi
+    (( $(wc -l < "$l_out") == "${1?}" ))
+}
+
+if ! (( USE_CURRENT_DISPLAY )); then
+    export DISPLAY=:1911
+    Xvfb "$DISPLAY" &
+    sleep 2
+fi
+
+# Clear selections
+xsel -bc
+xsel -pc
+xsel -sc
+
+clipmenud &
+settle
+
+# Should be empty
+check_nr_clips 0
+
+primary foo
+settle
+
+check_nr_clips 1
+
+# Put the same one repeatedly, should ignore it
+primary foo
+primary foo
+primary foo
+settle
+
+settle
+check_nr_clips 1
+[[ "$(< "$l_out")" == "[1] foo" ]]
+
+# Put possible partials, should update it
+primary fooa
+primary fooab
+primary fooabc
+
+# Should have replaced the old one
+settle
+check_nr_clips 1
+[[ "$(< "$l_out")" == "[1] fooabc" ]]
+
+primary fooab
+primary fooa
+primary foo
+
+# Should have replaced the old one
+settle
+check_nr_clips 1
+[[ "$(< "$l_out")" == "[1] foo" ]]
+
+# Put some more content on the clipboard for testing
+primary bar
+primary baz
+settle
+
+check_nr_clips 3
+
+# Nothing gets deleted, but we recognise the right clips
+[[ $(clipdel a) == $'bar\nbaz' ]]
+check_nr_clips 3
+
+# Likewise but inversion
+[[ $(clipdel -v a) == foo ]]
+check_nr_clips 3
+
+# Real delete with inversion
+[[ $(clipdel -dv a) == foo ]]
+check_nr_clips 2
+
+# Check selecting starts serving
+xsel -pc
+
+SELECT='[1] bar' clipmenu
+settle
+[[ "$(xsel -po)" == bar ]]
+
+SELECT='[2] baz' clipmenu
+settle
+[[ "$(xsel -po)" == baz ]]
+
+# Disable populates no new clips
+clipctl disable
+[[ "$(clipctl status)" == disabled ]]
+primary wibble
+primary wobble
+settle
+check_nr_clips 2
+
+# Enable enables again
+clipctl enable
+[[ "$(clipctl status)" == enabled ]]
+primary wibble
+primary wobble
+settle
+check_nr_clips 4
+
+# Toggle works both ways
+clipctl toggle
+[[ "$(clipctl status)" == disabled ]]
+clipctl toggle
+[[ "$(clipctl status)" == enabled ]]

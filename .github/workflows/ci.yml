@@ -1,0 +1,25 @@
+jobs:
+  build_and_test:
+    name: CI
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - run: sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
+      - run: sudo apt-get update
+
+      - uses: awalsh128/cache-apt-pkgs-action@v1
+        with:
+          packages: gcc-10 clang clang-format clang-tidy cppcheck xvfb xsel libxfixes-dev libx11-dev
+          version: 1.0
+
+      - run: gcc --version
+
+      - run: make clean analyse
+      - run: tests/x_integration_tests
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
