@@ -18,7 +18,7 @@ bins := clipctl clipmenud clipdel clipserve clipmenu
 all: $(addprefix src/,$(bins))
 
 src/%: src/%.c $(libs)
-	$(CC) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) $(LDLIBS) $^ -o $@
+	$(CC) $(CFLAGS) $(CPPFLAGS) $^ $(LDFLAGS) $(LDLIBS) -o $@
 
 src/%.o: src/%.c src/%.h
 	$(CC) $(CFLAGS) $(CPPFLAGS) -c $< -o $@
