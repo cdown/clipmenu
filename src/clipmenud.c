@@ -155,11 +155,10 @@ static void handle_xfixes_selection_notify(XFixesSelectionNotifyEvent *se) {
         return;
     }
 
-    dbg("Notified about selection update. Selection: %lu, Owner: '%s' (0x%lx)\n",
-        (unsigned long)se->selection, strnull(win_title),
-        (unsigned long)se->owner);
     enum selection_type sel =
         selection_atom_to_selection_type(se->selection, sels);
+    dbg("Notified about selection update. Selection: %s, Owner: '%s' (0x%lx)\n",
+        cfg.selections[sel].name, strnull(win_title), (unsigned long)se->owner);
     XConvertSelection(dpy, se->selection,
                       XInternAtom(dpy, "UTF8_STRING", False), sels[sel].storage,
                       win, CurrentTime);
@@ -175,8 +174,10 @@ static void handle_xfixes_selection_notify(XFixesSelectionNotifyEvent *se) {
  */
 static int handle_selection_notify(const XSelectionEvent *se) {
     if (se->property == None) {
-        dbg("X reports that %lu has no current owner\n",
-            (unsigned long)se->selection);
+        enum selection_type sel =
+            selection_atom_to_selection_type(se->selection, sels);
+        dbg("X reports that %s has no current owner\n",
+            cfg.selections[sel].name);
         return -ENOENT;
     }
     return 0;
