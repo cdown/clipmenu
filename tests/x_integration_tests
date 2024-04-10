@@ -1,5 +1,15 @@
 #!/usr/bin/bash -ex
 
+if ! (( NO_PID_NAMESPACE )) && (( EUID )); then
+    export _UNSHARED=1
+    exec unshare --user --map-root-user --pid --mount --fork --mount-proc "$0" "$@"
+fi
+
+if (( _UNSHARED )); then
+    # Get our own tmp
+    mount -t tmpfs unshared_tmp /tmp
+fi
+
 cd "${0%/*}"/..
 make clean debug
 cd src
@@ -153,3 +163,7 @@ clipctl toggle
 [[ "$(clipctl status)" == disabled ]]
 clipctl toggle
 [[ "$(clipctl status)" == enabled ]]
+
+if (( _UNSHARED )); then
+    umount -l /tmp
+fi
