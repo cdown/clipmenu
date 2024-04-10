@@ -20,6 +20,10 @@ enum selection_type {
     CM_SEL_SECONDARY,
     CM_SEL_MAX
 };
+struct cm_selections {
+    Atom selection;
+    Atom storage;
+};
 struct ignore_window {
     bool set;
     regex_t rgx;
@@ -77,6 +81,7 @@ DEFINE_GET_PATH_FUNCTION(enabled)
 
 extern const char *prog_name;
 struct config _nonnull_ setup(const char *inner_prog_name);
+void _nonnull_ setup_selections(Display *dpy, struct cm_selections *sels);
 
 int convert_bool(const char *str, void *output);
 int convert_int(const char *str, void *output);

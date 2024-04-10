@@ -335,25 +335,15 @@ static int get_one_clip(int evt_base) {
 
 static int setup_watches(int evt_base) {
     XSelectInput(dpy, win, PropertyChangeMask);
+
+    struct cm_selections sels[CM_SEL_MAX];
+    setup_selections(dpy, sels);
     for (size_t i = 0; i < CM_SEL_MAX; i++) {
         struct selection sel = cfg.selections[i];
-        Atom sel_atom;
         if (!sel.active) {
             continue;
         }
-        switch (i) {
-            case CM_SEL_CLIPBOARD:
-                sel_atom = XInternAtom(dpy, "CLIPBOARD", False);
-                break;
-            case CM_SEL_PRIMARY:
-                sel_atom = XA_PRIMARY;
-                break;
-            case CM_SEL_SECONDARY:
-                sel_atom = XA_SECONDARY;
-                break;
-            default:
-                die("Unknown selection during setup\n");
-        }
+        Atom sel_atom = sels[i].selection;
         XFixesSelectSelectionInput(dpy, win, sel_atom,
                                    XFixesSetSelectionOwnerNotifyMask);
         dbg("Getting initial value for selection %s\n", sel.name);

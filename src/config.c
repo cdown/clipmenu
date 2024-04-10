@@ -1,3 +1,4 @@
+#include <X11/Xatom.h>
 #include <X11/Xlib.h>
 #include <errno.h>
 #include <stdlib.h>
@@ -338,4 +339,16 @@ struct config setup(const char *inner_prog_name) {
     config_setup(&cfg);
     XSetErrorHandler(xerror_handler);
     return cfg;
+}
+
+void setup_selections(Display *dpy, struct cm_selections *sels) {
+    sels[CM_SEL_CLIPBOARD].selection = XInternAtom(dpy, "CLIPBOARD", False);
+    sels[CM_SEL_CLIPBOARD].storage =
+        XInternAtom(dpy, "CLIPMENUD_CUR_CLIPBOARD", True);
+    sels[CM_SEL_PRIMARY].selection = XA_PRIMARY;
+    sels[CM_SEL_PRIMARY].storage =
+        XInternAtom(dpy, "CLIPMENUD_CUR_PRIMARY", True);
+    sels[CM_SEL_SECONDARY].selection = XA_SECONDARY;
+    sels[CM_SEL_SECONDARY].storage =
+        XInternAtom(dpy, "CLIPMENUD_CUR_SECONDARY", True);
 }
