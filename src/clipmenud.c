@@ -20,7 +20,6 @@
 #include "util.h"
 #include "x.h"
 
-static Atom cur_clip_atom;
 static Display *dpy;
 static struct clip_store cs;
 static struct config cfg;
@@ -28,6 +27,8 @@ static Window win;
 
 static volatile sig_atomic_t enabled = 1;
 static int sig_fd;
+
+static struct cm_selections sels[CM_SEL_MAX];
 
 /**
  * Check if a text s1 is a possible partial of s2.
@@ -61,16 +62,16 @@ static bool is_possible_partial(const char *s1, const char *s2) {
  * happen a conversion must have been performed in an earlier iteration with
  * XConvertSelection.
  */
-static char *get_clipboard_text(void) {
+static char *get_clipboard_text(Atom clip_atom) {
     unsigned char *cur_text;
     Atom actual_type;
     int actual_format;
     unsigned long nitems, bytes_after;
 
     int res =
-        XGetWindowProperty(dpy, DefaultRootWindow(dpy), cur_clip_atom, 0L,
-                           (~0L), False, AnyPropertyType, &actual_type,
-                           &actual_format, &nitems, &bytes_after, &cur_text);
+        XGetWindowProperty(dpy, DefaultRootWindow(dpy), clip_atom, 0L, (~0L),
+                           False, AnyPropertyType, &actual_type, &actual_format,
+                           &nitems, &bytes_after, &cur_text);
     return res == Success ? (char *)cur_text : NULL;
 }
 
@@ -157,8 +158,10 @@ static void handle_xfixes_selection_notify(XFixesSelectionNotifyEvent *se) {
     dbg("Notified about selection update. Selection: %lu, Owner: '%s' (0x%lx)\n",
         (unsigned long)se->selection, strnull(win_title),
         (unsigned long)se->owner);
+    enum selection_type sel =
+        selection_atom_to_selection_type(se->selection, sels);
     XConvertSelection(dpy, se->selection,
-                      XInternAtom(dpy, "UTF8_STRING", False), cur_clip_atom,
+                      XInternAtom(dpy, "UTF8_STRING", False), sels[sel].storage,
                       win, CurrentTime);
 
     return;
@@ -227,16 +230,23 @@ static uint64_t store_clip(char *text) {
 }
 
 /**
- * Something changed in cur_clip_atom. Work out whether we want to store the
- * new content as a clipboard entry.
+ * Something changed in our clip storage atoms. Work out whether we want to
+ * store the new content as a clipboard entry.
  */
 static int handle_property_notify(const XPropertyEvent *pe) {
-    if (pe->atom != cur_clip_atom || pe->state != PropertyNewValue) {
+    bool found = false;
+    for (size_t i = 0; i < CM_SEL_MAX; ++i) {
+        if (sels[i].storage == pe->atom) {
+            found = true;
+            break;
+        }
+    }
+    if (!found || pe->state != PropertyNewValue) {
         return -EINVAL;
     }
 
     dbg("Received notification that selection conversion is ready\n");
-    char *text = get_clipboard_text();
+    char *text = get_clipboard_text(pe->atom);
     char line[CS_SNIP_LINE_SIZE];
     first_line(text, line);
     dbg("First line: %s\n", line);
@@ -244,7 +254,16 @@ static int handle_property_notify(const XPropertyEvent *pe) {
     if (is_salient_text(text)) {
         uint64_t hash = store_clip(text);
         maybe_trim();
-        if (cfg.own_clipboard) {
+        /* We only own CLIPBOARD because otherwise the behaviour is wonky:
+         *
+         *  1. When you select in a browser and press ^V, it repastes what you
+         *     have selected instead of the previous content
+         *  2. urxvt and some other terminal emulators will unhilight on PRIMARY
+         *     ownership being taken away from them
+         */
+        enum selection_type sel =
+            storage_atom_to_selection_type(pe->atom, sels);
+        if (sel == CM_SEL_CLIPBOARD && cfg.own_clipboard) {
             run_clipserve(hash);
         }
     } else {
@@ -336,8 +355,6 @@ static int get_one_clip(int evt_base) {
 static int setup_watches(int evt_base) {
     XSelectInput(dpy, win, PropertyChangeMask);
 
-    struct cm_selections sels[CM_SEL_MAX];
-    setup_selections(dpy, sels);
     for (size_t i = 0; i < CM_SEL_MAX; i++) {
         struct selection sel = cfg.selections[i];
         if (!sel.active) {
@@ -348,7 +365,7 @@ static int setup_watches(int evt_base) {
                                    XFixesSetSelectionOwnerNotifyMask);
         dbg("Getting initial value for selection %s\n", sel.name);
         XConvertSelection(dpy, sel_atom, XInternAtom(dpy, "UTF8_STRING", False),
-                          cur_clip_atom, win, CurrentTime);
+                          sels[i].storage, win, CurrentTime);
         get_one_clip(evt_base);
     }
 
@@ -377,6 +394,7 @@ int main(void) {
 
     die_on(!(dpy = XOpenDisplay(NULL)), "Cannot open display\n");
     win = DefaultRootWindow(dpy);
+    setup_selections(dpy, sels);
 
     sigset_t mask;
     sigemptyset(&mask);
@@ -385,7 +403,6 @@ int main(void) {
     sigprocmask(SIG_BLOCK, &mask, NULL);
     sig_fd = signalfd(-1, &mask, 0);
     expect(sig_fd >= 0);
-    cur_clip_atom = XInternAtom(dpy, "CLIPMENUD_CUR_CLIP", False);
 
     int unused;
     die_on(!XFixesQueryExtension(dpy, &evt_base, &unused), "XFixes missing\n");
