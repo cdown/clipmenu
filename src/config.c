@@ -344,11 +344,31 @@ struct config setup(const char *inner_prog_name) {
 void setup_selections(Display *dpy, struct cm_selections *sels) {
     sels[CM_SEL_CLIPBOARD].selection = XInternAtom(dpy, "CLIPBOARD", False);
     sels[CM_SEL_CLIPBOARD].storage =
-        XInternAtom(dpy, "CLIPMENUD_CUR_CLIPBOARD", True);
+        XInternAtom(dpy, "CLIPMENUD_CUR_CLIPBOARD", False);
     sels[CM_SEL_PRIMARY].selection = XA_PRIMARY;
     sels[CM_SEL_PRIMARY].storage =
-        XInternAtom(dpy, "CLIPMENUD_CUR_PRIMARY", True);
+        XInternAtom(dpy, "CLIPMENUD_CUR_PRIMARY", False);
     sels[CM_SEL_SECONDARY].selection = XA_SECONDARY;
     sels[CM_SEL_SECONDARY].storage =
-        XInternAtom(dpy, "CLIPMENUD_CUR_SECONDARY", True);
+        XInternAtom(dpy, "CLIPMENUD_CUR_SECONDARY", False);
+}
+
+enum selection_type
+selection_atom_to_selection_type(Atom atom, struct cm_selections *sels) {
+    for (size_t i = 0; i < CM_SEL_MAX; ++i) {
+        if (sels[i].selection == atom) {
+            return i;
+        }
+    }
+    die("Unreachable\n");
+}
+
+enum selection_type storage_atom_to_selection_type(Atom atom,
+                                                   struct cm_selections *sels) {
+    for (size_t i = 0; i < CM_SEL_MAX; ++i) {
+        if (sels[i].storage == atom) {
+            return i;
+        }
+    }
+    die("Unreachable\n");
 }

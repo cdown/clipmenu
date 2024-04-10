@@ -82,6 +82,10 @@ DEFINE_GET_PATH_FUNCTION(enabled)
 extern const char *prog_name;
 struct config _nonnull_ setup(const char *inner_prog_name);
 void _nonnull_ setup_selections(Display *dpy, struct cm_selections *sels);
+enum selection_type _nonnull_
+selection_atom_to_selection_type(Atom atom, struct cm_selections *sels);
+enum selection_type _nonnull_
+storage_atom_to_selection_type(Atom atom, struct cm_selections *sels);
 
 int convert_bool(const char *str, void *output);
 int convert_int(const char *str, void *output);
