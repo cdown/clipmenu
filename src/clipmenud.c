@@ -263,6 +263,7 @@ static int handle_property_notify(const XPropertyEvent *pe) {
          */
         enum selection_type sel =
             storage_atom_to_selection_type(pe->atom, sels);
+        printf("sel == CM_SEL_CLIPBOARD: %d\n", sel == CM_SEL_CLIPBOARD);
         if (sel == CM_SEL_CLIPBOARD && cfg.own_clipboard) {
             run_clipserve(hash);
         }
