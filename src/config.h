@@ -44,6 +44,7 @@ struct config {
     int max_clips_batch;
     int oneshot;
     bool own_clipboard;
+    struct selection *owned_selections;
     struct selection *selections;
     struct ignore_window ignore_window;
     struct launcher launcher;

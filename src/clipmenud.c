@@ -263,7 +263,7 @@ static int handle_property_notify(const XPropertyEvent *pe) {
          */
         enum selection_type sel =
             storage_atom_to_selection_type(pe->atom, sels);
-        if (sel == CM_SEL_CLIPBOARD && cfg.own_clipboard) {
+        if (cfg.owned_selections[sel].active && cfg.own_clipboard) {
             run_clipserve(hash);
         }
     } else {

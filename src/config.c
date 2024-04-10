@@ -272,6 +272,8 @@ int config_setup_internal(FILE *file, struct config *cfg) {
          "0", 0},
         {"selections", "CM_SELECTIONS", &cfg->selections, convert_selections,
          "clipboard primary", 0},
+        {"own_selections", "CM_OWN_SELECTIONS", &cfg->owned_selections,
+         convert_selections, "clipboard", 0},
         {"ignore_window", "CM_IGNORE_WINDOW", &cfg->ignore_window,
          convert_ignore_window, NULL, 0},
         {"launcher", "CM_LAUNCHER", &cfg->launcher, convert_launcher, "dmenu",
@@ -307,6 +309,7 @@ void config_free(struct config *cfg) {
     free(cfg->runtime_dir);
     free(cfg->launcher.custom);
     free(cfg->selections);
+    free(cfg->owned_selections);
     if (cfg->ignore_window.set) {
         regfree(&cfg->ignore_window.rgx);
     }
