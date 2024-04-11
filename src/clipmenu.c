@@ -16,8 +16,6 @@
 static int dmenu_user_argc;
 static char **dmenu_user_argv;
 
-#define HASH_INVALID UINT64_MAX
-
 /**
  * Calculate the base 10 padding length for a number.
  */

@@ -95,7 +95,7 @@ static void _nonnull_ serve_clipboard(uint64_t hash,
 }
 
 int main(int argc, char *argv[]) {
-    uint64_t hash;
+    uint64_t hash = HASH_INVALID;
 
     die_on(argc != 2, "Usage: clipserve [hash]\n");
     _drop_(config_free) struct config cfg = setup("clipserve");

@@ -23,6 +23,7 @@
 #endif
 
 #define UINT64_MAX_STRLEN 20 // (1 << 64) - 1 is 20 digits wide
+#define HASH_INVALID UINT64_MAX
 
 #define streq(a, b) (strcmp((a), (b)) == 0)
 #define strceq(a, b) (strcasecmp((a), (b)) == 0)
