@@ -404,6 +404,7 @@ int main(void) {
     sigprocmask(SIG_BLOCK, &mask, NULL);
     sig_fd = signalfd(-1, &mask, 0);
     expect(sig_fd >= 0);
+    expect(signal(SIGCHLD, SIG_IGN) != SIG_ERR);
 
     int unused;
     die_on(!XFixesQueryExtension(dpy, &evt_base, &unused), "XFixes missing\n");
