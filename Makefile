@@ -6,6 +6,7 @@ CPPFLAGS += -I/usr/X11R6/include -L/usr/X11R6/lib
 LDLIBS += -lX11 -lXfixes
 PREFIX ?= /usr/local
 bindir := $(PREFIX)/bin
+systemd_user_dir = $(DESTDIR)$(PREFIX)/lib/systemd/user
 debug_cflags := -D_FORTIFY_SOURCE=2 -fsanitize=leak -fsanitize=address \
 	        -fsanitize=undefined -Og -ggdb -fno-omit-frame-pointer \
 	        -fstack-protector-strong
@@ -29,7 +30,8 @@ debug: CFLAGS+=$(debug_cflags)
 install: all
 	mkdir -p $(DESTDIR)$(bindir)/
 	install -pt $(DESTDIR)$(bindir)/ $(addprefix src/,$(bins))
-	install -Dp -m 644 init/clipmenud.service $(DESTDIR)$(PREFIX)/lib/systemd/user/clipmenud.service
+	mkdir -p $(systemd_user_dir)
+	sed 's|@bindir@|$(bindir)|g' init/clipmenud.service.in > $(systemd_user_dir)/clipmenud.service
 
 uninstall:
 	rm -f $(addprefix $(DESTDIR)$(PREFIX)/bin/,$(bins))
