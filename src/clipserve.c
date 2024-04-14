@@ -95,11 +95,10 @@ static void _nonnull_ serve_clipboard(uint64_t hash,
 }
 
 int main(int argc, char *argv[]) {
-    uint64_t hash = HASH_INVALID;
-
     die_on(argc != 2, "Usage: clipserve [hash]\n");
     _drop_(config_free) struct config cfg = setup("clipserve");
 
+    uint64_t hash;
     expect(str_to_uint64(argv[1], &hash) == 0);
 
     _drop_(close) int content_dir_fd = open(get_cache_dir(&cfg), O_RDONLY);

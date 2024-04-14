@@ -136,7 +136,6 @@ static int _nonnull_ interact_with_dmenu(struct config *cfg, int *input_pipe,
     int forced_ret = 0;
     if (str_to_uint64(sel_idx_str, &sel_idx) < 0 || sel_idx == 0 ||
         sel_idx > cur_clips) {
-        *out_hash = HASH_INVALID;
         forced_ret = EXIT_FAILURE;
     } else {
         *out_hash = idx_to_hash[sel_idx - 1];
@@ -180,7 +179,7 @@ int main(int argc, char *argv[]) {
     uint64_t hash;
     int dmenu_exit_code = prompt_user_for_hash(&cfg, &hash);
 
-    if (dmenu_exit_code == EXIT_SUCCESS && hash != HASH_INVALID) {
+    if (dmenu_exit_code == EXIT_SUCCESS) {
         run_clipserve(hash);
     }
 
