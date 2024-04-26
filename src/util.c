@@ -65,7 +65,8 @@ void run_clipserve(uint64_t hash) {
         return;
     }
 
-    expect(execvp(cmd[0], (char *const *)cmd) >= 0);
+    execvp(cmd[0], (char *const *)cmd);
+    die("Failed to exec %s: %s\n", cmd[0], strerror(errno));
 }
 
 /**
