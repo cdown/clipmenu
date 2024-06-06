@@ -72,7 +72,7 @@ static bool _nonnull_ should_enable(struct config *cfg, const char *mode_str) {
 
 int main(int argc, char *argv[]) {
     _drop_(config_free) struct config cfg = setup("clipctl");
-    die_on(argc != 2, "Usage: clipctl <enable|disable|toggle|status>\n");
+    die_on(argc != 2, "Usage: clipctl <enable|disable|toggle|reload|status>\n");
 
     pid_t pid = get_clipmenud_pid();
     die_on(pid == -ENOENT, "clipmenud is not running\n");
@@ -81,6 +81,10 @@ int main(int argc, char *argv[]) {
 
     if (streq(argv[1], "status")) {
         printf("%s\n", is_enabled(&cfg) ? "enabled" : "disabled");
+        return 0;
+    } else if (streq(argv[1], "reload")) {
+        expect(kill(pid, SIGHUP) == 0);
+        dbg("Sent signal to pid %d\n", pid);
         return 0;
     }
 
