@@ -356,7 +356,7 @@ size_t first_line(const char *text, char *out) {
     size_t nr_lines = 0;
     const char *cur = text;
 
-    out[0] = '\0';
+    out[0] = '\0'; // cppcheck-suppress [ctuArrayIndex,unmatchedSuppression]
 
     for (; *cur; cur++) {
         nr_lines += (*cur == '\n');
