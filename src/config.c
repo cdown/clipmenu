@@ -10,6 +10,9 @@
 #include "x.h"
 
 #define CLIPMENU_VERSION 7
+#ifndef LAUNCHER
+    #define LAUNCHER "dmenu"
+#endif
 
 /**
  * Determines the runtime directory for storing application data. This is _not_
@@ -276,7 +279,7 @@ int config_setup_internal(FILE *file, struct config *cfg) {
          convert_selections, "clipboard", 0},
         {"ignore_window", "CM_IGNORE_WINDOW", &cfg->ignore_window,
          convert_ignore_window, NULL, 0},
-        {"launcher", "CM_LAUNCHER", &cfg->launcher, convert_launcher, "dmenu",
+        {"launcher", "CM_LAUNCHER", &cfg->launcher, convert_launcher, LAUNCHER,
          0},
         {"launcher_pass_dmenu_args", "CM_LAUNCHER_PASS_DMENU_ARGS",
          &cfg->launcher_pass_dmenu_args, convert_bool, "1", 0},

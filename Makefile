@@ -1,8 +1,9 @@
+LAUNCHER := demnu
 CFLAGS := -std=gnu11 -O2 -Wall -Wextra -Wshadow -Wpointer-arith \
 	  -Wcast-align -Wmissing-prototypes -Wstrict-overflow -Wformat=2 \
 	  -Wwrite-strings -Warray-bounds -Wstrict-prototypes \
 	  -Wno-maybe-uninitialized \
-	  -Werror $(CFLAGS)
+	  -Werror -DLAUNCHER=\"$(LAUNCHER)\" $(CFLAGS)
 CPPFLAGS += -I/usr/X11R6/include -L/usr/X11R6/lib
 LDLIBS += -lX11 -lXfixes
 PREFIX ?= /usr/local
