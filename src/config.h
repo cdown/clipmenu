@@ -89,7 +89,7 @@ enum selection_type _nonnull_
 storage_atom_to_selection_type(Atom atom, struct cm_selections *sels);
 
 int convert_bool(const char *str, void *output);
-int convert_int(const char *str, void *output);
+int convert_positive_int(const char *str, void *output);
 int convert_ignore_window(const char *str, void *output);
 int config_setup_internal(FILE *file, struct config *cfg);
 void config_free(struct config *cfg);
