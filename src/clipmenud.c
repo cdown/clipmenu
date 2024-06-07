@@ -25,7 +25,7 @@ static struct clip_store cs;
 static struct config cfg;
 static Window win;
 
-static volatile sig_atomic_t enabled = 1;
+static int enabled = 1;
 static int sig_fd;
 
 static struct cm_selections sels[CM_SEL_MAX];
