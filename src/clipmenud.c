@@ -380,7 +380,9 @@ static int _noreturn_ run(int evt_base) {
 }
 
 #ifndef UNIT_TEST
-int main(void) {
+int main(int argc, char *argv[]) {
+    (void)argv;
+    die_on(argc != 1, "clipmenud doesn't accept any arguments\n");
     int evt_base;
 
     cfg = setup("clipmenud");
