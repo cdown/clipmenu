@@ -74,10 +74,10 @@ int convert_bool(const char *str, void *output) {
     return -EINVAL;
 }
 
-int convert_int(const char *str, void *output) {
+int convert_positive_int(const char *str, void *output) {
     char *end;
     long val = strtol(str, &end, 10);
-    if (*end != '\0' || end == str) {
+    if (*end != '\0' || end == str || val < 0 || val > INT_MAX) {
         return -EINVAL;
     }
     *(int *)output = (int)val;
@@ -264,10 +264,11 @@ static int config_apply_default_values(struct config_entry entries[],
  */
 int config_setup_internal(FILE *file, struct config *cfg) {
     struct config_entry entries[] = {
-        {"max_clips", "CM_MAX_CLIPS", &cfg->max_clips, convert_int, "1000", 0},
+        {"max_clips", "CM_MAX_CLIPS", &cfg->max_clips, convert_positive_int,
+         "1000", 0},
         {"max_clips_batch", "CM_MAX_CLIPS_BATCH", &cfg->max_clips_batch,
-         convert_int, "100", 0},
-        {"oneshot", "CM_ONESHOT", &cfg->oneshot, convert_int, "0", 0},
+         convert_positive_int, "100", 0},
+        {"oneshot", "CM_ONESHOT", &cfg->oneshot, convert_positive_int, "0", 0},
         {"own_clipboard", "CM_OWN_CLIPBOARD", &cfg->own_clipboard, convert_bool,
          "0", 0},
         {"selections", "CM_SELECTIONS", &cfg->selections, convert_selections,
