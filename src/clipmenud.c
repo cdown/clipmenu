@@ -24,6 +24,7 @@ static Display *dpy;
 static struct clip_store cs;
 static struct config cfg;
 static Window win;
+static const char *arg0;
 
 static int enabled = 1;
 static int sig_fd;
@@ -139,6 +140,11 @@ static void handle_signalfd_event(void) {
         case SIGUSR2:
             enabled = 1;
             dbg("Clipboard collection enabled by signal\n");
+            break;
+        case SIGHUP:
+            dbg("re-execing as: %s\n", arg0);
+            execvp(arg0, (char *[]){(char *)arg0, NULL});
+            die("execvp failed %s\n", strerror(errno));
             break;
     }
     write_status();
@@ -380,16 +386,17 @@ static int _noreturn_ run(int evt_base) {
 
 #ifndef UNIT_TEST
 int main(int argc, char *argv[]) {
-    (void)argv;
+    arg0 = argv[0];
     die_on(argc != 1, "clipmenud doesn't accept any arguments\n");
     int evt_base;
 
     cfg = setup("clipmenud");
     write_status();
 
-    _drop_(close) int content_dir_fd = open(get_cache_dir(&cfg), O_RDONLY);
+    _drop_(close) int content_dir_fd =
+        open(get_cache_dir(&cfg), O_RDONLY | O_CLOEXEC);
     _drop_(close) int snip_fd =
-        open(get_line_cache_path(&cfg), O_RDWR | O_CREAT, 0600);
+        open(get_line_cache_path(&cfg), O_RDWR | O_CREAT | O_CLOEXEC, 0600);
     expect(content_dir_fd >= 0 && snip_fd >= 0);
 
     expect(cs_init(&cs, snip_fd, content_dir_fd) == 0);
@@ -402,6 +409,7 @@ int main(int argc, char *argv[]) {
     sigemptyset(&mask);
     sigaddset(&mask, SIGUSR1);
     sigaddset(&mask, SIGUSR2);
+    sigaddset(&mask, SIGHUP);
     sigprocmask(SIG_BLOCK, &mask, NULL);
     sig_fd = signalfd(-1, &mask, 0);
     expect(sig_fd >= 0);
