@@ -79,6 +79,7 @@ char *get_cache_dir(struct config *cfg);
 
 DEFINE_GET_PATH_FUNCTION(line_cache)
 DEFINE_GET_PATH_FUNCTION(enabled)
+DEFINE_GET_PATH_FUNCTION(session_lock)
 
 extern const char *prog_name;
 struct config _nonnull_ setup(const char *inner_prog_name);

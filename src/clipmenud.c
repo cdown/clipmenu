@@ -10,6 +10,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
+#include <sys/file.h>
 #include <sys/select.h>
 #include <sys/signalfd.h>
 #include <time.h>
@@ -385,6 +386,14 @@ int main(int argc, char *argv[]) {
     int evt_base;
 
     cfg = setup("clipmenud");
+
+    _drop_(close) int session_fd =
+        open(get_session_lock_path(&cfg), O_WRONLY | O_CREAT | O_CLOEXEC, 0600);
+    die_on(session_fd < 0, "Failed to open session file: %s\n",
+           strerror(errno));
+    die_on(flock(session_fd, LOCK_EX | LOCK_NB) < 0,
+           "Failed to lock session file -- is another clipmenud running?\n");
+
     write_status();
 
     _drop_(close) int content_dir_fd = open(get_cache_dir(&cfg), O_RDONLY);
