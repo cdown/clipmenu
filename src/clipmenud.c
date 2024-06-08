@@ -188,9 +188,9 @@ static int handle_selection_notify(const XSelectionEvent *se) {
  * size.
  */
 static void maybe_trim(void) {
-    uint64_t cur_clips;
+    size_t cur_clips;
     expect(cs_len(&cs, &cur_clips) == 0);
-    if ((int)cur_clips > cfg.max_clips_batch) {
+    if (cur_clips > (size_t)cfg.max_clips + (size_t)cfg.max_clips_batch) {
         expect(cs_trim(&cs, CS_ITER_NEWEST_FIRST, (size_t)cfg.max_clips) == 0);
     }
 }
