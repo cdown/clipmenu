@@ -408,7 +408,7 @@ static int _must_use_ _nonnull_ cs_content_add(struct clip_store *cs,
     bool dupe = false;
 
     char dir_path[CS_HASH_STR_MAX];
-    snprintf(dir_path, sizeof(dir_path), "%" PRIu64, hash);
+    snprintf(dir_path, sizeof(dir_path), PRI_HASH, hash);
 
     int ret = mkdirat(cs->content_dir_fd, dir_path, 0700);
     if (ret < 0) {
@@ -501,7 +501,7 @@ int cs_content_get(struct clip_store *cs, uint64_t hash,
     memset(content, '\0', sizeof(struct cs_content));
 
     char filename[PATH_MAX];
-    snprintf(filename, sizeof(filename), "%" PRIu64 "/1", hash);
+    snprintf(filename, sizeof(filename), PRI_HASH "/1", hash);
 
     _drop_(close) int fd = openat(cs->content_dir_fd, filename, O_RDONLY);
     if (fd < 0) {
@@ -591,7 +591,7 @@ static int _must_use_ _nonnull_ cs_content_remove(struct clip_store *cs,
                                                   uint64_t hash) {
 
     char hash_dir_name[CS_HASH_STR_MAX];
-    snprintf(hash_dir_name, sizeof(hash_dir_name), "%" PRIu64, hash);
+    snprintf(hash_dir_name, sizeof(hash_dir_name), PRI_HASH, hash);
 
     _drop_(close) int hash_dir_fd =
         openat(cs->content_dir_fd, hash_dir_name, O_RDONLY);

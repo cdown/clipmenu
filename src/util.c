@@ -3,6 +3,7 @@
 #include <stdbool.h>
 #include <string.h>
 
+#include "store.h"
 #include "util.h"
 
 /**
@@ -54,8 +55,8 @@ size_t snprintf_safe(char *buf, size_t len, const char *fmt, ...) {
  * Runs clipserve to handle selection requests for a hash in the clip store.
  */
 void run_clipserve(uint64_t hash) {
-    char hash_str[UINT64_MAX_STRLEN + 1];
-    uint64_to_str(hash, hash_str);
+    char hash_str[CS_HASH_STR_MAX];
+    snprintf(hash_str, sizeof(hash_str), PRI_HASH, hash);
 
     const char *const cmd[] = {"clipserve", hash_str, NULL};
     pid_t pid = fork();
@@ -81,14 +82,14 @@ void run_clipserve(uint64_t hash) {
 int negative_errno(void) { return errno > 0 ? -errno : -EINVAL; }
 
 /**
- * Convert a string to an unsigned 64-bit integer, validating the format and
- * range of the input.
+ * Convert a string to an unsigned 64-bit integer in given base, validating the
+ * format and range of the input.
  */
-int str_to_uint64(const char *input, uint64_t *output) {
+static int str_to_uint64_base(const char *input, uint64_t *output, int base) {
     char *endptr;
     errno = 0;
 
-    uint64_t val = strtoull(input, &endptr, 10);
+    uint64_t val = strtoull(input, &endptr, base);
     if (errno > 0) {
         return negative_errno();
     }
@@ -104,10 +105,19 @@ int str_to_uint64(const char *input, uint64_t *output) {
 }
 
 /**
- * Convert an unsigned 64-bit integer to a string representation.
+ * Convert a string to an unsigned 64-bit integer, validating the format and
+ * range of the input.
  */
-void uint64_to_str(uint64_t input, char *output) {
-    snprintf_safe(output, UINT64_MAX_STRLEN + 1, "%" PRIu64, input);
+int str_to_uint64(const char *input, uint64_t *output) {
+    return str_to_uint64_base(input, output, 10);
+}
+
+/**
+ * Convert a hex string to an unsigned 64-bit integer, validating the format
+ * and range of the input.
+ */
+int str_to_hex64(const char *input, uint64_t *output) {
+    return str_to_uint64_base(input, output, 16);
 }
 
 /**

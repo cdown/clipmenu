@@ -100,7 +100,7 @@ DEFINE_DROP_FUNC(DIR *, closedir)
 
 int _must_use_ negative_errno(void);
 int _nonnull_ str_to_uint64(const char *input, uint64_t *output);
-void _nonnull_ uint64_to_str(uint64_t input, char *output);
+int _nonnull_ str_to_hex64(const char *input, uint64_t *output);
 bool debug_mode_enabled(void);
 
 #endif

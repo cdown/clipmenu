@@ -9,7 +9,8 @@
 
 #define CS_SNIP_SIZE 256         /* The size of each struct cs_snip */
 #define CS_SNIP_ALLOC_BATCH 1024 /* How many snips to allocate when growing */
-#define CS_HASH_STR_MAX 21       /* String length of (1 << 64) - 1) + \0 */
+#define CS_HASH_STR_MAX 17       /* String length of 64bit hex + \0 */
+#define PRI_HASH "%016" PRIX64
 
 /**
  * A single snip within the clip store.

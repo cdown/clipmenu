@@ -149,7 +149,7 @@ static void _nonnull_ serve_clipboard(uint64_t hash,
 
                 _drop_(XFree) char *window_title =
                     get_window_title(dpy, req->requestor);
-                dbg("Servicing request to window '%s' (0x%lx) for clip %" PRIu64
+                dbg("Servicing request to window '%s' (0x%lX) for clip " PRI_HASH
                     "\n",
                     strnull(window_title), (unsigned long)req->requestor, hash);
 
@@ -180,10 +180,10 @@ static void _nonnull_ serve_clipboard(uint64_t hash,
             }
             case SelectionClear: {
                 if (--remaining_selections == 0) {
-                    dbg("Finished serving clip %" PRIu64 "\n", hash);
+                    dbg("Finished serving clip " PRI_HASH "\n", hash);
                     running = false;
                 } else {
-                    dbg("%d selections remaining to serve for clip %" PRIu64
+                    dbg("%d selections remaining to serve for clip " PRI_HASH
                         "\n",
                         remaining_selections, hash);
                 }
@@ -204,7 +204,7 @@ int main(int argc, char *argv[]) {
     _drop_(config_free) struct config cfg = setup("clipserve");
 
     uint64_t hash;
-    expect(str_to_uint64(argv[1], &hash) == 0);
+    expect(str_to_hex64(argv[1], &hash) == 0);
 
     _drop_(close) int content_dir_fd = open(get_cache_dir(&cfg), O_RDONLY);
     _drop_(close) int snip_fd =
@@ -216,7 +216,7 @@ int main(int argc, char *argv[]) {
 
     _drop_(cs_content_unmap) struct cs_content content;
     die_on(cs_content_get(&cs, hash, &content) < 0,
-           "Hash %" PRIu64 " inaccessible\n", hash);
+           "Hash " PRI_HASH " inaccessible\n", hash);
 
     serve_clipboard(hash, &content);
 
