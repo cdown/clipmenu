@@ -269,7 +269,9 @@ static uint64_t store_clip(struct clip_text *ct) {
         dbg("Possible partial of last clip, replacing\n");
         expect(cs_replace(&cs, CS_ITER_NEWEST_FIRST, 0, ct->data, &hash) == 0);
     } else {
-        expect(cs_add(&cs, ct->data, &hash) == 0);
+        expect(cs_add(&cs, ct->data, &hash,
+                      cfg.deduplicate ? CS_DUPE_KEEP_LAST : CS_DUPE_KEEP_ALL) ==
+               0);
     }
 
     free_clip_text(&last_text);
