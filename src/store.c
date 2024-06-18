@@ -562,23 +562,22 @@ int cs_add(struct clip_store *cs, const char *content, uint64_t *out_hash) {
  */
 bool cs_snip_iter(struct ref_guard *guard, enum cs_iter_direction direction,
                   struct cs_snip **snip) {
-    if (guard->status < 0) {
+    if (guard->status < 0 || guard->cs->header->nr_snips == 0) {
         return false;
     }
 
-    struct cs_snip *start = guard->cs->snips;
+    struct cs_snip *oldest = guard->cs->snips;
+    struct cs_snip *newest = oldest + (guard->cs->header->nr_snips - 1);
+    struct cs_snip *stop = direction == CS_ITER_NEWEST_FIRST ? oldest : newest;
 
-    // cppcheck-suppress [constVariablePointer,unmatchedSuppression]
-    // TODO: False positive? Report upstream
-    struct cs_snip *end = start + guard->cs->header->nr_snips;
-
-    if (*snip) {
+    if (!*snip) {
+        *snip = direction == CS_ITER_NEWEST_FIRST ? newest : oldest;
+        return true;
+    } else if (*snip != stop) {
         *snip = *snip + (direction == CS_ITER_NEWEST_FIRST ? -1 : 1);
-    } else {
-        *snip = direction == CS_ITER_NEWEST_FIRST ? end - 1 : start;
+        return true;
     }
-
-    return *snip >= start && *snip < end;
+    return false;
 }
 
 /**
