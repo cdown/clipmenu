@@ -1,3 +1,5 @@
+#undef NDEBUG
+
 #include <assert.h>
 #include <dirent.h>
 #include <errno.h>
@@ -151,7 +153,7 @@ static void add_ten_snips(struct clip_store *cs) {
     for (char i = 0; i < 10; i++) {
         char num[8];
         snprintf(num, sizeof(num), "%d", i);
-        int ret = cs_add(cs, num, NULL);
+        int ret = cs_add(cs, num, NULL, CS_DUPE_KEEP_ALL);
         assert(ret == 0);
     }
 }
@@ -203,7 +205,7 @@ static bool test__cs_add(void) {
         snprintf(num, sizeof(num), "%d", i);
 
         uint64_t hash;
-        int ret = cs_add(&cs, num, &hash);
+        int ret = cs_add(&cs, num, &hash, CS_DUPE_KEEP_ALL);
         t_assert(ret == 0);
 
         _drop_(cs_content_unmap) struct cs_content content;
@@ -358,7 +360,7 @@ static bool test__cs_add__exceeds_snip_line_size(void) {
     memset(long_content, 'A', sizeof(long_content));
     long_content[sizeof(long_content) - 1] = '\0';
 
-    int ret = cs_add(&cs, long_content, NULL);
+    int ret = cs_add(&cs, long_content, NULL, CS_DUPE_KEEP_ALL);
     t_assert(ret == 0);
 
     struct cs_snip *snip = NULL;
@@ -396,13 +398,13 @@ static bool test__cs_add__around_alloc_batch_threshold(void) {
     _drop_(teardown_test) struct clip_store cs = setup_test();
 
     for (size_t i = 0; i < CS_SNIP_ALLOC_BATCH - 1; i++) {
-        int ret = cs_add(&cs, "test content", NULL);
+        int ret = cs_add(&cs, "test content", NULL, CS_DUPE_KEEP_ALL);
         assert(ret == 0);
     }
     t_assert(cs.header->nr_snips == CS_SNIP_ALLOC_BATCH - 1);
 
     /* Add one more entry to exceed the batch threshold */
-    t_assert(cs_add(&cs, "test content", NULL) == 0);
+    t_assert(cs_add(&cs, "test content", NULL, CS_DUPE_KEEP_ALL) == 0);
     t_assert(cs.header->nr_snips == CS_SNIP_ALLOC_BATCH);
     t_assert(cs.header->nr_snips_alloc >= CS_SNIP_ALLOC_BATCH);
 
@@ -414,7 +416,7 @@ static bool test__cs_trim__no_remove_when_still_referenced(void) {
 
     uint64_t hash;
     for (size_t i = 0; i < 2; i++) {
-        int ret = cs_add(&cs, "test content", &hash);
+        int ret = cs_add(&cs, "test content", &hash, CS_DUPE_KEEP_ALL);
         t_assert(ret == 0);
     }
 
@@ -547,7 +549,7 @@ static bool test__synchronisation(void) {
     t_assert(ret == 0);
 
     uint64_t hash;
-    ret = cs_add(&cs1, "test content", &hash);
+    ret = cs_add(&cs1, "test content", &hash, CS_DUPE_KEEP_ALL);
     t_assert(ret == 0);
 
     bool found = false;
@@ -578,6 +580,75 @@ static bool test__synchronisation(void) {
     return true;
 }
 
+static bool test__cs_add__dupe_keep_all(void) {
+    _drop_(teardown_test) struct clip_store cs = setup_test();
+
+    uint64_t hash1, hash2;
+    int ret = cs_add(&cs, "duplicate", &hash1, CS_DUPE_KEEP_ALL);
+    t_assert(ret == 0);
+    ret = cs_add(&cs, "duplicate", &hash2, CS_DUPE_KEEP_ALL);
+    t_assert(ret == 0);
+    t_assert(hash1 == hash2);
+    t_assert(cs.header->nr_snips == 2);
+
+    _drop_(cs_unref) struct ref_guard guard = cs_ref(&cs);
+    struct cs_snip *snip = NULL;
+    bool iter_ret = cs_snip_iter(&guard, CS_ITER_OLDEST_FIRST, &snip);
+    t_assert(iter_ret == true);
+    t_assert(snip->hash == hash1);
+    iter_ret = cs_snip_iter(&guard, CS_ITER_OLDEST_FIRST, &snip);
+    t_assert(iter_ret == true);
+    t_assert(snip->hash == hash2);
+
+    return true;
+}
+
+static bool test__cs_add__dupe_keep_last(void) {
+    _drop_(teardown_test) struct clip_store cs = setup_test();
+
+    uint64_t hash1, hash2, hash3;
+    int ret = cs_add(&cs, "duplicate", &hash1, CS_DUPE_KEEP_LAST);
+    t_assert(ret == 0);
+    t_assert(cs.header->nr_snips == 1);
+    ret = cs_add(&cs, "duplicate", &hash2, CS_DUPE_KEEP_LAST);
+    t_assert(ret == 0);
+    t_assert(cs.header->nr_snips == 1);
+    ret = cs_add(&cs, "duplicate", &hash3, CS_DUPE_KEEP_LAST);
+    t_assert(ret == 0);
+    t_assert(cs.header->nr_snips == 1);
+    t_assert(hash1 == hash2);
+    t_assert(hash1 == hash3);
+
+    return true;
+}
+
+/* After adding a duplicate entry, ensure the duplicate is moved to the newest
+ * slot while other entries remain in order. */
+static bool test__cs_add__dupe_keep_last_with_multiple_entries(void) {
+    _drop_(teardown_test) struct clip_store cs = setup_test();
+
+    uint64_t hash_a, hash_dup;
+    int ret = cs_add(&cs, "A", &hash_a, CS_DUPE_KEEP_ALL);
+    t_assert(ret == 0);
+    ret = cs_add(&cs, "duplicate", &hash_dup, CS_DUPE_KEEP_ALL);
+    t_assert(ret == 0);
+    ret = cs_add(&cs, "B", NULL, CS_DUPE_KEEP_ALL);
+    t_assert(ret == 0);
+    t_assert(cs.header->nr_snips == 3);
+    /* Now add a duplicate entry with KEEP_LAST which should move the duplicate
+     * to the newest slot */
+    ret = cs_add(&cs, "duplicate", NULL, CS_DUPE_KEEP_LAST);
+    t_assert(ret == 0);
+    t_assert(cs.header->nr_snips == 3);
+    _drop_(cs_unref) struct ref_guard guard = cs_ref(&cs);
+    struct cs_snip *snip = NULL;
+    bool iter_ret = cs_snip_iter(&guard, CS_ITER_NEWEST_FIRST, &snip);
+    t_assert(iter_ret == true);
+    t_assert(snip->hash == hash_dup);
+
+    return true;
+}
+
 int main(void) {
     t_run(test__cs_init);
     t_run(test__cs_init__bad_size);
@@ -602,6 +673,9 @@ int main(void) {
     t_run(test__first_line__no_final_newline);
     t_run(test__first_line__ignore_blank_lines);
     t_run(test__first_line__unicode);
+    t_run(test__cs_add__dupe_keep_all);
+    t_run(test__cs_add__dupe_keep_last);
+    t_run(test__cs_add__dupe_keep_last_with_multiple_entries);
 
     return 0;
 }

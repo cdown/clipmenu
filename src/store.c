@@ -401,10 +401,12 @@ static int _must_use_ _nonnull_ cs_snip_add(struct clip_store *cs,
  * @cs: The clip store to operate on
  * @hash: The hash of the content to add
  * @content: The content to add to the file
+ * @dupe_policy: If set to CS_DUPE_KEEP_LAST, will return with -EEXIST when
+ * trying to insert duplicate entry.
  */
-static int _must_use_ _nonnull_ cs_content_add(struct clip_store *cs,
-                                               uint64_t hash,
-                                               const char *content) {
+static int _must_use_ _nonnull_
+cs_content_add(struct clip_store *cs, uint64_t hash, const char *content,
+               enum cs_dupe_policy dupe_policy) {
     bool dupe = false;
 
     char dir_path[CS_HASH_STR_MAX];
@@ -412,7 +414,7 @@ static int _must_use_ _nonnull_ cs_content_add(struct clip_store *cs,
 
     int ret = mkdirat(cs->content_dir_fd, dir_path, 0700);
     if (ret < 0) {
-        if (errno != EEXIST) {
+        if (errno != EEXIST || dupe_policy == CS_DUPE_KEEP_LAST) {
             return negative_errno();
         }
         dupe = true;
@@ -537,7 +539,7 @@ int cs_add(struct clip_store *cs, const char *content, uint64_t *out_hash) {
     char line[CS_SNIP_LINE_SIZE];
     size_t nr_lines = first_line(content, line);
 
-    int ret = cs_content_add(cs, hash, content);
+    int ret = cs_content_add(cs, hash, content, CS_DUPE_KEEP_ALL);
     if (ret < 0) {
         return ret;
     }
@@ -767,7 +769,7 @@ int cs_replace(struct clip_store *cs, enum cs_iter_direction direction,
     size_t nr_lines = first_line(content, line);
     uint64_t hash = djb64_hash(content);
     cs_snip_update(snip, hash, line, nr_lines);
-    ret = cs_content_add(cs, hash, content);
+    ret = cs_content_add(cs, hash, content, CS_DUPE_KEEP_ALL);
     if (ret) {
         return ret;
     }
