@@ -166,7 +166,8 @@ void drop_cs_destroy(struct clip_store *cs);
 int _must_use_ _nonnull_ cs_content_get(struct clip_store *cs, uint64_t hash,
                                         struct cs_content *content);
 int _must_use_ _nonnull_n_(1)
-    cs_add(struct clip_store *cs, const char *content, uint64_t *out_hash);
+    cs_add(struct clip_store *cs, const char *content, uint64_t *out_hash,
+           enum cs_dupe_policy dupe_policy);
 bool _must_use_ _nonnull_ cs_snip_iter(struct ref_guard *guard,
                                        enum cs_iter_direction direction,
                                        struct cs_snip **snip);

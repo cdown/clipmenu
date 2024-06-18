@@ -528,27 +528,52 @@ int cs_content_get(struct clip_store *cs, uint64_t hash,
 }
 
 /**
+ * Move the entry with the specified hash to the newest slot.
+ *
+ * @cs: The clip store to operate on
+ * @hash: The hash of the entry to move
+ */
+static int cs_make_newest(struct clip_store *cs, uint64_t hash) {
+    _drop_(cs_unref) struct ref_guard guard = cs_ref(cs);
+    if (guard.status < 0) {
+        return guard.status;
+    }
+
+    for (int i = 0; i < (int)cs->local_nr_snips; ++i) {
+        if (cs->snips[i].hash == hash) {
+            struct cs_snip tmp = cs->snips[i];
+            memmove(cs->snips + i, cs->snips + i + 1,
+                    (cs->local_nr_snips - (i + 1)) * sizeof(*cs->snips));
+            cs->snips[cs->local_nr_snips - 1] = tmp;
+            return 0;
+        }
+    }
+    die("unreachable");
+}
+
+/**
  * Add a new content entry to the clip store and content directory.
  *
  * @cs: The clip store to operate on
  * @content: The content to add
  * @out_hash: Output for the generated hash, or NULL
+ * @dupe_policy: Policy to use for duplicate entries
  */
-int cs_add(struct clip_store *cs, const char *content, uint64_t *out_hash) {
+int cs_add(struct clip_store *cs, const char *content, uint64_t *out_hash,
+           enum cs_dupe_policy dupe_policy) {
     uint64_t hash = djb64_hash(content);
     char line[CS_SNIP_LINE_SIZE];
     size_t nr_lines = first_line(content, line);
-
-    int ret = cs_content_add(cs, hash, content, CS_DUPE_KEEP_ALL);
-    if (ret < 0) {
-        return ret;
-    }
 
     if (out_hash) {
         *out_hash = hash;
     }
 
-    return cs_snip_add(cs, hash, line, nr_lines);
+    int ret = cs_content_add(cs, hash, content, dupe_policy);
+    if (ret == -EEXIST && dupe_policy == CS_DUPE_KEEP_LAST) {
+        return cs_make_newest(cs, hash);
+    }
+    return ret ? ret : cs_snip_add(cs, hash, line, nr_lines);
 }
 
 /**
