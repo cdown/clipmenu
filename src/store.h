@@ -143,6 +143,17 @@ enum cs_remove_action {
     CS_ACTION_STOP = BIT(2),
 };
 
+/**
+ * What to do when there's a duplicate entry.
+ *
+ * @CS_DUPE_KEEP_ALL: Keep all duplicate entries.
+ * @CS_DUPE_KEEP_LAST: Only keep the newest, do not insert duplicate entries.
+ */
+enum cs_dupe_policy {
+    CS_DUPE_KEEP_ALL,
+    CS_DUPE_KEEP_LAST,
+};
+
 struct ref_guard _must_use_ _nonnull_ cs_ref(struct clip_store *cs);
 void _nonnull_ cs_unref(struct clip_store *cs);
 void _nonnull_ drop_cs_unref(struct ref_guard *guard);
