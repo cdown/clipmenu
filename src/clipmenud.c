@@ -217,7 +217,9 @@ static uint64_t store_clip(char *text) {
         dbg("Possible partial of last clip, replacing\n");
         expect(cs_replace(&cs, CS_ITER_NEWEST_FIRST, 0, text, &hash) == 0);
     } else {
-        expect(cs_add(&cs, text, &hash) == 0);
+        expect(cs_add(&cs, text, &hash,
+                      cfg.deduplicate ? CS_DUPE_KEEP_LAST : CS_DUPE_KEEP_ALL) ==
+               0);
     }
 
     if (last_text) {

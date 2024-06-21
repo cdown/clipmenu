@@ -401,10 +401,12 @@ static int _must_use_ _nonnull_ cs_snip_add(struct clip_store *cs,
  * @cs: The clip store to operate on
  * @hash: The hash of the content to add
  * @content: The content to add to the file
+ * @dupe_policy: If set to CS_DUPE_KEEP_LAST, will return with -EEXIST when
+ * trying to insert duplicate entry.
  */
-static int _must_use_ _nonnull_ cs_content_add(struct clip_store *cs,
-                                               uint64_t hash,
-                                               const char *content) {
+static int _must_use_ _nonnull_
+cs_content_add(struct clip_store *cs, uint64_t hash, const char *content,
+               enum cs_dupe_policy dupe_policy) {
     bool dupe = false;
 
     char dir_path[CS_HASH_STR_MAX];
@@ -412,7 +414,7 @@ static int _must_use_ _nonnull_ cs_content_add(struct clip_store *cs,
 
     int ret = mkdirat(cs->content_dir_fd, dir_path, 0700);
     if (ret < 0) {
-        if (errno != EEXIST) {
+        if (errno != EEXIST || dupe_policy == CS_DUPE_KEEP_LAST) {
             return negative_errno();
         }
         dupe = true;
@@ -526,27 +528,52 @@ int cs_content_get(struct clip_store *cs, uint64_t hash,
 }
 
 /**
+ * Move the entry with the specified hash to the newest slot.
+ *
+ * @cs: The clip store to operate on
+ * @hash: The hash of the entry to move
+ */
+static int cs_make_newest(struct clip_store *cs, uint64_t hash) {
+    _drop_(cs_unref) struct ref_guard guard = cs_ref(cs);
+    if (guard.status < 0) {
+        return guard.status;
+    }
+
+    for (int i = 0; i < (int)cs->local_nr_snips; ++i) {
+        if (cs->snips[i].hash == hash) {
+            struct cs_snip tmp = cs->snips[i];
+            memmove(cs->snips + i, cs->snips + i + 1,
+                    (cs->local_nr_snips - (i + 1)) * sizeof(*cs->snips));
+            cs->snips[cs->local_nr_snips - 1] = tmp;
+            return 0;
+        }
+    }
+    die("unreachable");
+}
+
+/**
  * Add a new content entry to the clip store and content directory.
  *
  * @cs: The clip store to operate on
  * @content: The content to add
  * @out_hash: Output for the generated hash, or NULL
+ * @dupe_policy: Policy to use for duplicate entries
  */
-int cs_add(struct clip_store *cs, const char *content, uint64_t *out_hash) {
+int cs_add(struct clip_store *cs, const char *content, uint64_t *out_hash,
+           enum cs_dupe_policy dupe_policy) {
     uint64_t hash = djb64_hash(content);
     char line[CS_SNIP_LINE_SIZE];
     size_t nr_lines = first_line(content, line);
-
-    int ret = cs_content_add(cs, hash, content);
-    if (ret < 0) {
-        return ret;
-    }
 
     if (out_hash) {
         *out_hash = hash;
     }
 
-    return cs_snip_add(cs, hash, line, nr_lines);
+    int ret = cs_content_add(cs, hash, content, dupe_policy);
+    if (ret == -EEXIST && dupe_policy == CS_DUPE_KEEP_LAST) {
+        return cs_make_newest(cs, hash);
+    }
+    return ret ? ret : cs_snip_add(cs, hash, line, nr_lines);
 }
 
 /**
@@ -767,7 +794,7 @@ int cs_replace(struct clip_store *cs, enum cs_iter_direction direction,
     size_t nr_lines = first_line(content, line);
     uint64_t hash = djb64_hash(content);
     cs_snip_update(snip, hash, line, nr_lines);
-    ret = cs_content_add(cs, hash, content);
+    ret = cs_content_add(cs, hash, content, CS_DUPE_KEEP_ALL);
     if (ret) {
         return ret;
     }
