@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/types.h>
+#include <time.h>
 #include <unistd.h>
 
 #include "config.h"
@@ -66,10 +67,6 @@ static bool _nonnull_ should_enable(struct config *cfg, const char *mode_str) {
     die("Unknown command: %s\n", mode_str);
 }
 
-/* The number of times to check if state was updated before giving up */
-#define MAX_STATE_RETRIES 20
-#define USEC_IN_MS 1000
-
 int main(int argc, char *argv[]) {
     _drop_(config_free) struct config cfg = setup("clipctl");
     die_on(argc != 2, "Usage: clipctl <enable|disable|toggle|status>\n");
@@ -89,13 +86,28 @@ int main(int argc, char *argv[]) {
     expect(kill(pid, want_enable ? SIGUSR2 : SIGUSR1) == 0);
     dbg("Sent signal to pid %d\n", pid);
 
-    for (size_t retries = 0; retries < MAX_STATE_RETRIES; ++retries) {
+    unsigned int delay_ms = 1;
+    unsigned int total_wait_ms = 0;
+    const unsigned int max_wait_ms = 1000;
+
+    while (total_wait_ms < max_wait_ms) {
         if (is_enabled(&cfg) == want_enable) {
             return 0;
         }
-        usleep(100 * USEC_IN_MS);
+
+        struct timespec req = {.tv_sec = delay_ms / 1000,
+                               .tv_nsec = (delay_ms % 1000) * 1000000L};
+        struct timespec rem;
+
+        while (nanosleep(&req, &rem) != 0) {
+            expect(errno == EINTR);
+            req = rem;
+        }
+
+        total_wait_ms += delay_ms;
+        delay_ms *= 2;
     }
 
-    die("Failed to %s clipmenud after %d retries\n",
-        want_enable ? "enable" : "disable", MAX_STATE_RETRIES);
+    die("Failed to %s clipmenud within %u ms\n",
+        want_enable ? "enable" : "disable", max_wait_ms);
 }
