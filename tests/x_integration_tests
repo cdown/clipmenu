@@ -52,6 +52,10 @@ settle() {
     sleep 0.2
 }
 
+long_settle() {
+    sleep 2
+}
+
 check_nr_clips() {
     if [[ $SELECT ]]; then
         clipmenu
@@ -165,6 +169,21 @@ clipctl toggle
 [[ "$(clipctl status)" == disabled ]]
 clipctl toggle
 [[ "$(clipctl status)" == enabled ]]
+
+# Test INCR support
+set +x
+printf '%.0sa' {1..9999999} | xsel -p
+set -x
+long_settle  # This is a big one, give it some time
+len_before=$(xsel -po | wc -c)
+check_nr_clips 5
+SELECT='[5] aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa...' \
+        clipmenu
+long_settle
+len_after=$(xsel -po | wc -c)
+
+# Make sure we got the whole thing
+(( len_before == len_after ))
 
 if (( _UNSHARED )); then
     umount -l /tmp
