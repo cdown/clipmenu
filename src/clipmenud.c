@@ -162,14 +162,19 @@ static void handle_signalfd_event(void) {
  * desired property type.
  */
 static void handle_xfixes_selection_notify(XFixesSelectionNotifyEvent *se) {
+    enum selection_type sel =
+        selection_atom_to_selection_type(se->selection, sels);
+    if (sel == CM_SEL_INVALID) {
+        dbg("Received XFixesSelectionNotify for unknown sel\n");
+        return;
+    }
+
     _drop_(XFree) char *win_title = get_window_title(dpy, se->owner);
     if (is_clipserve(win_title) || is_ignored_window(win_title)) {
         dbg("Ignoring clip from window titled '%s'\n", win_title);
         return;
     }
 
-    enum selection_type sel =
-        selection_atom_to_selection_type(se->selection, sels);
     dbg("Notified about selection update. Selection: %s, Owner: '%s' (0x%lx)\n",
         cfg.selections[sel].name, strnull(win_title), (unsigned long)se->owner);
     XConvertSelection(dpy, se->selection,
@@ -189,6 +194,10 @@ static int handle_selection_notify(const XSelectionEvent *se) {
     if (se->property == None) {
         enum selection_type sel =
             selection_atom_to_selection_type(se->selection, sels);
+        if (sel == CM_SEL_INVALID) {
+            dbg("Received no owner notification for unknown sel\n");
+            return 0;
+        }
         dbg("X reports that %s has no current owner\n",
             cfg.selections[sel].name);
         return -ENOENT;
@@ -246,6 +255,13 @@ static uint64_t store_clip(char *text) {
  * Process the final data collected during an INCR transfer.
  */
 static void incr_receive_finish(struct incr_transfer *it) {
+    enum selection_type sel =
+        storage_atom_to_selection_type(it->property, sels);
+    if (sel == CM_SEL_INVALID) {
+        it_dbg(it, "Received INCR finish for unknown sel\n");
+        return;
+    }
+
     it_dbg(it, "Finished (bytes buffered: %zu)\n", it->data_size);
     _drop_(free) char *text = malloc(it->data_size + 1);
     expect(text);
@@ -259,8 +275,6 @@ static void incr_receive_finish(struct incr_transfer *it) {
     if (is_salient_text(text)) {
         uint64_t hash = store_clip(text);
         maybe_trim();
-        enum selection_type sel =
-            storage_atom_to_selection_type(it->property, sels);
         if (cfg.owned_selections[sel].active && cfg.own_clipboard) {
             run_clipserve(hash);
         }
@@ -347,6 +361,12 @@ static int handle_property_notify(const XPropertyEvent *pe) {
         return -EINVAL;
     }
 
+    enum selection_type sel = storage_atom_to_selection_type(pe->atom, sels);
+    if (sel == CM_SEL_INVALID) {
+        dbg("Received PropertyNotify for unknown sel\n");
+        return -EINVAL;
+    }
+
     // Check if this property corresponds to an INCR transfer in progress
     struct incr_transfer *it = it_list;
     while (it) {
@@ -398,8 +418,6 @@ static int handle_property_notify(const XPropertyEvent *pe) {
              *  2. urxvt and some other terminal emulators will unhilight on
              *     PRIMARY ownership being taken away from them
              */
-            enum selection_type sel =
-                storage_atom_to_selection_type(pe->atom, sels);
             if (cfg.owned_selections[sel].active && cfg.own_clipboard) {
                 run_clipserve(hash);
             }

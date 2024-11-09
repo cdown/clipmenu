@@ -357,6 +357,11 @@ void setup_selections(Display *dpy, struct cm_selections *sels) {
         XInternAtom(dpy, "CLIPMENUD_CUR_SECONDARY", False);
 }
 
+/**
+ * Maps an Atom to a selection_type based on the selection atoms in the
+ * provided cm_selections struct. Returns CM_SEL_INVALID on error if the
+ * selection type is not found.
+ */
 enum selection_type
 selection_atom_to_selection_type(Atom atom, const struct cm_selections *sels) {
     for (size_t i = 0; i < CM_SEL_MAX; ++i) {
@@ -364,9 +369,14 @@ selection_atom_to_selection_type(Atom atom, const struct cm_selections *sels) {
             return i;
         }
     }
-    die("Unreachable\n");
+    return CM_SEL_INVALID;
 }
 
+/**
+ * Maps an Atom to a selection_type based on the storage atoms in the provided
+ * cm_selections struct. Returns CM_SEL_INVALID on error if the storage type is
+ * not found.
+ */
 enum selection_type
 storage_atom_to_selection_type(Atom atom, const struct cm_selections *sels) {
     for (size_t i = 0; i < CM_SEL_MAX; ++i) {
@@ -374,5 +384,5 @@ storage_atom_to_selection_type(Atom atom, const struct cm_selections *sels) {
             return i;
         }
     }
-    die("Unreachable\n");
+    return CM_SEL_INVALID;
 }

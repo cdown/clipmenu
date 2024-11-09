@@ -18,7 +18,8 @@ enum selection_type {
     CM_SEL_CLIPBOARD,
     CM_SEL_PRIMARY,
     CM_SEL_SECONDARY,
-    CM_SEL_MAX
+    CM_SEL_MAX,
+    CM_SEL_INVALID
 };
 struct cm_selections {
     Atom selection;
