@@ -10,7 +10,7 @@ bindir := $(PREFIX)/bin
 systemd_user_dir = $(DESTDIR)$(PREFIX)/lib/systemd/user
 debug_cflags := -D_FORTIFY_SOURCE=2 -fsanitize=leak -fsanitize=address \
 	        -fsanitize=undefined -Og -ggdb -fno-omit-frame-pointer \
-	        -fstack-protector-strong -ftrapv
+	        -fstack-protector-strong
 c_files := $(wildcard src/*.c)
 h_files := $(wildcard src/*.h)
 libs := $(filter $(c_files:.c=.o), $(h_files:.h=.o))

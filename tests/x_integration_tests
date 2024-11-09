@@ -18,6 +18,8 @@ export PATH=$PWD:$PATH
 export CM_CONFIG=$(mktemp)
 export CM_DIR=$(mktemp -d)
 export CM_DEBUG=1
+export ASAN_OPTIONS='halt_on_error=1:abort_on_error=1'
+export UBSAN_OPTIONS='halt_on_error=1:abort_on_error=1'
 
 launcher=$(mktemp)
 l_out=$(mktemp)
