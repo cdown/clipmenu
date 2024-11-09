@@ -133,7 +133,7 @@ static int convert_selections(const char *str, void *output) {
 
     _drop_(free) char *inner_str = strdup(str);
     expect(inner_str);
-    char *token = strtok(inner_str, " ");
+    const char *token = strtok(inner_str, " ");
     size_t i;
 
     while (token) {
@@ -358,7 +358,7 @@ void setup_selections(Display *dpy, struct cm_selections *sels) {
 }
 
 enum selection_type
-selection_atom_to_selection_type(Atom atom, struct cm_selections *sels) {
+selection_atom_to_selection_type(Atom atom, const struct cm_selections *sels) {
     for (size_t i = 0; i < CM_SEL_MAX; ++i) {
         if (sels[i].selection == atom) {
             return i;
@@ -367,8 +367,8 @@ selection_atom_to_selection_type(Atom atom, struct cm_selections *sels) {
     die("Unreachable\n");
 }
 
-enum selection_type storage_atom_to_selection_type(Atom atom,
-                                                   struct cm_selections *sels) {
+enum selection_type
+storage_atom_to_selection_type(Atom atom, const struct cm_selections *sels) {
     for (size_t i = 0; i < CM_SEL_MAX; ++i) {
         if (sels[i].storage == atom) {
             return i;

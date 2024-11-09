@@ -71,7 +71,7 @@ static size_t _must_use_ cs_file_size(size_t nr_snips) {
  * @cs: The clip store to operate on
  * @file_size: The current size of the file
  */
-static int _must_use_ _nonnull_ cs_header_validate(struct clip_store *cs,
+static int _must_use_ _nonnull_ cs_header_validate(const struct clip_store *cs,
                                                    size_t file_size) {
     if (cs->header->nr_snips > cs->header->nr_snips_alloc ||
         (cs->header->nr_snips_alloc + 1) * CS_SNIP_SIZE != file_size) {
