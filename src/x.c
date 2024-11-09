@@ -52,3 +52,29 @@ int xerror_handler(Display *dpy _unused_, XErrorEvent *ee) {
     die("X error with request code=%d, error code=%d\n", ee->request_code,
         ee->error_code);
 }
+
+/**
+ * Add a new INCR transfer to the active list.
+ */
+void it_add(struct incr_transfer **it_list, struct incr_transfer *it) {
+    if (*it_list) {
+        (*it_list)->prev = it;
+    }
+    it->next = *it_list;
+    it->prev = NULL;
+    *it_list = it;
+}
+/**
+ * Remove an INCR transfer from the active list.
+ */
+void it_remove(struct incr_transfer **it_list, struct incr_transfer *it) {
+    if (it->prev) {
+        it->prev->next = it->next;
+    }
+    if (it->next) {
+        it->next->prev = it->prev;
+    }
+    if (*it_list == it) {
+        *it_list = it->next;
+    }
+}

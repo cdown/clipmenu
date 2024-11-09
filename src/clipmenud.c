@@ -29,6 +29,9 @@ static Window win;
 static int enabled = 1;
 static int sig_fd;
 
+static Atom incr_atom;
+static struct incr_transfer *it_list;
+
 static struct cm_selections sels[CM_SEL_MAX];
 
 /**
@@ -69,11 +72,20 @@ static char *get_clipboard_text(Atom clip_atom) {
     int actual_format;
     unsigned long nitems, bytes_after;
 
-    int res =
-        XGetWindowProperty(dpy, DefaultRootWindow(dpy), clip_atom, 0L, (~0L),
-                           False, AnyPropertyType, &actual_type, &actual_format,
-                           &nitems, &bytes_after, &cur_text);
-    return res == Success ? (char *)cur_text : NULL;
+    int res = XGetWindowProperty(dpy, win, clip_atom, 0L, (~0L), False,
+                                 AnyPropertyType, &actual_type, &actual_format,
+                                 &nitems, &bytes_after, &cur_text);
+    if (res != Success) {
+        return NULL;
+    }
+
+    if (actual_type == incr_atom) {
+        dbg("Unexpected INCR transfer detected\n");
+        XFree(cur_text);
+        return NULL;
+    }
+
+    return (char *)cur_text;
 }
 
 /**
@@ -231,45 +243,170 @@ static uint64_t store_clip(char *text) {
 }
 
 /**
- * Something changed in our clip storage atoms. Work out whether we want to
- * store the new content as a clipboard entry.
+ * Process the final data collected during an INCR transfer.
  */
-static int handle_property_notify(const XPropertyEvent *pe) {
-    bool found = false;
-    for (size_t i = 0; i < CM_SEL_MAX; ++i) {
-        if (sels[i].storage == pe->atom) {
-            found = true;
-            break;
-        }
-    }
-    if (!found || pe->state != PropertyNewValue) {
-        return -EINVAL;
-    }
+static void incr_receive_finish(struct incr_transfer *it) {
+    it_dbg(it, "Finished (bytes buffered: %zu)\n", it->data_size);
+    _drop_(free) char *text = malloc(it->data_size + 1);
+    expect(text);
+    memcpy(text, it->data, it->data_size);
+    text[it->data_size] = '\0';
 
-    dbg("Received notification that selection conversion is ready\n");
-    char *text = get_clipboard_text(pe->atom);
     char line[CS_SNIP_LINE_SIZE];
     first_line(text, line);
-    dbg("First line: %s\n", line);
+    it_dbg(it, "First line: %s\n", line);
 
     if (is_salient_text(text)) {
         uint64_t hash = store_clip(text);
         maybe_trim();
-        /* We only own CLIPBOARD because otherwise the behaviour is wonky:
-         *
-         *  1. When you select in a browser and press ^V, it repastes what you
-         *     have selected instead of the previous content
-         *  2. urxvt and some other terminal emulators will unhilight on PRIMARY
-         *     ownership being taken away from them
-         */
         enum selection_type sel =
-            storage_atom_to_selection_type(pe->atom, sels);
+            storage_atom_to_selection_type(it->property, sels);
         if (cfg.owned_selections[sel].active && cfg.own_clipboard) {
             run_clipserve(hash);
         }
     } else {
-        dbg("Clipboard text is whitespace only, ignoring\n");
-        XFree(text);
+        it_dbg(it, "Clipboard text is whitespace only, ignoring\n");
+    }
+
+    free(it->data);
+    it_remove(&it_list, it);
+    free(it);
+}
+
+#define INCR_DATA_START_BYTES 1024 * 1024
+
+/**
+ * Acknowledge and start an INCR transfer.
+ */
+static void incr_receive_start(const XPropertyEvent *pe) {
+    struct incr_transfer *it = malloc(sizeof(struct incr_transfer));
+    expect(it);
+    *it = (struct incr_transfer){
+        .property = pe->atom,
+        .requestor = pe->window,
+        .data_size = 0,
+        .data_capacity = INCR_DATA_START_BYTES,
+        .data = malloc(INCR_DATA_START_BYTES),
+    };
+    expect(it->data);
+
+    it_dbg(it, "Starting transfer\n");
+    it_add(&it_list, it);
+
+    // Signal readiness for chunks
+    XDeleteProperty(dpy, win, pe->atom);
+}
+
+/**
+ * Continue receiving data during an INCR transfer.
+ */
+static void incr_receive_data(const XPropertyEvent *pe,
+                              struct incr_transfer *it) {
+    if (pe->state != PropertyNewValue) {
+        return;
+    }
+
+    it_dbg(it, "Receiving chunk (bytes buffered: %zu)\n", it->data_size);
+
+    _drop_(XFree) unsigned char *chunk = NULL;
+    Atom actual_type;
+    int actual_format;
+    unsigned long nitems, bytes_after;
+    XGetWindowProperty(dpy, win, pe->atom, 0, LONG_MAX, False, AnyPropertyType,
+                       &actual_type, &actual_format, &nitems, &bytes_after,
+                       &chunk);
+
+    size_t chunk_size = nitems * (actual_format / 8);
+
+    if (chunk_size == 0) {
+        it_dbg(it, "Transfer complete\n");
+        incr_receive_finish(it);
+        return;
+    }
+
+    if (it->data_size + chunk_size > it->data_capacity) {
+        it->data_capacity = (it->data_size + chunk_size) * 2;
+        it->data = realloc(it->data, it->data_capacity);
+        expect(it->data);
+        it_dbg(it, "Expanded data buffer to %zu bytes\n", it->data_capacity);
+    }
+
+    memcpy(it->data + it->data_size, chunk, chunk_size);
+    it->data_size += chunk_size;
+
+    // Signal readiness for next chunk
+    XDeleteProperty(dpy, win, pe->atom);
+}
+
+/**
+ * Something changed in our clip storage atoms. Work out whether we want to
+ * store the new content as a clipboard entry.
+ */
+static int handle_property_notify(const XPropertyEvent *pe) {
+    if (pe->state != PropertyNewValue && pe->state != PropertyDelete) {
+        return -EINVAL;
+    }
+
+    // Check if this property corresponds to an INCR transfer in progress
+    struct incr_transfer *it = it_list;
+    while (it) {
+        if (it->property == pe->atom && it->requestor == pe->window) {
+            break;
+        }
+        it = it->next;
+    }
+
+    if (it) {
+        incr_receive_data(pe, it);
+        return 0;
+    }
+
+    // Not an INCR transfer in progress. Check if this is an INCR transfer
+    // starting
+    Atom actual_type;
+    int actual_format;
+    unsigned long nitems, bytes_after;
+    _drop_(XFree) unsigned char *prop = NULL;
+
+    XGetWindowProperty(dpy, win, pe->atom, 0, 0, False, AnyPropertyType,
+                       &actual_type, &actual_format, &nitems, &bytes_after,
+                       &prop);
+
+    if (actual_type == incr_atom) {
+        incr_receive_start(pe);
+    } else {
+        dbg("Received non-INCR PropertyNotify\n");
+
+        // store_clip will take care of freeing this later when it's gone from
+        // last_text.
+        char *text = get_clipboard_text(pe->atom);
+        if (!text) {
+            dbg("Failed to get clipboard text\n");
+            return -EINVAL;
+        }
+        char line[CS_SNIP_LINE_SIZE];
+        first_line(text, line);
+        dbg("First line: %s\n", line);
+
+        if (is_salient_text(text)) {
+            uint64_t hash = store_clip(text);
+            maybe_trim();
+            /* We only own CLIPBOARD because otherwise the behaviour is wonky:
+             *
+             *  1. When you select in a browser and press ^V, it repastes what
+             *     you have selected instead of the previous content
+             *  2. urxvt and some other terminal emulators will unhilight on
+             *     PRIMARY ownership being taken away from them
+             */
+            enum selection_type sel =
+                storage_atom_to_selection_type(pe->atom, sels);
+            if (cfg.owned_selections[sel].active && cfg.own_clipboard) {
+                run_clipserve(hash);
+            }
+        } else {
+            dbg("Clipboard text is whitespace only, ignoring\n");
+            XFree(text);
+        }
     }
 
     return 0;
@@ -323,6 +460,18 @@ static int handle_x11_event(int evt_base) {
 /**
  * Continuously wait for and process X11 or signal events until we fully
  * process success or failure for a clip.
+ *
+ * The usual sequence is:
+ *
+ * 1. Get an XFixesSelectionNotify that we have a new selection.
+ * 2. Call XConvertSelection() on it to get a string in our prop.
+ * 3. Wait for a PropertyNotify that says that's ready.
+ * 4. When it's ready, store it, and return from the function.
+ *
+ * Another possible outcome, especially when trying to get the initial state at
+ * startup, is that we get a SelectionNotify even with owner == None, which
+ * means the selection is unowned. At that point we also return, since it's
+ * clear that an explicit request has been nacked.
  */
 static int get_one_clip(int evt_base) {
     while (1) {
@@ -406,6 +555,8 @@ int main(int argc, char *argv[]) {
     die_on(!(dpy = XOpenDisplay(NULL)), "Cannot open display\n");
     win = DefaultRootWindow(dpy);
     setup_selections(dpy, sels);
+
+    incr_atom = XInternAtom(dpy, "INCR", False);
 
     sigset_t mask;
     sigemptyset(&mask);
