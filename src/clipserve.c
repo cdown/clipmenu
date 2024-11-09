@@ -12,11 +12,11 @@
 #include "util.h"
 #include "x.h"
 
-#define INCR_CHUNK_BYTES 4096
-
 static struct incr_transfer *it_list = NULL;
 static Display *dpy;
 static Atom incr_atom;
+
+static size_t chunk_size;
 
 /**
  * Start an INCR transfer.
@@ -37,7 +37,6 @@ static void incr_send_start(XSelectionRequestEvent *req,
         .data = (char *)content->data,
         .data_size = content->size,
         .offset = 0,
-        .chunk_size = INCR_CHUNK_BYTES,
     };
 
     it_dbg(it, "Starting transfer\n");
@@ -70,19 +69,19 @@ static void incr_send_chunk(const XPropertyEvent *pe) {
     while (it) {
         if (it->requestor == pe->window && it->property == pe->atom) {
             size_t remaining = it->data_size - it->offset;
-            size_t chunk_size =
-                (remaining > it->chunk_size) ? it->chunk_size : remaining;
+            size_t this_chunk_size =
+                (remaining > chunk_size) ? chunk_size : remaining;
 
             it_dbg(it,
                    "Sending chunk (bytes sent: %zu, bytes remaining: %zu)\n",
                    it->offset, remaining);
 
-            if (chunk_size > 0) {
+            if (this_chunk_size > 0) {
                 XChangeProperty(dpy, it->requestor, it->property, it->target,
                                 it->format, PropModeReplace,
                                 (unsigned char *)(it->data + it->offset),
-                                chunk_size);
-                it->offset += chunk_size;
+                                this_chunk_size);
+                it->offset += this_chunk_size;
             } else {
                 incr_send_finish(it);
             }
@@ -106,6 +105,8 @@ static void _nonnull_ serve_clipboard(uint64_t hash,
 
     dpy = XOpenDisplay(NULL);
     expect(dpy);
+
+    chunk_size = get_chunk_size(dpy);
 
     win = XCreateSimpleWindow(dpy, DefaultRootWindow(dpy), 0, 0, 1, 1, 0, 0, 0);
     XStoreName(dpy, win, "clipserve");
@@ -147,7 +148,7 @@ static void _nonnull_ serve_clipboard(uint64_t hash,
                                     arrlen(available_targets));
                 } else if (req->target == utf8_string ||
                            req->target == XA_STRING) {
-                    if (content->size <= INCR_CHUNK_BYTES) {
+                    if (content->size < (off_t)chunk_size) {
                         // Data size is small enough, send directly
                         XChangeProperty(dpy, req->requestor, req->property,
                                         req->target, 8, PropModeReplace,
