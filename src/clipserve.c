@@ -4,13 +4,93 @@
 #include <inttypes.h>
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include "config.h"
 #include "store.h"
 #include "util.h"
 #include "x.h"
 
+#define INCR_CHUNK_BYTES 4096
+
+static struct incr_transfer *it_list = NULL;
 static Display *dpy;
+static Atom incr_atom;
+
+/**
+ * Start an INCR transfer.
+ */
+static void incr_send_start(XSelectionRequestEvent *req,
+                            struct cs_content *content) {
+    long incr_size = content->size;
+    XChangeProperty(dpy, req->requestor, req->property, incr_atom, 32,
+                    PropModeReplace, (unsigned char *)&incr_size, 1);
+
+    struct incr_transfer *it = malloc(sizeof(struct incr_transfer));
+    expect(it);
+    *it = (struct incr_transfer){
+        .requestor = req->requestor,
+        .property = req->property,
+        .target = req->target,
+        .format = 8,
+        .data = (char *)content->data,
+        .data_size = content->size,
+        .offset = 0,
+        .chunk_size = INCR_CHUNK_BYTES,
+    };
+
+    it_dbg(it, "Starting transfer\n");
+    it_add(&it_list, it);
+
+    // Listen for PropertyNotify events on the requestor window
+    XSelectInput(dpy, it->requestor, PropertyChangeMask);
+}
+
+/**
+ * Finish an INCR transfer.
+ */
+static void incr_send_finish(struct incr_transfer *it) {
+    XChangeProperty(dpy, it->requestor, it->property, it->target, it->format,
+                    PropModeReplace, NULL, 0);
+    it_dbg(it, "Transfer complete\n");
+    it_remove(&it_list, it);
+    free(it);
+}
+
+/**
+ * Continue sending data during an INCR transfer.
+ */
+static void incr_send_chunk(const XPropertyEvent *pe) {
+    if (pe->state != PropertyDelete) {
+        return;
+    }
+
+    struct incr_transfer *it = it_list;
+    while (it) {
+        if (it->requestor == pe->window && it->property == pe->atom) {
+            size_t remaining = it->data_size - it->offset;
+            size_t chunk_size =
+                (remaining > it->chunk_size) ? it->chunk_size : remaining;
+
+            it_dbg(it,
+                   "Sending chunk (bytes sent: %zu, bytes remaining: %zu)\n",
+                   it->offset, remaining);
+
+            if (chunk_size > 0) {
+                XChangeProperty(dpy, it->requestor, it->property, it->target,
+                                it->format, PropModeReplace,
+                                (unsigned char *)(it->data + it->offset),
+                                chunk_size);
+                it->offset += chunk_size;
+            } else {
+                incr_send_finish(it);
+            }
+            break;
+        }
+        it = it->next;
+    }
+}
 
 /**
  * Serve clipboard content for all X11 selection requests until all selections
@@ -31,6 +111,7 @@ static void _nonnull_ serve_clipboard(uint64_t hash,
     XStoreName(dpy, win, "clipserve");
     targets = XInternAtom(dpy, "TARGETS", False);
     utf8_string = XInternAtom(dpy, "UTF8_STRING", False);
+    incr_atom = XInternAtom(dpy, "INCR", False);
 
     selections[1] = XInternAtom(dpy, "CLIPBOARD", False);
     for (size_t i = 0; i < arrlen(selections); i++) {
@@ -66,10 +147,16 @@ static void _nonnull_ serve_clipboard(uint64_t hash,
                                     arrlen(available_targets));
                 } else if (req->target == utf8_string ||
                            req->target == XA_STRING) {
-                    XChangeProperty(dpy, req->requestor, req->property,
-                                    req->target, 8, PropModeReplace,
-                                    (unsigned char *)content->data,
-                                    (int)content->size);
+                    if (content->size <= INCR_CHUNK_BYTES) {
+                        // Data size is small enough, send directly
+                        XChangeProperty(dpy, req->requestor, req->property,
+                                        req->target, 8, PropModeReplace,
+                                        (unsigned char *)content->data,
+                                        (int)content->size);
+                    } else {
+                        // Initiate INCR transfer
+                        incr_send_start(req, content);
+                    }
                 } else {
                     sev.property = None;
                 }
@@ -86,6 +173,10 @@ static void _nonnull_ serve_clipboard(uint64_t hash,
                         "\n",
                         remaining_selections, hash);
                 }
+                break;
+            }
+            case PropertyNotify: {
+                incr_send_chunk(&evt.xproperty);
                 break;
             }
         }
