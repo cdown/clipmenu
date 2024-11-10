@@ -1,4 +1,6 @@
-#!/usr/bin/bash -ex
+#!/usr/bin/env bash
+
+set -ex
 
 if ! (( NO_PID_NAMESPACE )) && (( EUID )); then
     export _UNSHARED=1
