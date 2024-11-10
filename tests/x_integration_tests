@@ -131,6 +131,14 @@ check_nr_clips 3
 [[ $(clipdel -dv a) == foo ]]
 check_nr_clips 2
 
+# Test literal match
+primary '*foo'
+settle
+check_nr_clips 3
+
+[[ $(clipdel -dF '*') == '*foo' ]]
+check_nr_clips 2
+
 # Check selecting starts serving
 xsel -pc
 
