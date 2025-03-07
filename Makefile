@@ -92,4 +92,13 @@ $(h_analyse_targets): %-analyse:
 	clang-tidy $< --quiet -checks=-clang-analyzer-unix.Malloc -- -std=gnu99
 	clang-format --dry-run --Werror $<
 
-.PHONY: all debug install uninstall clean analyse
+tests: tests/test_store
+	tests/test_store
+
+integration_tests:
+	tests/x_integration_tests
+
+tests/test_store: tests/test_store.c src/store.o src/util.o
+	$(CC) $(CFLAGS) $(CPPFLAGS) -I./src -o $@ $^ $(LDLIBS)
+
+.PHONY: all debug install uninstall clean analyse tests integration_tests
