@@ -69,6 +69,7 @@ static bool _nonnull_ should_enable(struct config *cfg, const char *mode_str) {
 
 int main(int argc, char *argv[]) {
     _drop_(config_free) struct config cfg = setup("clipctl");
+    exec_man_on_help(argc, argv);
     die_on(argc != 2, "Usage: clipctl <enable|disable|toggle|status>\n");
 
     pid_t pid = get_clipmenud_pid();

@@ -174,6 +174,7 @@ int main(int argc, char *argv[]) {
     dmenu_user_argv = argv;
 
     _drop_(config_free) struct config cfg = setup("clipmenu");
+    exec_man_on_help(argc, argv);
 
     uint64_t hash;
     int dmenu_exit_code = prompt_user_for_hash(&cfg, &hash);
