@@ -7,6 +7,8 @@ CPPFLAGS += -I/usr/X11R6/include -L/usr/X11R6/lib
 LDLIBS += -lX11 -lXfixes
 PREFIX ?= /usr/local
 bindir := $(PREFIX)/bin
+datarootdir := $(PREFIX)/share
+mandir := $(datarootdir)/man
 systemd_user_dir = $(DESTDIR)$(PREFIX)/lib/systemd/user
 debug_cflags := -D_FORTIFY_SOURCE=2 -fsanitize=leak -fsanitize=address \
 	        -fsanitize=undefined -Og -ggdb -fno-omit-frame-pointer \
@@ -14,6 +16,9 @@ debug_cflags := -D_FORTIFY_SOURCE=2 -fsanitize=leak -fsanitize=address \
 c_files := $(wildcard src/*.c)
 h_files := $(wildcard src/*.h)
 libs := $(filter $(c_files:.c=.o), $(h_files:.h=.o))
+
+man1_files = clipctl.1 clipdel.1 clipmenu.1 clipmenud.1 clipserve.1
+man5_files = clipmenu.conf.5
 
 bins := clipctl clipmenud clipdel clipserve clipmenu
 
@@ -29,6 +34,13 @@ debug: all
 debug: CFLAGS+=$(debug_cflags)
 
 install: all
+	@for f in $(man1_files); do \
+		install -Dp -m 644 man/$$f $(DESTDIR)$(mandir)/man1/$$f; \
+	done
+	@for f in $(man5_files); do \
+		install -Dp -m 644 man/$$f $(DESTDIR)$(mandir)/man5/$$f; \
+	done
+
 	mkdir -p $(DESTDIR)$(bindir)/
 	install -pt $(DESTDIR)$(bindir)/ $(addprefix src/,$(bins))
 	mkdir -p $(systemd_user_dir)

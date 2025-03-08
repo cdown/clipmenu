@@ -1,0 +1,32 @@
+.TH CLIPMENUD 1
+.SH NAME
+clipmenud \- daemon for clipboard monitoring and storage
+.SH DESCRIPTION
+.B clipmenud
+runs in the background, monitoring X11 clipboard selections (including PRIMARY,
+CLIPBOARD, and SECONDARY). It stores new clipboard entries into a persistent
+clip store. clipmenud responds to signals sent by
+.BR clipctl
+to enable or disable clipboard collection.
+.SH OPTIONS
+.TP
+.B \-h, \--help
+Display the help message (invokes the manual page).
+.SH CONFIGURATION
+See
+.BR clipmenu.conf (5).
+.SH DEPENDENCIES
+clipmenud requires an X11 environment with the XFixes extension and access to the clip store directory as defined in the configuration.
+.SH SEE ALSO
+.BR clipctl (1),
+.BR clipdel (1),
+.BR clipmenu (1),
+.BR clipmenu.conf (5)
+.SH AUTHOR
+Chris Down
+.MT chris@chrisdown.name
+.ME
+.SH REPORTING BUGS
+Please send bug reports to
+.UR https://github.com/cdown/clipmenu/issues
+.UE .
