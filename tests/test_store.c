@@ -1,3 +1,5 @@
+#undef NDEBUG
+
 #include <assert.h>
 #include <dirent.h>
 #include <errno.h>
