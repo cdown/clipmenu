@@ -63,6 +63,9 @@ struct config_entry {
 
 char *get_cache_dir(struct config *cfg);
 
+void exec_man(void);
+void exec_man_on_help(int argc, char *argv[]);
+
 /**
  * Define a function that generates and caches a path within the application's
  * cache directory.

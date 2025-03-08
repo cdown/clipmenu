@@ -588,6 +588,7 @@ int main(int argc, char *argv[]) {
     int evt_base;
 
     cfg = setup("clipmenud");
+    exec_man_on_help(argc, argv);
 
     _drop_(close) int session_fd =
         open(get_session_lock_path(&cfg), O_WRONLY | O_CREAT | O_CLOEXEC, 0600);

@@ -202,6 +202,7 @@ static void _nonnull_ serve_clipboard(uint64_t hash,
 int main(int argc, char *argv[]) {
     die_on(argc != 2, "Usage: clipserve [hash]\n");
     _drop_(config_free) struct config cfg = setup("clipserve");
+    exec_man_on_help(argc, argv);
 
     uint64_t hash;
     expect(str_to_hex64(argv[1], &hash) == 0);

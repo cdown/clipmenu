@@ -70,7 +70,7 @@ int main(int argc, char *argv[]) {
     };
 
     int opt;
-    while ((opt = getopt(argc, argv, "dFv")) != -1) {
+    while ((opt = getopt(argc, argv, "dFvh")) != -1) {
         switch (opt) {
             case 'd':
                 state.mode = DELETE_REAL;
@@ -80,6 +80,9 @@ int main(int argc, char *argv[]) {
                 break;
             case 'v':
                 state.invert_match = true;
+                break;
+            case 'h':
+                exec_man();
                 break;
             default:
                 die("%s\n", usage);

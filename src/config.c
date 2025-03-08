@@ -386,3 +386,19 @@ storage_atom_to_selection_type(Atom atom, const struct cm_selections *sels) {
     }
     return CM_SEL_INVALID;
 }
+
+void exec_man(void) {
+    execlp("man", "man", prog_name, NULL);
+    die("Failed to exec man: %s\n", strerror(errno));
+}
+
+// cppcheck doesn't know this comes from an outside type
+// cppcheck-suppress [constParameter,unmatchedSuppression]
+void exec_man_on_help(int argc, char *argv[]) {
+    for (int i = 1; i < argc; i++) {
+        if (streq(argv[i], "--"))
+            break;
+        if (streq(argv[i], "-h") || streq(argv[i], "--help"))
+            exec_man();
+    }
+}
