@@ -1,5 +1,4 @@
-clipmenu is a simple clipboard manager using [dmenu][] (or [rofi][] with
-`CM_LAUNCHER=rofi`) and [xsel][].
+clipmenu is a simple clipboard manager using [dmenu][], [rofi][] or similar.
 
 # Demo
 
@@ -31,12 +30,15 @@ invoke clipmenu in exactly the same way to get the same effect, like so:
     clipmenu -i -fn Terminus:size=8 -nb '#002b36' -nf '#839496' -sb '#073642' -sf '#93a1a1'
 
 For a full list of environment variables that clipmenud can take, please see
-`clipmenud --help`.
+`man clipmenud`.
+
+There is also `clipdel` to delete clips, and `clipctl` to enable or disable
+clipboard monitoring.
 
 # Features
 
-The behavior of `clipmenud` can be customized through environment variables.
-Despite being only <300 lines, clipmenu has many useful features, including:
+The behavior of `clipmenud` can be customized through a config file. As some
+examples of things you can change:
 
 * Customising the maximum number of clips stored (default 1000)
 * Disabling clip collection temporarily with `clipctl disable`, reenabling with
@@ -46,10 +48,8 @@ Despite being only <300 lines, clipmenu has many useful features, including:
 * Taking direct ownership of the clipboard
 * ...and much more.
 
-Check `clipmenud --help` to view all possible environment variables and what
-they do. If you manage `clipmenud` with `systemd`, you can override the
-defaults by using `systemctl --user edit clipmenud` to generate an override
-file.
+See `man clipmenu.conf` to view all possible configuration variables and what
+they do.
 
 # Supported launchers
 
@@ -59,8 +59,6 @@ configurations that are known to work:
 - `dmenu` (the default)
 - `fzf`
 - `rofi`
-- `rofi-script`, for [rofi's script
-  mode](https://github.com/davatorium/rofi-scripts/tree/master/mode-scripts)
 
 # Installation
 
@@ -70,29 +68,24 @@ package called `clipmenu`.
 ## Manual installation
 
 If your distribution doesn't provide a package, you can manually install using
-`make install` (or better yet, create a package for your distribution!). You
-will need `xsel` and `clipnotify` installed, and also `dmenu` unless you plan
-to use a different launcher.
+`make install` (or better yet, create a package for your distribution!).
 
 # How does it work?
 
-clipmenud is less than 300 lines, and clipmenu is less than 100, so hopefully
-it should be fairly self-explanatory. However, at the most basic level:
-
 ## clipmenud
 
-1. `clipmenud` uses [clipnotify](https://github.com/cdown/clipnotify) to wait
-   for new clipboard events.
+1. clipmenud passively monitors X11 clipboard selections (PRIMARY, CLIPBOARD,
+   and SECONDARY) for changes using XFixes (no polling).
 2. If `clipmenud` detects changes to the clipboard contents, it writes them out
-   to the cache directory and an index using a hash as the filename.
+   to storage and indexes using a hash as the filename.
 
 ## clipmenu
 
 1. `clipmenu` reads the index to find all available clips.
-2. `dmenu` is executed to allow the user to select a clip.
+2. `dmenu` (or another configured launcher) is executed to allow the user to
+   select a clip.
 3. After selection, the clip is put onto the PRIMARY and CLIPBOARD X
    selections.
 
 [dmenu]: http://tools.suckless.org/dmenu/
 [rofi]: https://github.com/DaveDavenport/Rofi
-[xsel]: http://www.vergenet.net/~conrad/software/xsel/
