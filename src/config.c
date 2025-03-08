@@ -213,8 +213,9 @@ static int config_parse_file(FILE *file, struct config_entry entries[],
     while (fgets(line, sizeof(line), file)) {
         const char *key = strtok(line, " ");
         char *value = strtok(NULL, "\n");
-        if (!key || !value)
+        if (!key || !value) {
             continue;
+        }
 
         for (size_t i = 0; i < entries_len; ++i) {
             if (!entries[i].is_set && streq(entries[i].config_key, key)) {
@@ -398,9 +399,11 @@ void exec_man(void) {
 // cppcheck-suppress [constParameter,unmatchedSuppression]
 void exec_man_on_help(int argc, char *argv[]) {
     for (int i = 1; i < argc; i++) {
-        if (streq(argv[i], "--"))
+        if (streq(argv[i], "--")) {
             break;
-        if (streq(argv[i], "-h") || streq(argv[i], "--help"))
+        }
+        if (streq(argv[i], "-h") || streq(argv[i], "--help")) {
             exec_man();
+        }
     }
 }

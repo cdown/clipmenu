@@ -47,8 +47,9 @@ int xerror_handler(Display *dpy _unused_, XErrorEvent *ee) {
         (ee->request_code == X_ConfigureWindow && ee->error_code == BadMatch) ||
         (ee->request_code == X_GrabButton && ee->error_code == BadAccess) ||
         (ee->request_code == X_GrabKey && ee->error_code == BadAccess) ||
-        (ee->request_code == X_CopyArea && ee->error_code == BadDrawable))
+        (ee->request_code == X_CopyArea && ee->error_code == BadDrawable)) {
         return 0;
+    }
     die("X error with request code=%d, error code=%d\n", ee->request_code,
         ee->error_code);
 }
