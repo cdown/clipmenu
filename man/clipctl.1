@@ -1,0 +1,50 @@
+.TH CLIPCTL 1
+.SH NAME
+clipctl \- control the clipmenud daemon
+.SH SYNOPSIS
+.B clipctl
+ACTION
+.SH DESCRIPTION
+.B clipctl
+communicates with the clipmenud daemon to control clipboard collection. It
+sends a signal to clipmenud so that clipboard monitoring is enabled, disabled,
+or toggled, or it simply displays the current status.
+.SH OPTIONS
+.TP
+.B enable
+Instruct clipmenud to enable clipboard collection.
+.TP
+.B disable
+Instruct clipmenud to disable clipboard collection.
+.TP
+.B toggle
+Invert the current state of clipboard collection.
+.TP
+.B status
+Print the current state of clipboard collection.
+
+.TP
+clipctl also accepts one dash option:
+
+.B \-h, \--help
+Display the help message (invokes the manual page).
+.SH CONFIGURATION
+See
+.BR clipmenu.conf (5).
+.SH DEPENDENCIES
+clipctl requires a running instance of the
+.BR clipmenud
+daemon.
+.SH SEE ALSO
+.BR clipdel (1),
+.BR clipmenu (1),
+.BR clipmenud (1),
+.BR clipmenu.conf (5)
+.SH AUTHOR
+Chris Down
+.MT chris@chrisdown.name
+.ME
+.SH REPORTING BUGS
+Please send bug reports to
+.UR https://github.com/cdown/clipmenu/issues
+.UE .

@@ -1,0 +1,69 @@
+.TH CLIPMENU.CONF 5
+.SH NAME
+clipmenu.conf \- configuration file for clipmenu applications
+.SH DESCRIPTION
+clipmenu.conf defines the runtime settings for clipmenu applications (including
+clipmenu itself, clipmenud, clipctl, clipdel, and clipserve).
+.SH FORMAT
+Each non-comment line in clipmenu.conf consists of a key followed by one or
+more whitespace-separated values. Blank lines and lines starting with '#' are
+ignored.
+.SH CONFIGURATION OPTIONS
+.TP
+.B max_clips
+Specifies the maximum number of clipboard entries to retain in the clip store.
+Default: 1000.
+.TP
+.B max_clips_batch
+Provides a buffer above max_clips; when the number of entries exceeds
+(max_clips + max_clips_batch), the clip store is trimmed back to max_clips
+entries. Default: 100.
+.TP
+.B oneshot
+If set to 1, clipmenud processes clipboard selections only once before exiting.
+Default: 0.
+.TP
+.B own_clipboard
+Determines whether clipmenud should claim ownership of the X11 clipboard. Works
+together with own_selections. Default: 0.
+.TP
+.B own_selections
+Specifies which X11 selections (e.g., "clipboard" or "primary") clipmenud
+should actively own. Default: "clipboard".
+.TP
+.B selections
+Lists the X11 selections to monitor for changes. Valid values include
+"clipboard", "primary", and "secondary". Default: "clipboard primary".
+.TP
+.B ignore_window
+Defines a regular expression matching window titles to exclude from clipboard
+monitoring. Unset by default.
+.TP
+.B launcher
+Specifies the launcher command to use with clipmenu. Alternative choices
+include rofi's dmenu mode or a custom command. Default: "dmenu".
+.TP
+.B launcher_pass_dmenu_args
+When enabled, extra command-line arguments passed to clipmenu are forwarded to
+the launcher. Default: 1.
+.TP
+.B cm_dir
+Overrides the default directory for the clip store. This is by default at a
+subdirectory inside XDG_RUNTIME_DIR, TMPDIR, or if both are unset, inside /tmp.
+.SH FILE LOCATION
+Typically, clipmenu.conf is located at
+.BR ~/.config/clipmenu/clipmenu.conf
+.
+.SH SEE ALSO
+.BR clipctl (1),
+.BR clipdel (1),
+.BR clipmenu (1),
+.BR clipmenud (1),
+.SH AUTHOR
+Chris Down
+.MT chris@chrisdown.name
+.ME
+.SH REPORTING BUGS
+Please send bug reports to
+.UR https://github.com/cdown/clipmenu/issues
+.UE .

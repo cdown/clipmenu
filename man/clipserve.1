@@ -1,0 +1,40 @@
+.TH CLIPSERVE 1
+.SH NAME
+clipserve \- serve a selected clipboard entry to X11 selections
+.SH SYNOPSIS
+.B clipserve
+<hash>
+.SH DESCRIPTION
+.B clipserve
+serves the clipboard content identified by a hash from the clip store on the
+X11 clipboard.
+
+This program is not usually invoked directly, but is instead called from inside
+other clipmenu applications.
+.SH OPTIONS
+.TP
+.B \-h, \--help
+Display the help message (invokes the manual page).
+.TP
+clipserve requires exactly one argument, which is the hash of the clipboard
+entry to be served.
+.SH CONFIGURATION
+See
+.BR clipmenu.conf (5).
+.SH DEPENDENCIES
+clipserve needs a valid clip store and an operational X11 environment to
+function correctly.
+.SH SEE ALSO
+.BR clipctl (1),
+.BR clipdel (1),
+.BR clipmenu (1),
+.BR clipmenud (1),
+.BR clipmenu.conf (5)
+.SH AUTHOR
+Chris Down
+.MT chris@chrisdown.name
+.ME
+.SH REPORTING BUGS
+Please send bug reports to
+.UR https://github.com/cdown/clipmenu/issues
+.UE .
