@@ -17,6 +17,17 @@ Real deletion mode. Matching clipboard entries will be removed.
 .B \-F
 Perform a literal (fixed-string) match instead of interpreting the pattern as a regular expression.
 .TP
+.B \-N
+Interpret PATTERN as the amount of entries to delete starting from the oldest.
+E.g
+.I "\-N 1"
+deletes the oldest entry.
+.TP
+.B \-n
+Same as
+.B \-N
+but starting from newest.
+.TP
 .B \-v
 Invert the matching condition; entries that do not match the given pattern are selected for deletion.
 .TP

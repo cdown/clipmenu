@@ -24,6 +24,8 @@ enum delete_mode {
 enum match_type {
     MATCH_REGEX,
     MATCH_LITERAL,
+    MATCH_COUNT_NEWEST,
+    MATCH_COUNT_OLDEST,
 };
 
 /**
@@ -37,6 +39,10 @@ struct clipdel_state {
     union {
         regex_t rgx;
         const char *needle;
+        struct {
+            uint64_t current;
+            uint64_t num_delete;
+        } count;
     };
 };
 
@@ -59,6 +65,15 @@ static enum cs_remove_action _nonnull_ remove_if_match(uint64_t hash _unused_,
             expect(ret == 0 || ret == REG_NOMATCH);
             matches = ret == 0;
             break;
+        case MATCH_COUNT_NEWEST:
+        case MATCH_COUNT_OLDEST:
+            if (state->count.current < state->count.num_delete) {
+                matches = true;
+                ++state->count.current;
+            } else {
+                matches = false;
+            }
+            break;
         default:
             die("unreachable\n");
     }
@@ -73,20 +88,26 @@ static enum cs_remove_action _nonnull_ remove_if_match(uint64_t hash _unused_,
 }
 
 int main(int argc, char *argv[]) {
-    const char usage[] = "Usage: clipdel [-d] [-F] [-v] pattern";
+    const char usage[] = "Usage: clipdel [-d] [-F] [-N] [-n] [-v] pattern";
 
     _drop_(config_free) struct config cfg = setup("clipdel");
 
     struct clipdel_state state = {0};
 
     int opt;
-    while ((opt = getopt(argc, argv, "dFvh")) != -1) {
+    while ((opt = getopt(argc, argv, "dFNnvh")) != -1) {
         switch (opt) {
             case 'd':
                 state.mode = DELETE_REAL;
                 break;
             case 'F':
                 state.type = MATCH_LITERAL;
+                break;
+            case 'N':
+                state.type = MATCH_COUNT_OLDEST;
+                break;
+            case 'n':
+                state.type = MATCH_COUNT_NEWEST;
                 break;
             case 'v':
                 state.invert_match = true;
@@ -109,6 +130,7 @@ int main(int argc, char *argv[]) {
     _drop_(cs_destroy) struct clip_store cs;
     expect(cs_init(&cs, snip_fd, content_dir_fd) == 0);
 
+    enum cs_iter_direction direction = CS_ITER_OLDEST_FIRST;
     switch (state.type) {
         case MATCH_REGEX:
             die_on(regcomp(&state.rgx, argv[optind], REG_EXTENDED | REG_NOSUB),
@@ -117,11 +139,20 @@ int main(int argc, char *argv[]) {
         case MATCH_LITERAL:
             state.needle = argv[optind];
             break;
+        case MATCH_COUNT_NEWEST:
+        case MATCH_COUNT_OLDEST:
+            die_on(str_to_uint64(argv[optind], &state.count.num_delete) < 0,
+                   "Bad argument, expected integer: %s\n", argv[optind]);
+            state.count.current = 0;
+            if (state.type == MATCH_COUNT_NEWEST) {
+                direction = CS_ITER_NEWEST_FIRST;
+            }
+            break;
         default:
             die("unreachable\n");
     }
 
-    expect(cs_remove(&cs, CS_ITER_OLDEST_FIRST, remove_if_match, &state) == 0);
+    expect(cs_remove(&cs, direction, remove_if_match, &state) == 0);
 
     if (state.type == MATCH_REGEX) {
         regfree(&state.rgx);

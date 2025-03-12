@@ -147,6 +147,25 @@ check_nr_clips 3
 [[ $(clipdel -dF '*') == '*foo' ]]
 check_nr_clips 2
 
+# Test -n
+primary latest
+settle
+check_nr_clips 3
+
+# Should delete the newest entry
+[[ $(clipdel -dn 1) == 'latest' ]]
+check_nr_clips 2
+
+# Test -N
+primary wibble
+primary wobble
+settle
+check_nr_clips 4
+
+# Should delete everything other than the oldest 2 entries
+[[ $(clipdel -dvN 2) == $'wibble\nwobble' ]]
+check_nr_clips 2
+
 # Check selecting starts serving
 xsel -pc
 
