@@ -533,7 +533,7 @@ int cs_content_get(struct clip_store *cs, uint64_t hash,
  * @cs: The clip store to operate on
  * @hash: The hash of the entry to move
  */
-static int cs_make_newest(struct clip_store *cs, uint64_t hash) {
+int cs_make_newest(struct clip_store *cs, uint64_t hash) {
     _drop_(cs_unref) struct ref_guard guard = cs_ref(cs);
     if (guard.status < 0) {
         return guard.status;

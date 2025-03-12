@@ -287,6 +287,7 @@ int config_setup_internal(FILE *file, struct config *cfg) {
          0},
         {"launcher_pass_dmenu_args", "CM_LAUNCHER_PASS_DMENU_ARGS",
          &cfg->launcher_pass_dmenu_args, convert_bool, "1", 0},
+        {"touch_on_select", NULL, &cfg->touch_on_select, convert_bool, "0", 0},
         {"cm_dir", "CM_DIR", &cfg->runtime_dir, convert_cm_dir, NULL, 0}};
 
     size_t entries_len = arrlen(entries);

@@ -51,6 +51,7 @@ struct config {
     struct ignore_window ignore_window;
     struct launcher launcher;
     bool launcher_pass_dmenu_args;
+    bool touch_on_select;
 };
 typedef int (*conversion_func_t)(const char *, void *);
 struct config_entry {
