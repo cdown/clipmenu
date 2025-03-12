@@ -149,7 +149,11 @@ static int _nonnull_ interact_with_dmenu(struct config *cfg, int *input_pipe,
         return EXIT_FAILURE;
     }
 
-    return WEXITSTATUS(dmenu_status);
+    int dmenu_exit_code = WEXITSTATUS(dmenu_status);
+    if (dmenu_exit_code == EXIT_SUCCESS && cfg->touch_on_select) {
+        expect(cs_make_newest(&cs, *out_hash) == 0);
+    }
+    return dmenu_exit_code;
 }
 
 /**

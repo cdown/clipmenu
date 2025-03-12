@@ -47,6 +47,12 @@ include rofi's dmenu mode or a custom command. Default: "dmenu".
 When enabled, extra command-line arguments passed to clipmenu are forwarded to
 the launcher. Default: 1.
 .TP
+.B touch_on_select
+When an entry is selected via
+.BR clipmenu (1)
+it will also be moved up to the newest slot.
+Default: 0.
+.TP
 .B cm_dir
 Overrides the default directory for the clip store. This is by default at a
 subdirectory inside XDG_RUNTIME_DIR, TMPDIR, or if both are unset, inside /tmp.

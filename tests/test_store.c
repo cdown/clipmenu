@@ -649,6 +649,44 @@ static bool test__cs_add__dupe_keep_last_with_multiple_entries(void) {
     return true;
 }
 
+static bool check_order(struct clip_store *cs, uint64_t *order, size_t len) {
+    _drop_(cs_unref) struct ref_guard guard = cs_ref(cs);
+    struct cs_snip *snip = NULL;
+    for (size_t i = 0; i < len; ++i) {
+        bool iter_ret = cs_snip_iter(&guard, CS_ITER_NEWEST_FIRST, &snip);
+        t_assert(iter_ret == true);
+        t_assert(snip->hash == order[i]);
+    }
+    return 0;
+}
+
+/* After calling cs_make_newest make sure the entry is at the newest slot while
+ * other entries remain in order. */
+static bool test__cs_make_newest(void) {
+    _drop_(teardown_test) struct clip_store cs = setup_test();
+
+    uint64_t hash_a, hash_b, hash_c;
+    int ret = cs_add(&cs, "A", &hash_a, CS_DUPE_KEEP_ALL);
+    t_assert(ret == 0);
+    ret = cs_add(&cs, "B", &hash_b, CS_DUPE_KEEP_ALL);
+    t_assert(ret == 0);
+    ret = cs_add(&cs, "C", &hash_c, CS_DUPE_KEEP_ALL);
+    t_assert(ret == 0);
+    t_assert(cs.header->nr_snips == 3);
+
+    uint64_t order_before[3] = { hash_c, hash_b, hash_a };
+    ret = check_order(&cs, order_before, 3);
+    t_assert(ret == 0);
+    /* Now the order should change to ["A", "C", "B"] */
+    ret = cs_make_newest(&cs, hash_a);
+    t_assert(ret == 0);
+    uint64_t order_after[3] = { hash_a, hash_c, hash_b };
+    ret = check_order(&cs, order_after, 3);
+    t_assert(ret == 0);
+
+    return true;
+}
+
 int main(void) {
     t_run(test__cs_init);
     t_run(test__cs_init__bad_size);
@@ -676,6 +714,7 @@ int main(void) {
     t_run(test__cs_add__dupe_keep_all);
     t_run(test__cs_add__dupe_keep_last);
     t_run(test__cs_add__dupe_keep_last_with_multiple_entries);
+    t_run(test__cs_make_newest);
 
     return 0;
 }
