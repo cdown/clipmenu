@@ -19,13 +19,21 @@ enum delete_mode {
 };
 
 /**
+ * The match type for clipdel operations.
+ */
+enum match_type {
+    MATCH_REGEX,
+    MATCH_LITERAL,
+};
+
+/**
  * Holds the application state for a clipdel operation in preparation for
  * passing it as private data to the cs_remove callback.
  */
 struct clipdel_state {
     enum delete_mode mode;
+    enum match_type type;
     bool invert_match;
-    bool literal_match;
     union {
         regex_t rgx;
         const char *needle;
@@ -40,13 +48,19 @@ static enum cs_remove_action _nonnull_ remove_if_match(uint64_t hash _unused_,
                                                        const char *line,
                                                        void *private) {
     struct clipdel_state *state = private;
+    int ret;
     bool matches;
-    if (state->literal_match) {
-        matches = strstr(line, state->needle) != NULL;
-    } else {
-        int ret = regexec(&state->rgx, line, 0, NULL, 0);
-        expect(ret == 0 || ret == REG_NOMATCH);
-        matches = ret == 0;
+    switch (state->type) {
+        case MATCH_LITERAL:
+            matches = strstr(line, state->needle) != NULL;
+            break;
+        case MATCH_REGEX:
+            ret = regexec(&state->rgx, line, 0, NULL, 0);
+            expect(ret == 0 || ret == REG_NOMATCH);
+            matches = ret == 0;
+            break;
+        default:
+            die("unreachable\n");
     }
 
     bool wants_del = state->invert_match ? !matches : matches;
@@ -63,11 +77,7 @@ int main(int argc, char *argv[]) {
 
     _drop_(config_free) struct config cfg = setup("clipdel");
 
-    struct clipdel_state state = {
-        .mode = DELETE_DRY_RUN,
-        .invert_match = false,
-        .literal_match = false,
-    };
+    struct clipdel_state state = {0};
 
     int opt;
     while ((opt = getopt(argc, argv, "dFvh")) != -1) {
@@ -76,7 +86,7 @@ int main(int argc, char *argv[]) {
                 state.mode = DELETE_REAL;
                 break;
             case 'F':
-                state.literal_match = true;
+                state.type = MATCH_LITERAL;
                 break;
             case 'v':
                 state.invert_match = true;
@@ -99,16 +109,21 @@ int main(int argc, char *argv[]) {
     _drop_(cs_destroy) struct clip_store cs;
     expect(cs_init(&cs, snip_fd, content_dir_fd) == 0);
 
-    if (!state.literal_match) {
-        die_on(regcomp(&state.rgx, argv[optind], REG_EXTENDED | REG_NOSUB),
-               "Could not compile regex\n");
-    } else {
-        state.needle = argv[optind];
+    switch (state.type) {
+        case MATCH_REGEX:
+            die_on(regcomp(&state.rgx, argv[optind], REG_EXTENDED | REG_NOSUB),
+                   "Could not compile regex\n");
+            break;
+        case MATCH_LITERAL:
+            state.needle = argv[optind];
+            break;
+        default:
+            die("unreachable\n");
     }
 
     expect(cs_remove(&cs, CS_ITER_OLDEST_FIRST, remove_if_match, &state) == 0);
 
-    if (!state.literal_match) {
+    if (state.type == MATCH_REGEX) {
         regfree(&state.rgx);
     }
 
