@@ -216,6 +216,9 @@ static int config_parse_file(FILE *file, struct config_entry entries[],
         if (!key || !value) {
             continue;
         }
+        while (*value == ' ' || *value == '\t') {
+            value++;
+        }
 
         for (size_t i = 0; i < entries_len; ++i) {
             if (!entries[i].is_set && streq(entries[i].config_key, key)) {
