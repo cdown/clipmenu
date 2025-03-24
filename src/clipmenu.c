@@ -144,8 +144,8 @@ static int _nonnull_ interact_with_dmenu(struct config *cfg, int *input_pipe,
     wait(&dmenu_status);
     close(output_pipe[0]);
 
-    if (forced_ret) {
-        return forced_ret;
+    if (forced_ret || !WIFEXITED(dmenu_status)) {
+        return EXIT_FAILURE;
     }
 
     return WEXITSTATUS(dmenu_status);
