@@ -141,7 +141,8 @@ static int _nonnull_ interact_with_dmenu(struct config *cfg, int *input_pipe,
     }
 
     int dmenu_status;
-    wait(&dmenu_status);
+    while (wait(&dmenu_status) < 0 && errno == EINTR)
+        ;
     close(output_pipe[0]);
 
     if (forced_ret || !WIFEXITED(dmenu_status)) {
