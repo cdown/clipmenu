@@ -44,7 +44,8 @@ char *get_cache_dir(struct config *cfg) {
     // In case config changed, do the write anyway
     snprintf_safe(cache_dir, PATH_MAX, "%s/clipmenu.%d.%ld", cfg->runtime_dir,
                   CLIPMENU_VERSION, (long)getuid());
-    expect(mkdir(cache_dir, S_IRWXU) == 0 || errno == EEXIST);
+    die_on(mkdir(cache_dir, S_IRWXU) != 0 && errno != EEXIST,
+           "Failed to create directory: %s\n", cache_dir);
     return cache_dir;
 }
 
