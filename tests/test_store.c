@@ -146,7 +146,9 @@ static void drop_teardown_test(struct clip_store *cs) {
     int ret = cs_destroy(cs);
     assert(ret == 0);
     close(snip_fd);
+    shm_unlink(TEST_SNIP_FILE);
     close(content_dir_fd);
+    remove_test_content_dir(TEST_CONTENT_DIR);
 }
 
 static void add_ten_snips(struct clip_store *cs) {
