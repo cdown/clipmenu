@@ -29,10 +29,14 @@ static Window win;
 static int enabled = 1;
 static int sig_fd;
 
+static Atom timestamp_atom;
 static Atom incr_atom;
 static struct incr_transfer *it_list;
 
 static struct cm_selections sels[CM_SEL_MAX];
+
+static Time last_disable_time = 0;
+static Time last_enable_time = 0;
 
 enum clip_text_source {
     CLIP_TEXT_SOURCE_X,
@@ -58,6 +62,25 @@ static void free_clip_text(struct clip_text *ct) {
     }
 
     ct->source = CLIP_TEXT_SOURCE_INVALID;
+}
+
+/**
+ * Get the current X server time by triggering a PropertyNotify.
+ */
+static Time get_current_server_time(void) {
+    XEvent ev;
+    XChangeProperty(dpy, win, timestamp_atom, XA_INTEGER, 32, PropModeReplace,
+                    NULL, 0);
+    XSync(dpy, False);
+
+    while (1) {
+        XNextEvent(dpy, &ev);
+        if (ev.type == PropertyNotify && ev.xproperty.atom == timestamp_atom) {
+            XDeleteProperty(dpy, win, timestamp_atom);
+            return ev.xproperty.time;
+        }
+        XPutBackEvent(dpy, &ev);
+    }
 }
 
 /**
@@ -175,12 +198,25 @@ static void handle_signalfd_event(void) {
         si.ssi_pid);
     switch (si.ssi_signo) {
         case SIGUSR1:
+            // If we're already disabled, we need to keep the original
+            // timestamp to properly filter all events that were queued during
+            // any part of the disabled period.
+            if (enabled) {
+                last_disable_time = get_current_server_time();
+            }
             enabled = 0;
-            dbg("Clipboard collection disabled by signal\n");
+            dbg("Clipboard collection disabled by signal at time %lu\n",
+                (unsigned long)last_disable_time);
             break;
         case SIGUSR2:
+            // If we're already enabled, we need to keep the original timestamp
+            // so we don't mistakenly filter out valid messages.
+            if (!enabled) {
+                last_enable_time = get_current_server_time();
+            }
             enabled = 1;
-            dbg("Clipboard collection enabled by signal\n");
+            dbg("Clipboard collection enabled by signal at time %lu\n",
+                (unsigned long)last_enable_time);
             break;
     }
     write_status();
@@ -191,6 +227,14 @@ static void handle_signalfd_event(void) {
  * desired property type.
  */
 static void handle_xfixes_selection_notify(XFixesSelectionNotifyEvent *se) {
+    if (last_disable_time > 0 && se->timestamp >= last_disable_time &&
+        se->timestamp < last_enable_time) {
+        dbg("Ignoring selection event from disabled period (event time: %lu, disabled: %lu, enabled: %lu)\n",
+            (unsigned long)se->timestamp, (unsigned long)last_disable_time,
+            (unsigned long)last_enable_time);
+        return;
+    }
+
     enum selection_type sel =
         selection_atom_to_selection_type(se->selection, sels);
     if (sel == CM_SEL_INVALID) {
@@ -613,6 +657,7 @@ int main(int argc, char *argv[]) {
     setup_selections(dpy, sels);
 
     incr_atom = XInternAtom(dpy, "INCR", False);
+    timestamp_atom = XInternAtom(dpy, "CLIPMENUD_TIMESTAMP", False);
 
     sigset_t mask;
     sigemptyset(&mask);
