@@ -329,16 +329,18 @@ static void _nonnull_ cs_snip_update(struct cs_snip *snip, uint64_t hash,
 }
 
 /**
- * Computes a 64-bit DJB2-style hash for a given buffer.
+ * Computes a 64-bit FNV-1a hash for a given buffer.
  *
  * @buf: The input buffer to hash.
  */
-static uint64_t djb64_hash(const char *buf) {
+static uint64_t fnv1a_64_hash(const char *buf) {
+    const uint64_t fnv_offset_basis = 0xcbf29ce484222325ULL;
+    const uint64_t fnv_prime = 0x100000001b3ULL;
+    uint64_t hash = fnv_offset_basis;
     const uint8_t *src = (const uint8_t *)buf;
-    uint64_t hash = 5381;
-    uint8_t c;
-    while ((c = *src++)) {
-        hash = ((hash << 5) + hash) + c;
+    while (*src) {
+        hash ^= *src++;
+        hash *= fnv_prime;
     }
     return hash;
 }
@@ -561,7 +563,7 @@ int cs_make_newest(struct clip_store *cs, uint64_t hash) {
  */
 int cs_add(struct clip_store *cs, const char *content, uint64_t *out_hash,
            enum cs_dupe_policy dupe_policy) {
-    uint64_t hash = djb64_hash(content);
+    uint64_t hash = fnv1a_64_hash(content);
     char line[CS_SNIP_LINE_SIZE];
     size_t nr_lines = first_line(content, line);
 
@@ -792,7 +794,7 @@ int cs_replace(struct clip_store *cs, enum cs_iter_direction direction,
     }
     char line[CS_SNIP_LINE_SIZE];
     size_t nr_lines = first_line(content, line);
-    uint64_t hash = djb64_hash(content);
+    uint64_t hash = fnv1a_64_hash(content);
     cs_snip_update(snip, hash, line, nr_lines);
     ret = cs_content_add(cs, hash, content, CS_DUPE_KEEP_ALL);
     if (ret) {
