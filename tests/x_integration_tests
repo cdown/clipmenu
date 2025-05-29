@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 
-set -ex
+set -exE -o errtrace
+
+dump_cache() {
+    printf '\nTest failure: contents of cache:\n\n' >&2
+    cat "$l_out" >&2
+}
 
 if ! (( NO_PID_NAMESPACE )) && (( EUID )); then
     export _UNSHARED=1
@@ -25,6 +30,8 @@ export UBSAN_OPTIONS='halt_on_error=1:abort_on_error=1'
 
 launcher=$(mktemp)
 l_out=$(mktemp)
+
+trap dump_cache ERR
 
 cat > "$launcher" << EOF
 #!/bin/bash
