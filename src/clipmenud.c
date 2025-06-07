@@ -64,6 +64,13 @@ static void free_clip_text(struct clip_text *ct) {
     ct->source = CLIP_TEXT_SOURCE_INVALID;
 }
 
+// cppcheck-suppress [constParameterCallback,unmatchedSuppression]
+static Bool is_timestamp_event(Display *display _unused_, XEvent *event,
+                               XPointer arg) {
+    return event->type == PropertyNotify &&
+           event->xproperty.atom == *(Atom *)arg;
+}
+
 /**
  * Get the current X server time by triggering a PropertyNotify.
  */
@@ -71,16 +78,8 @@ static Time get_current_server_time(void) {
     XEvent ev;
     XChangeProperty(dpy, win, timestamp_atom, XA_INTEGER, 32, PropModeReplace,
                     NULL, 0);
-    XSync(dpy, False);
-
-    while (1) {
-        XNextEvent(dpy, &ev);
-        if (ev.type == PropertyNotify && ev.xproperty.atom == timestamp_atom) {
-            XDeleteProperty(dpy, win, timestamp_atom);
-            return ev.xproperty.time;
-        }
-        XPutBackEvent(dpy, &ev);
-    }
+    XIfEvent(dpy, &ev, is_timestamp_event, (XPointer)&timestamp_atom);
+    return ev.xproperty.time;
 }
 
 /**
