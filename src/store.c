@@ -410,6 +410,7 @@ static int _must_use_ _nonnull_
 cs_content_add(struct clip_store *cs, uint64_t hash, const char *content,
                enum cs_dupe_policy dupe_policy) {
     bool dupe = false;
+    size_t content_len = strlen(content);
 
     char dir_path[CS_HASH_STR_MAX];
     snprintf(dir_path, sizeof(dir_path), PRI_HASH, hash);
@@ -432,6 +433,12 @@ cs_content_add(struct clip_store *cs, uint64_t hash, const char *content,
             return negative_errno();
         }
 
+        if ((size_t)st.st_size != content_len) {
+            // Extremely unlikely with FNV-1a 64-bit outside of artificial
+            // scenarios, but never hurts to be careful...
+            return -EFAULT;
+        }
+
         size_t link_num = (size_t)st.st_nlink + 1;
         char linkpath[PATH_MAX];
         snprintf(linkpath, sizeof(linkpath), "%s/%zu", dir_path, link_num);
@@ -451,7 +458,7 @@ cs_content_add(struct clip_store *cs, uint64_t hash, const char *content,
     }
 
     const char *cur = content;
-    size_t remaining = strlen(content);
+    size_t remaining = content_len;
 
     while (remaining > 0) {
         ssize_t written = write(fd, cur, remaining);
