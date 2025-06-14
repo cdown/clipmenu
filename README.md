@@ -12,10 +12,11 @@ Start `clipmenud`, then run `clipmenu` to select something to put on the
 clipboard. For systemd users, a user service called `clipmenud` is packaged as
 part of the project.
 
-For those using a systemd unit and not using a desktop environment which does
-it automatically, you must import `$DISPLAY` so that `clipmenud` knows which X
-server to use. For example, in your `~/.xinitrc` do this prior to launching
-clipmenud:
+If you start X via `startx`/`xinit` and use the systemd user service, make sure
+`$DISPLAY` is set so clipmenud knows which X server to use. Most distributions
+include scripts in `/etc/X11/xinit/xinitrc.d/` for this, so if they are present
+you can usually just source them in your `~/.xinitrc`. Alternatively, before
+launching the clipmenud service, run:
 
     systemctl --user import-environment DISPLAY
 
