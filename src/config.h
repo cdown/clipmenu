@@ -52,6 +52,7 @@ struct config {
     struct launcher launcher;
     bool launcher_pass_dmenu_args;
     bool touch_on_select;
+    int partial_merge_secs;
 };
 typedef int (*conversion_func_t)(const char *, void *);
 struct config_entry {

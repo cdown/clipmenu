@@ -53,6 +53,13 @@ When an entry is selected via
 it will also be moved up to the newest slot.
 Default: 0.
 .TP
+.B partial_merge_secs
+Specifies the time window in seconds during which consecutive clipboard updates
+where the previous entry was a substring of the new one are merged together
+instead of being stored separately. This is useful for applications that
+incrementally update the clipboard (e.g. progressive text selection in
+browsers). Set to 0 to disable partial merging entirely. Default: 2.
+.TP
 .B cm_dir
 Overrides the default directory for the clip store. This is by default at a
 subdirectory inside XDG_RUNTIME_DIR, TMPDIR, or if both are unset, inside /tmp.

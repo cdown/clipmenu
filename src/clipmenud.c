@@ -290,11 +290,6 @@ static void maybe_trim(void) {
 }
 
 /**
- * Clips more than this many seconds apart are not considered for partial merge
- */
-#define PARTIAL_MAX_SECS 2
-
-/**
  * Store the clipboard text. If the text is a possible partial of the last clip
  * and it was received shortly afterwards, replace instead of adding.
  */
@@ -306,8 +301,8 @@ static uint64_t store_clip(struct clip_text *ct) {
     time_t current_time = time(NULL);
     uint64_t hash;
 
-    if (last_text.data &&
-        difftime(current_time, last_text_time) <= PARTIAL_MAX_SECS &&
+    if (cfg.partial_merge_secs > 0 && last_text.data &&
+        difftime(current_time, last_text_time) <= cfg.partial_merge_secs &&
         is_possible_partial(last_text.data, ct->data)) {
         dbg("Possible partial of last clip, replacing\n");
         expect(cs_replace(&cs, CS_ITER_NEWEST_FIRST, 0, ct->data, &hash) == 0);
