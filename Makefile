@@ -17,10 +17,10 @@ c_files := $(wildcard src/*.c)
 h_files := $(wildcard src/*.h)
 libs := $(filter $(c_files:.c=.o), $(h_files:.h=.o))
 
-man1_files = clipctl.1 clipdel.1 clipmenu.1 clipmenud.1 clipserve.1
+man1_files = clipctl.1 clipdel.1 clipdelmenu.1 clipmenu.1 clipmenud.1 clipserve.1
 man5_files = clipmenu.conf.5
 
-bins := clipctl clipmenud clipdel clipserve clipmenu
+bins := clipctl clipmenud clipdel clipdelmenu clipserve clipmenu
 
 all: $(addprefix src/,$(bins))
 

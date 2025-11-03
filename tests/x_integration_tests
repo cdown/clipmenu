@@ -173,6 +173,28 @@ check_nr_clips 4
 [[ $(clipdel -dvN 2) == $'wibble\nwobble' ]]
 check_nr_clips 2
 
+# Test clipdelmenu
+primary test1
+primary test2
+primary test3
+settle
+check_nr_clips 5
+
+# Should delete the selected entry
+SELECT='[4] test2' clipdelmenu
+settle
+check_nr_clips 4
+
+# Verify test2 is gone and test1, test3 remain
+clipmenu || true
+[[ "$(< "$l_out")" == *"test1"* ]]
+[[ "$(< "$l_out")" == *"test3"* ]]
+[[ "$(< "$l_out")" != *"test2"* ]]
+
+# Delete the others
+SELECT='[3] test1' clipdelmenu
+SELECT='[3] test3' clipdelmenu
+
 # Check selecting starts serving
 xsel -pc
 

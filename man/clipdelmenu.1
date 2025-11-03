@@ -1,0 +1,42 @@
+.TH CLIPDELMENU 1
+.SH NAME
+clipdelmenu \- interactive launcher for deleting clipboard entries
+.SH SYNOPSIS
+.B clipdelmenu
+[OPTION...]
+.SH DESCRIPTION
+.B clipdelmenu
+provides an interactive interface for browsing and deleting clipboard entries
+stored by clipmenud. It launches a menu using a configured launcher
+(e.g., dmenu, rofi, or another custom command) and displays a numbered list of
+stored clips. Once a selection is made, the chosen clip is permanently deleted
+from the clip store.
+.SH OPTIONS
+.TP
+.B \-h, \--help
+Display the help message (invokes the manual page).
+
+Other than that, command-line arguments are passed directly to the underlying
+launcher.
+.SH CONFIGURATION
+See
+.BR clipmenu.conf (5).
+.SH DEPENDENCIES
+clipdelmenu requires a launcher capable of a dmenu-like interface (e.g., rofi or a
+custom command). Population of the clipstore requires
+.BR clipmenud
+to be running.
+.SH SEE ALSO
+.BR clipctl (1),
+.BR clipdel (1),
+.BR clipmenu (1),
+.BR clipmenud (1),
+.BR clipmenu.conf (5)
+.SH AUTHOR
+Chris Down
+.MT chris@chrisdown.name
+.ME
+.SH REPORTING BUGS
+Please send bug reports to
+.UR https://github.com/cdown/clipmenu/issues
+.UE .

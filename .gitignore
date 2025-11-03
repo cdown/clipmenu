@@ -1,6 +1,7 @@
 src/clipmenud
 src/clipctl
 src/clipdel
+src/clipdelmenu
 src/clipmenu
 src/clipserve
 tests/test
