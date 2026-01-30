@@ -38,6 +38,15 @@ static struct cm_selections sels[CM_SEL_MAX];
 static Time last_disable_time = 0;
 static Time last_enable_time = 0;
 
+static bool has_owned_selections(void) {
+    for (size_t i = 0; i < CM_SEL_MAX; i++) {
+        if (cfg.owned_selections[i].active) {
+            return true;
+        }
+    }
+    return false;
+}
+
 enum clip_text_source {
     CLIP_TEXT_SOURCE_X,
     CLIP_TEXT_SOURCE_MALLOC,
@@ -349,8 +358,8 @@ static void incr_receive_finish(struct incr_transfer *it) {
     if (is_salient_text(ct.data)) {
         uint64_t hash = store_clip(&ct);
         maybe_trim();
-        if (cfg.owned_selections[sel].active && cfg.own_clipboard) {
-            run_clipserve(hash);
+        if (cfg.own_clipboard && has_owned_selections()) {
+            run_clipserve(hash, cfg.owned_selections);
         }
     } else {
         it_dbg(it, "Clipboard text is whitespace only, ignoring\n");
@@ -493,8 +502,8 @@ static int handle_property_notify(const XPropertyEvent *pe) {
              *  2. urxvt and some other terminal emulators will unhilight on
              *     PRIMARY ownership being taken away from them
              */
-            if (cfg.owned_selections[sel].active && cfg.own_clipboard) {
-                run_clipserve(hash);
+            if (cfg.own_clipboard && has_owned_selections()) {
+                run_clipserve(hash, cfg.owned_selections);
             }
         } else {
             dbg("Clipboard text is whitespace only, ignoring\n");

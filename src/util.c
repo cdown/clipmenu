@@ -3,6 +3,7 @@
 #include <stdbool.h>
 #include <string.h>
 
+#include "config.h"
 #include "store.h"
 #include "util.h"
 
@@ -54,11 +55,27 @@ size_t snprintf_safe(char *buf, size_t len, const char *fmt, ...) {
 /**
  * Runs clipserve to handle selection requests for a hash in the clip store.
  */
-void run_clipserve(uint64_t hash) {
+#define CLIPSERVE_MAX_ARGS (CM_SEL_MAX * 2 + 3)
+
+void run_clipserve(uint64_t hash, const struct selection *selections) {
     char hash_str[CS_HASH_STR_MAX];
     snprintf(hash_str, sizeof(hash_str), PRI_HASH, hash);
 
-    const char *const cmd[] = {"clipserve", hash_str, NULL};
+    const char *cmd[CLIPSERVE_MAX_ARGS];
+    size_t cmd_idx = 0;
+    cmd[cmd_idx++] = "clipserve";
+    if (selections) {
+        for (size_t i = 0; i < CM_SEL_MAX; i++) {
+            if (!selections[i].active) {
+                continue;
+            }
+            expect(cmd_idx + 2 < CLIPSERVE_MAX_ARGS);
+            cmd[cmd_idx++] = "--selection";
+            cmd[cmd_idx++] = selections[i].name;
+        }
+    }
+    cmd[cmd_idx++] = hash_str;
+    cmd[cmd_idx++] = NULL;
     pid_t pid = fork();
     expect(pid >= 0);
 

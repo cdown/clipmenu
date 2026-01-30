@@ -33,7 +33,16 @@ together with own_selections. Default: 0.
 .TP
 .B own_selections
 Specifies which X11 selections (e.g., "clipboard" or "primary") clipmenud
-should actively own. Default: "clipboard".
+should actively own when
+.B own_clipboard
+is enabled. When a clip from one of these selections is stored, clipmenud uses
+clipserve to own those selections. This does not affect which selections are
+monitored; use
+.B selections
+for that. Default: "clipboard".
+If this is set to an empty value, it is treated as if
+.B own_clipboard
+was disabled.
 .TP
 .B selections
 Lists the X11 selections to monitor for changes. Valid values include

@@ -116,6 +116,7 @@ xsel -pc
 xsel -sc
 
 clipmenud &
+clipmenud_pid=$!
 settle
 
 # Should be empty
@@ -289,6 +290,37 @@ printf a | xsel -b
 settle
 
 check_nr_clips 6
+
+# own_selections: default does not own PRIMARY
+kill "$clipmenud_pid"
+wait "$clipmenud_pid" || true
+pkill -x clipserve 2>/dev/null || true
+CM_OWN_CLIPBOARD=1 CM_OWN_SELECTIONS=clipboard clipmenud &
+clipmenud_pid=$!
+settle
+xsel -bc
+xsel -pc
+printf 'primary_stale' | xsel -p
+printf 'clip_default' | xsel -b
+settle
+[[ "$(xsel -bo)" == clip_default ]]
+primary_out=$(xsel -po 2>/dev/null || true)
+[[ "$primary_out" != clip_default ]]
+
+# own_selections: owns all listed selections
+kill "$clipmenud_pid"
+wait "$clipmenud_pid" || true
+pkill -x clipserve 2>/dev/null || true
+CM_OWN_CLIPBOARD=1 CM_OWN_SELECTIONS='clipboard primary' clipmenud &
+clipmenud_pid=$!
+settle
+xsel -bc
+xsel -pc
+printf 'primary_stale' | xsel -p
+printf 'own_both' | xsel -b
+settle
+[[ "$(xsel -bo)" == own_both ]]
+[[ "$(xsel -po)" == own_both ]]
 
 if (( _UNSHARED )); then
     umount -l /tmp
