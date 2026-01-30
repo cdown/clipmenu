@@ -174,6 +174,8 @@ static void _nonnull_ serve_clipboard(uint64_t hash, struct cs_content *content,
                                        .target = req->target,
                                        .property = req->property};
 
+                // cppcheck-suppress constVariablePointer
+                // _drop_(XFree) passes this to XFree, so keep it non-const.
                 _drop_(XFree) char *window_title =
                     get_window_title(dpy, req->requestor);
                 dbg("Servicing request to window '%s' (0x%lX) for clip " PRI_HASH
