@@ -672,11 +672,15 @@ int main(int argc, char *argv[]) {
     exec_man_on_help(argc, argv);
 
     _drop_(close) int session_fd =
-        open(get_session_lock_path(&cfg), O_WRONLY | O_CREAT | O_CLOEXEC, 0600);
+        open(get_session_lock_path(&cfg), O_RDWR | O_CREAT | O_CLOEXEC, 0600);
     die_on(session_fd < 0, "Failed to open session file: %s\n",
            strerror(errno));
     die_on(flock(session_fd, LOCK_EX | LOCK_NB) < 0,
            "Failed to lock session file -- is another clipmenud running?\n");
+
+    expect(ftruncate(session_fd, 0) == 0);
+    expect(lseek(session_fd, 0, SEEK_SET) == 0);
+    dprintf(session_fd, "%ld\n", (long)getpid());
 
     write_status();
 

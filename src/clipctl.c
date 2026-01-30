@@ -1,11 +1,12 @@
-#include <dirent.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <limits.h>
 #include <signal.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
+#include <sys/file.h>
 #include <sys/types.h>
 #include <time.h>
 #include <unistd.h>
@@ -28,27 +29,43 @@ static bool is_enabled(struct config *cfg) {
  * -EEXIST is returned if multiple instances are detected. -ENOENT is returned
  * if no instances are found.
  */
-static pid_t get_clipmenud_pid(void) {
-    _drop_(closedir) DIR *dir = opendir("/proc");
-    die_on(!dir, "Support without /proc is not implemented yet\n");
-
-    pid_t ret = 0;
-    struct dirent *ent;
-
-    while ((ent = readdir(dir)) && ret >= 0) {
-        uint64_t pid;
-        if (str_to_uint64(ent->d_name, &pid) < 0) {
-            continue;
-        }
-        char buf[PATH_MAX];
-        snprintf_safe(buf, sizeof(buf), "/proc/%s/comm", ent->d_name);
-        _drop_(fclose) FILE *fp = fopen(buf, "r");
-        if (fp && fgets(buf, sizeof(buf), fp) && streq(buf, "clipmenud\n")) {
-            ret = ret ? -EEXIST : (pid_t)pid;
-        }
+static pid_t get_clipmenud_pid(struct config *cfg) {
+    int fd = open(get_session_lock_path(cfg), O_RDWR | O_CLOEXEC);
+    if (fd < 0) {
+        return -ENOENT;
     }
 
-    return ret ? ret : -ENOENT;
+    if (flock(fd, LOCK_EX | LOCK_NB) == 0) {
+        close(fd);
+        return -ENOENT;
+    }
+    if (errno != EWOULDBLOCK && errno != EAGAIN) {
+        close(fd);
+        return -ENOENT;
+    }
+
+    char buf[32];
+    ssize_t read_sz = read(fd, buf, sizeof(buf) - 1);
+    close(fd);
+    if (read_sz <= 0) {
+        return -ENOENT;
+    }
+    buf[read_sz] = '\0';
+    char *newline = strchr(buf, '\n');
+    if (newline) {
+        *newline = '\0';
+    }
+
+    uint64_t pid;
+    if (str_to_uint64(buf, &pid) < 0) {
+        return -ENOENT;
+    }
+
+    if (kill((pid_t)pid, 0) < 0 && errno == ESRCH) {
+        return -ENOENT;
+    }
+
+    return (pid_t)pid;
 }
 
 /**
@@ -84,9 +101,8 @@ int main(int argc, char *argv[]) {
         return 0;
     }
 
-    pid_t pid = get_clipmenud_pid();
+    pid_t pid = get_clipmenud_pid(&cfg);
     die_on(pid == -ENOENT, "clipmenud is not running\n");
-    die_on(pid == -EEXIST, "Multiple instances of clipmenud are running\n");
     expect(pid > 0);
 
     if (streq(cmd, "status")) {
