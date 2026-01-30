@@ -9,8 +9,6 @@
 #include "config.h"
 #include "x.h"
 
-#define CLIPMENU_VERSION 7
-
 /**
  * Determines the runtime directory for storing application data. This is _not_
  * the clip store, but the place to create the directory that will become it

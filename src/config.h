@@ -9,6 +9,8 @@
 
 #include "util.h"
 
+#define CLIPMENU_VERSION 7
+
 struct selection {
     const char *name;
     bool active;

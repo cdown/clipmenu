@@ -39,6 +39,9 @@ export CM_DIR=$(mktemp -d)
 export CM_DEBUG=1
 export ASAN_OPTIONS='halt_on_error=1:abort_on_error=1'
 export UBSAN_OPTIONS='halt_on_error=1:abort_on_error=1'
+uid=$(id -u)
+[[ "$(clipctl version)" == 7 ]]
+[[ "$(clipctl cache-dir)" == "$CM_DIR/clipmenu.7.$uid" ]]
 
 launcher=$(mktemp)
 l_out=$(mktemp)
@@ -60,7 +63,6 @@ export CM_LAUNCHER="$launcher"
 tilde_home=$(mktemp -d)
 tilde_dir="$tilde_home/clipmenu_tilde"
 mkdir -p "$tilde_dir"
-uid=$(id -u)
 HOME="$tilde_home" CM_DIR="~/clipmenu_tilde" CM_CONFIG="$(mktemp)" \
     clipmenu || true
 [[ -d "$tilde_dir/clipmenu.7.$uid" ]]

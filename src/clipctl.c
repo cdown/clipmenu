@@ -70,19 +70,31 @@ static bool _nonnull_ should_enable(struct config *cfg, const char *mode_str) {
 int main(int argc, char *argv[]) {
     _drop_(config_free) struct config cfg = setup("clipctl");
     exec_man_on_help(argc, argv);
-    die_on(argc != 2, "Usage: clipctl <enable|disable|toggle|status>\n");
+    die_on(argc != 2,
+           "Usage: clipctl <enable|disable|toggle|status|version|cache-dir>\n");
+
+    const char *cmd = argv[1];
+
+    if (streq(cmd, "cache-dir")) {
+        printf("%s\n", get_cache_dir(&cfg));
+        return 0;
+    }
+    if (streq(cmd, "version")) {
+        printf("%d\n", CLIPMENU_VERSION);
+        return 0;
+    }
 
     pid_t pid = get_clipmenud_pid();
     die_on(pid == -ENOENT, "clipmenud is not running\n");
     die_on(pid == -EEXIST, "Multiple instances of clipmenud are running\n");
     expect(pid > 0);
 
-    if (streq(argv[1], "status")) {
+    if (streq(cmd, "status")) {
         printf("%s\n", is_enabled(&cfg) ? "enabled" : "disabled");
         return 0;
     }
 
-    bool want_enable = should_enable(&cfg, argv[1]);
+    bool want_enable = should_enable(&cfg, cmd);
 
     expect(kill(pid, want_enable ? SIGUSR2 : SIGUSR1) == 0);
     dbg("Sent signal to pid %d\n", pid);
