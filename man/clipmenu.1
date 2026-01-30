@@ -7,11 +7,11 @@ clipmenu \- interactive launcher for clipboard entry selection
 .SH DESCRIPTION
 .B clipmenu
 provides an interactive interface for browsing and selecting clipboard entries
-stored by the clipmenud. It launches a menu using a configured launcher
-(e.g., dmenu, rofi, or another custom command) and displays a numbered list of stored
-clips. Once a selection is made, clipmenu calls
+stored by clipmenud. It launches a menu using a configured launcher
+(e.g., dmenu, rofi, or another custom command) and displays a numbered list of
+stored clips. Once a selection is made, clipmenu calls
 .BR clipserve
-to set the chosen clip as the current X11 clipboard.
+to set the chosen clip as the current X11 selections (PRIMARY and CLIPBOARD).
 .SH OPTIONS
 .TP
 .B \-h, \--help

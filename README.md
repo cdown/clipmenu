@@ -30,20 +30,25 @@ invoke clipmenu in exactly the same way to get the same effect, like so:
 
     clipmenu -i -fn Terminus:size=8 -nb '#002b36' -nf '#839496' -sb '#073642' -sf '#93a1a1'
 
-For a full list of environment variables that clipmenud can take, please see
-`man clipmenud`.
+By default, clipmenu also adds dmenu-compatible defaults such as `-p` and `-l`.
+If that gets in the way for a custom launcher, set `launcher_pass_dmenu_args` to
+0 in `clipmenu.conf`.
 
-There is also `clipdel` to delete clips, and `clipctl` to enable or disable
-clipboard monitoring.
+For a full list of configuration options (and their environment variable
+equivalents), please see `man clipmenu.conf`.
+
+There is also `clipdel` to delete clips, `clipdelmenu` for interactive deletion,
+and `clipctl` to enable or disable clipboard monitoring.
 
 # Features
 
-The behavior of `clipmenud` can be customized through a config file. As some
+The behaviour of `clipmenud` can be customised through a config file. As some
 examples of things you can change:
 
 * Customising the maximum number of clips stored (default 1000)
 * Disabling clip collection temporarily with `clipctl disable`, reenabling with
   `clipctl enable`
+* Deduplicating repeated clips so only the newest remains
 * Not storing clipboard changes from certain applications, like password
   managers
 * Taking direct ownership of the clipboard

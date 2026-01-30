@@ -7,7 +7,7 @@ clipserve \- serve a selected clipboard entry to X11 selections
 .SH DESCRIPTION
 .B clipserve
 serves the clipboard content identified by a hash from the clip store on the
-X11 clipboard.
+X11 selections (PRIMARY and CLIPBOARD).
 
 This program is not usually invoked directly, but is instead called from inside
 other clipmenu applications.
@@ -16,8 +16,8 @@ other clipmenu applications.
 .B \-h, \--help
 Display the help message (invokes the manual page).
 .TP
-clipserve requires exactly one argument, which is the hash of the clipboard
-entry to be served.
+clipserve requires exactly one argument, which is the hexadecimal hash of the
+clipboard entry to be served.
 .SH CONFIGURATION
 See
 .BR clipmenu.conf (5).

@@ -3,7 +3,7 @@
 clipmenu.conf \- configuration file for clipmenu applications
 .SH DESCRIPTION
 clipmenu.conf defines the runtime settings for clipmenu applications (including
-clipmenu itself, clipmenud, clipctl, clipdel, and clipserve).
+clipmenu itself, clipmenud, clipctl, clipdel, clipdelmenu, and clipserve).
 .SH FORMAT
 Each non-comment line in clipmenu.conf consists of a key followed by one or
 more whitespace-separated values. Blank lines and lines starting with '#' are
@@ -22,6 +22,10 @@ entries. Default: 100.
 .B oneshot
 If set to 1, clipmenud processes clipboard selections only once before exiting.
 Default: 0.
+.TP
+.B deduplicate
+If set to 1, clipmenud keeps only the newest copy of duplicate clips instead of
+storing every duplicate entry. Default: 0.
 .TP
 .B own_clipboard
 Determines whether clipmenud should claim ownership of the X11 clipboard. Works
@@ -44,8 +48,8 @@ Specifies the launcher command to use with clipmenu. Alternative choices
 include rofi's dmenu mode or a custom command. Default: "dmenu".
 .TP
 .B launcher_pass_dmenu_args
-When enabled, extra command-line arguments passed to clipmenu are forwarded to
-the launcher. Default: 1.
+When enabled, clipmenu and clipdelmenu add dmenu-compatible defaults (such as
+-p and -l) before any user-provided arguments. Default: 1.
 .TP
 .B touch_on_select
 When an entry is selected via
@@ -61,17 +65,35 @@ incrementally update the clipboard (e.g. progressive text selection in
 browsers). Set to 0 to disable partial merging entirely. Default: 2.
 .TP
 .B cm_dir
-Overrides the default directory for the clip store. This is by default at a
-subdirectory inside XDG_RUNTIME_DIR, TMPDIR, or if both are unset, inside /tmp.
-The path must be absolute.
-A leading ~ expands to $HOME.
+Overrides the default base directory for clipmenu runtime data. The clip store
+is created at a subdirectory named clipmenu.<version>.<uid> inside this
+directory. By default, it uses XDG_RUNTIME_DIR, TMPDIR, or /tmp if neither are
+set. The path must be absolute. A leading ~ expands to $HOME.
 .SH FILE LOCATION
 Typically, clipmenu.conf is located at
 .BR ~/.config/clipmenu/clipmenu.conf
 .
 The file location can be overridden with $CM_CONFIG, which must be an absolute
-path.
-A leading ~ expands to $HOME.
+path. A leading ~ expands to $HOME. If $CM_CONFIG is unset, $XDG_CONFIG_HOME is
+used (falling back to ~/.config).
+.SH ENVIRONMENT
+.TP
+.B CM_CONFIG
+Absolute path (or a path beginning with ~) to the configuration file. This
+takes precedence over $XDG_CONFIG_HOME.
+.TP
+.B XDG_CONFIG_HOME
+Base directory for configuration files. If unset, ~/.config is used.
+.TP
+.B CM_DEBUG
+If set to 1, enable debug logging.
+.TP
+.B Config environment variables
+CM_MAX_CLIPS, CM_MAX_CLIPS_BATCH, CM_ONESHOT, CM_DEDUPLICATE, CM_OWN_CLIPBOARD,
+CM_SELECTIONS, CM_OWN_SELECTIONS, CM_IGNORE_WINDOW, CM_LAUNCHER,
+CM_LAUNCHER_PASS_DMENU_ARGS, and CM_DIR are environment variable equivalents for
+the configuration keys of the same name. These override values from the config
+file and are provided for compatibility with versions prior to 7.
 .SH SEE ALSO
 .BR clipctl (1),
 .BR clipdel (1),
