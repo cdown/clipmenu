@@ -18,6 +18,19 @@ static Atom incr_atom;
 
 static size_t chunk_size;
 
+static enum selection_type selection_name_to_type(const char *name) {
+    if (streq(name, "clipboard")) {
+        return CM_SEL_CLIPBOARD;
+    }
+    if (streq(name, "primary")) {
+        return CM_SEL_PRIMARY;
+    }
+    if (streq(name, "secondary")) {
+        return CM_SEL_SECONDARY;
+    }
+    return CM_SEL_INVALID;
+}
+
 /**
  * Start an INCR transfer.
  */
@@ -95,13 +108,15 @@ static void incr_send_chunk(const XPropertyEvent *pe) {
  * Serve clipboard content for all X11 selection requests until all selections
  * have been claimed by another application.
  */
-static void _nonnull_ serve_clipboard(uint64_t hash,
-                                      struct cs_content *content) {
+static void _nonnull_ serve_clipboard(uint64_t hash, struct cs_content *content,
+                                      const bool selection_active[CM_SEL_MAX]) {
     bool running = true;
     XEvent evt;
-    Atom targets, utf8_string, selections[2] = {XA_PRIMARY};
+    Atom targets, utf8_string;
+    Atom selection_atoms[CM_SEL_MAX];
     Window win;
     int remaining_selections;
+    size_t selection_atoms_len = 0;
 
     dpy = XOpenDisplay(NULL);
     expect(dpy);
@@ -114,25 +129,37 @@ static void _nonnull_ serve_clipboard(uint64_t hash,
     utf8_string = XInternAtom(dpy, "UTF8_STRING", False);
     incr_atom = XInternAtom(dpy, "INCR", False);
 
-    selections[1] = XInternAtom(dpy, "CLIPBOARD", False);
-    for (size_t i = 0; i < arrlen(selections); i++) {
+    if (selection_active[CM_SEL_PRIMARY]) {
+        selection_atoms[selection_atoms_len++] = XA_PRIMARY;
+    }
+    if (selection_active[CM_SEL_CLIPBOARD]) {
+        selection_atoms[selection_atoms_len++] =
+            XInternAtom(dpy, "CLIPBOARD", False);
+    }
+    if (selection_active[CM_SEL_SECONDARY]) {
+        selection_atoms[selection_atoms_len++] = XA_SECONDARY;
+    }
+
+    die_on(selection_atoms_len == 0, "No selections configured\n");
+
+    for (size_t i = 0; i < selection_atoms_len; i++) {
         bool success = false;
         for (int attempts = 0; attempts < 5; attempts++) {
-            XSetSelectionOwner(dpy, selections[i], win, CurrentTime);
+            XSetSelectionOwner(dpy, selection_atoms[i], win, CurrentTime);
 
             // According to ICCCM 2.1, a client acquiring a selection should
             // confirm success by verifying with GetSelectionOwner.
-            if (XGetSelectionOwner(dpy, selections[i]) == win) {
+            if (XGetSelectionOwner(dpy, selection_atoms[i]) == win) {
                 success = true;
                 break;
             }
         }
         if (!success) {
             die("Failed to set selection for %s\n",
-                XGetAtomName(dpy, selections[i]));
+                XGetAtomName(dpy, selection_atoms[i]));
         }
     }
-    remaining_selections = arrlen(selections);
+    remaining_selections = (int)selection_atoms_len;
 
     while (running) {
         XNextEvent(dpy, &evt);
@@ -200,12 +227,39 @@ static void _nonnull_ serve_clipboard(uint64_t hash,
 }
 
 int main(int argc, char *argv[]) {
-    die_on(argc != 2, "Usage: clipserve [hash]\n");
     _drop_(config_free) struct config cfg = setup("clipserve");
     exec_man_on_help(argc, argv);
 
+    bool selection_active[CM_SEL_MAX] = {0};
+    bool selection_set = false;
+    int argi = 1;
+    for (; argi < argc; argi++) {
+        if (streq(argv[argi], "--")) {
+            argi++;
+            break;
+        }
+        if (streq(argv[argi], "-s") || streq(argv[argi], "--selection")) {
+            die_on(argi + 1 >= argc,
+                   "Usage: clipserve [-s selection]... <hash>\n");
+            enum selection_type sel = selection_name_to_type(argv[++argi]);
+            die_on(sel == CM_SEL_INVALID, "Unknown selection: %s\n",
+                   argv[argi]);
+            selection_active[sel] = true;
+            selection_set = true;
+            continue;
+        }
+        break;
+    }
+
+    die_on(argi != argc - 1, "Usage: clipserve [-s selection]... <hash>\n");
+
+    if (!selection_set) {
+        selection_active[CM_SEL_PRIMARY] = true;
+        selection_active[CM_SEL_CLIPBOARD] = true;
+    }
+
     uint64_t hash;
-    expect(str_to_hex64(argv[1], &hash) == 0);
+    expect(str_to_hex64(argv[argi], &hash) == 0);
 
     _drop_(close) int content_dir_fd = open(get_cache_dir(&cfg), O_RDONLY);
     _drop_(close) int snip_fd =
@@ -219,7 +273,7 @@ int main(int argc, char *argv[]) {
     die_on(cs_content_get(&cs, hash, &content) < 0,
            "Hash " PRI_HASH " inaccessible\n", hash);
 
-    serve_clipboard(hash, &content);
+    serve_clipboard(hash, &content, selection_active);
 
     return 0;
 }

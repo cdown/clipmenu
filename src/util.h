@@ -8,6 +8,8 @@
 #include <stdlib.h>
 #include <unistd.h>
 
+struct selection;
+
 #define _drop_(x) __attribute__((__cleanup__(drop_##x)))
 #define _must_use_ __attribute__((warn_unused_result))
 #define _nonnull_ __attribute__((nonnull))
@@ -69,7 +71,7 @@ size_t _nonnull_ read_safe(int fd, char *buf, size_t count);
 size_t _printf_(3, 4)
     snprintf_safe(char *buf, size_t len, const char *fmt, ...);
 
-void run_clipserve(uint64_t hash);
+void run_clipserve(uint64_t hash, const struct selection *selections);
 
 /**
  * __attribute__((cleanup)) functions

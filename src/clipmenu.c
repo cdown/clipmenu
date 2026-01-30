@@ -20,7 +20,7 @@ static int _nonnull_ clipmenu_action(struct config *cfg, uint64_t hash) {
         expect(cs_make_newest(&cs, hash) == 0);
     }
 
-    run_clipserve(hash);
+    run_clipserve(hash, NULL);
     return 0;
 }
 
