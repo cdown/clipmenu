@@ -57,6 +57,22 @@ EOF
 chmod a+x "$launcher"
 export CM_LAUNCHER="$launcher"
 
+tilde_home=$(mktemp -d)
+tilde_dir="$tilde_home/clipmenu_tilde"
+mkdir -p "$tilde_dir"
+uid=$(id -u)
+HOME="$tilde_home" CM_DIR="~/clipmenu_tilde" CM_CONFIG="$(mktemp)" \
+    clipmenu || true
+[[ -d "$tilde_dir/clipmenu.7.$uid" ]]
+rm -rf "$tilde_home"
+
+tilde_conf_home=$(mktemp -d)
+printf 'max_clips nope\n' > "$tilde_conf_home/bad.conf"
+err=$(HOME="$tilde_conf_home" CM_CONFIG="~/bad.conf" CM_DIR="$(mktemp -d)" \
+    clipmenu 2>&1 || true)
+[[ "$err" == *"for max_clips"* ]]
+rm -rf "$tilde_conf_home"
+
 kill_background_jobs() {
     local -a bg
     readarray -t bg < <(jobs -p)

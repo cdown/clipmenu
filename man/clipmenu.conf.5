@@ -64,12 +64,14 @@ browsers). Set to 0 to disable partial merging entirely. Default: 2.
 Overrides the default directory for the clip store. This is by default at a
 subdirectory inside XDG_RUNTIME_DIR, TMPDIR, or if both are unset, inside /tmp.
 The path must be absolute.
+A leading ~ expands to $HOME.
 .SH FILE LOCATION
 Typically, clipmenu.conf is located at
 .BR ~/.config/clipmenu/clipmenu.conf
 .
 The file location can be overridden with $CM_CONFIG, which must be an absolute
 path.
+A leading ~ expands to $HOME.
 .SH SEE ALSO
 .BR clipctl (1),
 .BR clipdel (1),

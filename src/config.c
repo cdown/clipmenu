@@ -53,6 +53,40 @@ static bool is_absolute_path(const char *path) {
     return path && path[0] == '/';
 }
 
+static int resolve_path(const char *input, void *output) {
+    char **out_path = output;
+    if (!input) {
+        return -EINVAL;
+    }
+
+    if (input[0] == '~') {
+        if (input[1] != '\0' && input[1] != '/') {
+            return -EINVAL;
+        }
+        const char *home = getenv("HOME");
+        if (!home) {
+            return -EINVAL;
+        }
+        size_t len = strlen(home) + strlen(input);
+        char *expanded = malloc(len);
+        expect(expanded);
+        snprintf_safe(expanded, len, "%s%s", home, input + 1);
+        *out_path = expanded;
+    } else {
+        char *dup = strdup(input);
+        expect(dup);
+        *out_path = dup;
+    }
+
+    if (!is_absolute_path(*out_path)) {
+        free(*out_path);
+        *out_path = NULL;
+        return -EINVAL;
+    }
+
+    return 0;
+}
+
 /**
  * This whole section consists of conversion functions to go from a string in
  * the config file to the type we expect for `struct Config`.
@@ -105,13 +139,7 @@ static int convert_cm_dir(const char *str, void *output) {
     if (!str) {
         str = get_runtime_directory();
     }
-    if (!is_absolute_path(str)) {
-        return -EINVAL;
-    }
-    char *rtd = strdup(str);
-    expect(rtd);
-    *(char **)output = rtd;
-    return 0;
+    return resolve_path(str, output);
 }
 
 static int _nonnull_ convert_launcher(const char *str, void *output) {
@@ -175,29 +203,39 @@ static int get_config_file(char *config_path, size_t config_path_len) {
     const char *cm_config = getenv("CM_CONFIG");
     const char *xdg_config_home = getenv("XDG_CONFIG_HOME");
     const char *home = getenv("HOME");
+    _drop_(free) char *resolved = NULL;
 
     if (cm_config) {
-        if (!is_absolute_path(cm_config)) {
-            fprintf(stderr, "Error parsing config file path\n");
-            return -EINVAL;
+        int ret = resolve_path(cm_config, &resolved);
+        if (ret != 0) {
+            fprintf(stderr,
+                    "Invalid config path from $CM_CONFIG: expected absolute "
+                    "path or leading ~\n");
+            return ret;
         }
-        snprintf_safe(config_path, config_path_len, "%s", cm_config);
+        snprintf_safe(config_path, config_path_len, "%s", resolved);
     } else if (xdg_config_home) {
-        if (!is_absolute_path(xdg_config_home)) {
-            fprintf(stderr, "Error parsing config file path\n");
-            return -EINVAL;
+        int ret = resolve_path(xdg_config_home, &resolved);
+        if (ret != 0) {
+            fprintf(stderr,
+                    "Invalid config path from $XDG_CONFIG_HOME: expected "
+                    "absolute path or leading ~\n");
+            return ret;
         }
         snprintf_safe(config_path, config_path_len, "%s/clipmenu/clipmenu.conf",
-                      xdg_config_home);
+                      resolved);
     } else {
         die_on(!home,
                "None of $CM_CONFIG, $XDG_CONFIG_HOME, or $HOME is set\n");
-        if (!is_absolute_path(home)) {
-            fprintf(stderr, "Error parsing config file path\n");
-            return -EINVAL;
+        int ret = resolve_path(home, &resolved);
+        if (ret != 0) {
+            fprintf(stderr,
+                    "Invalid config path from $HOME: expected absolute path or "
+                    "leading ~\n");
+            return ret;
         }
         snprintf_safe(config_path, config_path_len,
-                      "%s/.config/clipmenu/clipmenu.conf", home);
+                      "%s/.config/clipmenu/clipmenu.conf", resolved);
     }
 
     return 0;
