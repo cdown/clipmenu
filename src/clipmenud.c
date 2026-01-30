@@ -12,7 +12,6 @@
 #include <string.h>
 #include <sys/file.h>
 #include <sys/select.h>
-#include <sys/signalfd.h>
 #include <time.h>
 #include <unistd.h>
 
@@ -27,7 +26,7 @@ static struct config cfg;
 static Window win;
 
 static int enabled = 1;
-static int sig_fd;
+static int sig_pipe[2];
 
 static Atom timestamp_atom;
 static Atom incr_atom;
@@ -198,13 +197,9 @@ static bool is_ignored_window(char *win_title) {
 /**
  * Disable or enable clip collection based on received signals.
  */
-static void handle_signalfd_event(void) {
-    struct signalfd_siginfo si;
-    ssize_t s = read(sig_fd, &si, sizeof(struct signalfd_siginfo));
-    expect(s == sizeof(struct signalfd_siginfo));
-    dbg("Got signal %" PRIu32 " from pid %" PRIu32 "\n", si.ssi_signo,
-        si.ssi_pid);
-    switch (si.ssi_signo) {
+static void handle_signal_event(int signo) {
+    dbg("Got signal %d\n", signo);
+    switch (signo) {
         case SIGUSR1:
             // If we're already disabled, we need to keep the original
             // timestamp to properly filter all events that were queued during
@@ -228,6 +223,37 @@ static void handle_signalfd_event(void) {
             break;
     }
     write_status();
+}
+
+static void handle_signal_pipe(void) {
+    unsigned char sigs[32];
+    ssize_t read_sz;
+    while ((read_sz = read(sig_pipe[0], sigs, sizeof(sigs))) > 0) {
+        for (ssize_t i = 0; i < read_sz; i++) {
+            handle_signal_event((int)sigs[i]);
+        }
+    }
+    if (read_sz < 0) {
+        expect(errno == EAGAIN || errno == EINTR);
+    }
+}
+
+static void signal_handler(int signo) {
+    int saved_errno = errno;
+    unsigned char sig = (unsigned char)signo;
+    ssize_t written = write(sig_pipe[1], &sig, sizeof(sig));
+    (void)written;
+    errno = saved_errno;
+}
+
+static void set_fd_flags(int fd) {
+    int flags = fcntl(fd, F_GETFL);
+    expect(flags >= 0);
+    expect(fcntl(fd, F_SETFL, flags | O_NONBLOCK) == 0);
+
+    int fd_flags = fcntl(fd, F_GETFD);
+    expect(fd_flags >= 0);
+    expect(fcntl(fd, F_SETFD, fd_flags | FD_CLOEXEC) == 0);
 }
 
 /**
@@ -588,14 +614,20 @@ static int get_one_clip(int evt_base) {
         int x_fd = ConnectionNumber(dpy);
 
         FD_ZERO(&fds);
-        FD_SET(sig_fd, &fds);
+        FD_SET(sig_pipe[0], &fds);
         FD_SET(x_fd, &fds);
 
-        int max_fd = sig_fd > x_fd ? sig_fd : x_fd;
-        expect(select(max_fd + 1, &fds, NULL, NULL, NULL) > 0);
+        int max_fd = sig_pipe[0] > x_fd ? sig_pipe[0] : x_fd;
+        int ret = select(max_fd + 1, &fds, NULL, NULL, NULL);
+        if (ret < 0) {
+            if (errno == EINTR) {
+                return 0;
+            }
+            expect(ret > 0);
+        }
 
-        if (FD_ISSET(sig_fd, &fds)) {
-            handle_signalfd_event();
+        if (FD_ISSET(sig_pipe[0], &fds)) {
+            handle_signal_pipe();
         }
 
         if (FD_ISSET(x_fd, &fds)) {
@@ -662,13 +694,16 @@ int main(int argc, char *argv[]) {
     incr_atom = XInternAtom(dpy, "INCR", False);
     timestamp_atom = XInternAtom(dpy, "CLIPMENUD_TIMESTAMP", False);
 
-    sigset_t mask;
-    sigemptyset(&mask);
-    sigaddset(&mask, SIGUSR1);
-    sigaddset(&mask, SIGUSR2);
-    sigprocmask(SIG_BLOCK, &mask, NULL);
-    sig_fd = signalfd(-1, &mask, 0);
-    expect(sig_fd >= 0);
+    expect(pipe(sig_pipe) == 0);
+    set_fd_flags(sig_pipe[0]);
+    set_fd_flags(sig_pipe[1]);
+
+    struct sigaction sa = {0};
+    sa.sa_handler = signal_handler;
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = SA_RESTART;
+    expect(sigaction(SIGUSR1, &sa, NULL) == 0);
+    expect(sigaction(SIGUSR2, &sa, NULL) == 0);
     expect(signal(SIGCHLD, SIG_IGN) != SIG_ERR);
 
     int unused;
