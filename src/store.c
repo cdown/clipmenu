@@ -478,7 +478,7 @@ cs_content_add(struct clip_store *cs, uint64_t hash, const char *content,
  *
  * @content: The content to unmap
  */
-int cs_content_unmap(struct cs_content *content) {
+static int cs_content_unmap(struct cs_content *content) {
     if (content && content->data) {
         close(content->fd);
         if (munmap(content->data, (size_t)content->size)) {

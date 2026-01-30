@@ -92,7 +92,7 @@ static int resolve_path(const char *input, void *output) {
  * the config file to the type we expect for `struct Config`.
  */
 
-int convert_bool(const char *str, void *output) {
+static int convert_bool(const char *str, void *output) {
     const char *const truthy[] = {"1", "y", "yes", "true", "on"};
     const char *const falsy[] = {"0", "n", "no", "false", "off"};
 
@@ -113,7 +113,7 @@ int convert_bool(const char *str, void *output) {
     return -EINVAL;
 }
 
-int convert_positive_int(const char *str, void *output) {
+static int convert_positive_int(const char *str, void *output) {
     char *end;
     long val = strtol(str, &end, 10);
     if (*end != '\0' || end == str || val < 0 || val > INT_MAX) {
@@ -123,7 +123,7 @@ int convert_positive_int(const char *str, void *output) {
     return 0;
 }
 
-int convert_ignore_window(const char *str, void *output) {
+static int convert_ignore_window(const char *str, void *output) {
     struct ignore_window *iw = output;
     iw->set = (bool)str;
     if (!iw->set) {
@@ -326,7 +326,7 @@ static int config_apply_default_values(struct config_entry entries[],
  * This is generally not expected to be called by applications -- call
  * config_setup() instead, which provides the right file for you.
  */
-int config_setup_internal(FILE *file, struct config *cfg) {
+static int config_setup_internal(FILE *file, struct config *cfg) {
     struct config_entry entries[] = {
         {"max_clips", "CM_MAX_CLIPS", &cfg->max_clips, convert_positive_int,
          "1000", 0},

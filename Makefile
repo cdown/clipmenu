@@ -55,16 +55,16 @@ clean:
 
 clang_supports_unsafe_buffer_usage := $(shell clang -x c -c /dev/null -o /dev/null -Werror -Wunsafe-buffer-usage > /dev/null 2>&1; echo $$?)
 ifeq ($(clang_supports_unsafe_buffer_usage),0)
-    extra_clang_flags := -Wno-unsafe-buffer-usage
+    extra_clang_flags := -Wno-unsafe-buffer-usage -Wno-missing-include-dirs
 else
-    extra_clang_flags :=
+    extra_clang_flags := -Wno-missing-include-dirs
 endif
 
 c_analyse_targets := $(c_files:%=%-analyse)
 h_analyse_targets := $(h_files:%=%-analyse)
 
 analyse: CFLAGS+=$(debug_cflags)
-analyse: $(c_analyse_targets) $(h_analyse_targets)
+analyse: cppcheck $(c_analyse_targets) $(h_analyse_targets)
 
 $(c_analyse_targets): %-analyse:
 	# -W options here are not clang compatible, so out of generic CFLAGS
@@ -90,19 +90,38 @@ $(h_analyse_targets): %-analyse:
 	$(MAKE) $*-shared-analyse
 
 %-shared-analyse: %
-	# cppcheck is a bit dim about unused functions/variables, leave that to
-	# clang/GCC
-	cppcheck $< --std=c99 --quiet --inline-suppr --force \
-		--enable=all --suppress=missingIncludeSystem \
-		--suppress=unusedFunction --suppress=unmatchedSuppression \
-		--suppress=unreadVariable \
-		--suppress=checkersReport \
-		--suppress=normalCheckLevelMaxBranches \
-		--suppress=unusedStructMember \
-		--max-ctu-depth=32 --error-exitcode=1
 	# clang-analyzer-unix.Malloc does not understand _drop_()
 	clang-tidy $< --quiet -checks=-clang-analyzer-unix.Malloc -- -std=gnu99
 	clang-format --dry-run --Werror $<
+
+# --suppress=missingIncludeSystem:
+#
+# Without this there's a bunch of noise from cppcheck from the system headers
+# themselves.
+#
+# --suppress=unusedFunction:
+#
+# cppcheck does not understand _drop_ and marks those as unused. This is
+# already well checked by Clang/GCC, just leave it to them.
+#
+# --suppress=unmatchedSuppression:
+#
+# We run both locally and on CI, so there may be some suppressions that
+# depending on version do not match in one version but do on another.
+#
+# --suppress=unusedStructMember
+#
+# Structs are used across translation units and cppcheck gets this wrong.
+cppcheck: $(c_files) $(h_files)
+	cppcheck $(c_files) $(h_files) --std=c99 --quiet --inline-suppr --force \
+		--enable=all \
+		--suppress=missingIncludeSystem \
+		--suppress=unusedFunction \
+		--suppress=unmatchedSuppression \
+		--suppress=checkersReport \
+		--suppress=unusedStructMember \
+		--check-level=exhaustive \
+		--max-ctu-depth=10 --error-exitcode=1
 
 tests: tests/test_store
 	tests/test_store
@@ -113,4 +132,5 @@ integration_tests:
 tests/test_store: tests/test_store.c src/store.o src/util.o
 	$(CC) $(CFLAGS) $(CPPFLAGS) -I./src -o $@ $^ $(LDLIBS)
 
-.PHONY: all debug install uninstall clean analyse tests integration_tests
+.PHONY: all debug install uninstall clean analyse tests integration_tests \
+	cppcheck

@@ -161,7 +161,6 @@ void _nonnull_ drop_cs_unref(struct ref_guard *guard);
 int _must_use_ _nonnull_ cs_destroy(struct clip_store *cs);
 int _must_use_ _nonnull_ cs_init(struct clip_store *cs, int snip_fd,
                                  int content_dir_fd);
-int _must_use_ cs_content_unmap(struct cs_content *content);
 void drop_cs_content_unmap(struct cs_content *content);
 void drop_cs_destroy(struct clip_store *cs);
 int _must_use_ _nonnull_ cs_content_get(struct clip_store *cs, uint64_t hash,
