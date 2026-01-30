@@ -49,6 +49,10 @@ char *get_cache_dir(struct config *cfg) {
     return cache_dir;
 }
 
+static bool is_absolute_path(const char *path) {
+    return path && path[0] == '/';
+}
+
 /**
  * This whole section consists of conversion functions to go from a string in
  * the config file to the type we expect for `struct Config`.
@@ -100,6 +104,9 @@ int convert_ignore_window(const char *str, void *output) {
 static int convert_cm_dir(const char *str, void *output) {
     if (!str) {
         str = get_runtime_directory();
+    }
+    if (!is_absolute_path(str)) {
+        return -EINVAL;
     }
     char *rtd = strdup(str);
     expect(rtd);
@@ -164,22 +171,36 @@ static int convert_selections(const char *str, void *output) {
  * ~/.config/clipmenu/clipmenu.conf.
  */
 
-static void get_config_file(char *config_path) {
+static int get_config_file(char *config_path, size_t config_path_len) {
     const char *cm_config = getenv("CM_CONFIG");
     const char *xdg_config_home = getenv("XDG_CONFIG_HOME");
     const char *home = getenv("HOME");
 
     if (cm_config) {
-        snprintf_safe(config_path, PATH_MAX, "%s", cm_config);
+        if (!is_absolute_path(cm_config)) {
+            fprintf(stderr, "Error parsing config file path\n");
+            return -EINVAL;
+        }
+        snprintf_safe(config_path, config_path_len, "%s", cm_config);
     } else if (xdg_config_home) {
-        snprintf_safe(config_path, PATH_MAX, "%s/clipmenu/clipmenu.conf",
+        if (!is_absolute_path(xdg_config_home)) {
+            fprintf(stderr, "Error parsing config file path\n");
+            return -EINVAL;
+        }
+        snprintf_safe(config_path, config_path_len, "%s/clipmenu/clipmenu.conf",
                       xdg_config_home);
     } else {
         die_on(!home,
                "None of $CM_CONFIG, $XDG_CONFIG_HOME, or $HOME is set\n");
-        snprintf_safe(config_path, PATH_MAX,
+        if (!is_absolute_path(home)) {
+            fprintf(stderr, "Error parsing config file path\n");
+            return -EINVAL;
+        }
+        snprintf_safe(config_path, config_path_len,
                       "%s/.config/clipmenu/clipmenu.conf", home);
     }
+
+    return 0;
 }
 
 static int config_parse_env_vars(struct config_entry entries[],
@@ -332,7 +353,8 @@ void config_free(struct config *cfg) {
  */
 static void config_setup(struct config *cfg) {
     char config_path[PATH_MAX];
-    get_config_file(config_path);
+    die_on(get_config_file(config_path, sizeof(config_path)) != 0,
+           "Invalid config\n");
     _drop_(fclose) FILE *file = fopen(config_path, "r");
     expect(file || errno == ENOENT);
     die_on(config_setup_internal(file, cfg) != 0, "Invalid config\n");

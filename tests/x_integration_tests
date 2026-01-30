@@ -7,6 +7,14 @@ dump_cache() {
     cat "$l_out" >&2
 }
 
+expect_fail() {
+    set +e
+    "$@"
+    local status=$?
+    set -e
+    (( status != 0 ))
+}
+
 if ! (( NO_PID_NAMESPACE )) && (( EUID )); then
     export _UNSHARED=1
     exec unshare --user --map-root-user --pid --mount --fork --mount-proc "$0" "$@"
@@ -22,6 +30,10 @@ make clean debug
 cd src
 
 export PATH=$PWD:$PATH
+
+expect_fail env CM_CONFIG=relative CM_DIR="$(mktemp -d)" clipmenu
+expect_fail env CM_DIR=relative CM_CONFIG="$(mktemp)" clipmenu
+
 export CM_CONFIG=$(mktemp)
 export CM_DIR=$(mktemp -d)
 export CM_DEBUG=1
