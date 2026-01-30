@@ -80,6 +80,23 @@ static int _must_use_ _nonnull_ cs_header_validate(const struct clip_store *cs,
     return 0;
 }
 
+static int _must_use_ _nonnull_ cs_remap(struct clip_store *cs, size_t old_size,
+                                         size_t new_size) {
+    struct cs_header *new_header = mmap(NULL, new_size, PROT_READ | PROT_WRITE,
+                                        MAP_SHARED, cs->snip_fd, 0);
+    if (new_header == MAP_FAILED) {
+        return negative_errno();
+    }
+    if (munmap(cs->header, old_size) < 0) {
+        int ret = negative_errno();
+        munmap(new_header, new_size);
+        return ret;
+    }
+    cs->header = new_header;
+    cs->snips = (struct cs_snip *)(cs->header + 1);
+    return 0;
+}
+
 /**
  * Decrease the reference count for the clip store lock, unrefing it if
  * the refcount reaches zero.
@@ -145,16 +162,12 @@ struct ref_guard cs_ref(struct clip_store *cs) {
 
         // If we shrank, no need to remap, since we'll just use the new bounds.
         if (cs->local_nr_snips_alloc < cs->header->nr_snips_alloc) {
-            struct cs_header *new_header = mremap(
-                cs->header, cs_file_size(cs->local_nr_snips_alloc),
-                cs_file_size(cs->header->nr_snips_alloc), MREMAP_MAYMOVE);
-            if (new_header == MAP_FAILED) {
-                guard.status = negative_errno();
+            int remap_ret = cs_remap(cs, cs_file_size(cs->local_nr_snips_alloc),
+                                     cs_file_size(cs->header->nr_snips_alloc));
+            if (remap_ret < 0) {
+                guard.status = remap_ret;
                 return guard;
             }
-
-            cs->header = new_header;
-            cs->snips = (struct cs_snip *)(cs->header + 1);
         }
 
         cs->local_nr_snips = cs->header->nr_snips;
@@ -295,14 +308,11 @@ static int _must_use_ _nonnull_ cs_file_resize(struct clip_store *cs,
     }
 
     if (grow) {
-        struct cs_header *new_snips =
-            mremap(cs->header, cs_file_size(cs->header->nr_snips_alloc),
-                   new_size, MREMAP_MAYMOVE);
-        if (new_snips == MAP_FAILED) {
-            return negative_errno();
+        int ret =
+            cs_remap(cs, cs_file_size(cs->header->nr_snips_alloc), new_size);
+        if (ret < 0) {
+            return ret;
         }
-        cs->header = new_snips;
-        cs->snips = (struct cs_snip *)cs->header + 1;
     }
 
     cs->header->nr_snips = cs->local_nr_snips = new_nr_snips;
