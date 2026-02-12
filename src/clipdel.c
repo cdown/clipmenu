@@ -36,6 +36,7 @@ struct clipdel_state {
     enum delete_mode mode;
     enum match_type type;
     bool invert_match;
+    bool quiet;
     union {
         regex_t rgx;
         const char *needle;
@@ -79,7 +80,7 @@ static enum cs_remove_action _nonnull_ remove_if_match(uint64_t hash _unused_,
     }
 
     bool wants_del = state->invert_match ? !matches : matches;
-    if (wants_del) {
+    if (wants_del && !state->quiet) {
         puts(line);
     }
 
@@ -88,17 +89,20 @@ static enum cs_remove_action _nonnull_ remove_if_match(uint64_t hash _unused_,
 }
 
 int main(int argc, char *argv[]) {
-    const char usage[] = "Usage: clipdel [-d] [-F] [-N] [-n] [-v] pattern";
+    const char usage[] = "Usage: clipdel [-d] [-q] [-F] [-N] [-n] [-v] pattern";
 
     _drop_(config_free) struct config cfg = setup("clipdel");
 
     struct clipdel_state state = {0};
 
     int opt;
-    while ((opt = getopt(argc, argv, "dFNnvh")) != -1) {
+    while ((opt = getopt(argc, argv, "dqFNnvh")) != -1) {
         switch (opt) {
             case 'd':
                 state.mode = DELETE_REAL;
+                break;
+            case 'q':
+                state.quiet = true;
                 break;
             case 'F':
                 state.type = MATCH_LITERAL;

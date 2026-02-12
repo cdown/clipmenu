@@ -169,6 +169,12 @@ check_nr_clips 3
 [[ $(clipdel a) == $'bar\nbaz' ]]
 check_nr_clips 3
 
+# Test -q, should have no output
+[[ -z "$(clipdel -q a)" ]]
+
+# Should have output now
+[[ -n "$(clipdel a)" ]]
+
 # Likewise but inversion
 [[ $(clipdel -v a) == foo ]]
 check_nr_clips 3
