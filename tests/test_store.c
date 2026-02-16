@@ -221,6 +221,29 @@ static bool test__cs_add(void) {
     return true;
 }
 
+static bool test__cs_content_get__keeps_fd_open(void) {
+    _drop_(teardown_test) struct clip_store cs = setup_test();
+
+    uint64_t hash;
+    int ret = cs_add(&cs, "fd lifecycle", &hash, CS_DUPE_KEEP_ALL);
+    t_assert(ret == 0);
+
+    struct cs_content content;
+    ret = cs_content_get(&cs, hash, &content);
+    t_assert(ret == 0);
+    t_assert(fcntl(content.fd, F_GETFD) == 0);
+
+    int unrelated_fd = open("/dev/null", O_RDONLY);
+    t_assert(unrelated_fd >= 0);
+
+    drop_cs_content_unmap(&content);
+
+    t_assert(fcntl(unrelated_fd, F_GETFD) == 0);
+    close(unrelated_fd);
+
+    return true;
+}
+
 static bool test__cs_snip_iter(void) {
     _drop_(teardown_test) struct clip_store cs = setup_test();
     _drop_(cs_unref) struct ref_guard guard = cs_ref(&cs);
@@ -694,6 +717,7 @@ int main(void) {
     t_run(test__cs_init__bad_size);
     t_run(test__cs_init__bad_size_aligned);
     t_run(test__cs_add);
+    t_run(test__cs_content_get__keeps_fd_open);
     t_run(test__cs_snip_iter);
     t_run(test__cs_remove);
     t_run(test__cs_trim);
