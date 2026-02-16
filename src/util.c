@@ -148,3 +148,18 @@ bool debug_mode_enabled(void) {
     }
     return debug_enabled;
 }
+
+/**
+ * Compute a 64-bit FNV-1a hash for a NULL-terminated string.
+ */
+uint64_t fnv1a_64_hash(const char *buf) {
+    const uint64_t fnv_offset_basis = 0xcbf29ce484222325ULL;
+    const uint64_t fnv_prime = 0x100000001b3ULL;
+    uint64_t hash = fnv_offset_basis;
+    const uint8_t *src = (const uint8_t *)buf;
+    while (*src) {
+        hash ^= *src++;
+        hash *= fnv_prime;
+    }
+    return hash;
+}

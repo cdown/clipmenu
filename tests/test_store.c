@@ -472,6 +472,47 @@ static bool test__cs_replace__out_of_bounds(void) {
     return true;
 }
 
+static bool test__cs_replace__add_fail_keeps_old_entry(void) {
+    _drop_(teardown_test) struct clip_store cs = setup_test();
+
+    const char *old_content = "OLD_CONTENT";
+    uint64_t old_hash;
+    int ret = cs_add(&cs, old_content, &old_hash, CS_DUPE_KEEP_ALL);
+    t_assert(ret == 0);
+
+    const char *new_content = "new";
+    uint64_t new_hash = fnv1a_64_hash(new_content);
+
+    char hash_dir[CS_HASH_STR_MAX];
+    snprintf(hash_dir, sizeof(hash_dir), PRI_HASH, new_hash);
+    ret = mkdirat(cs.content_dir_fd, hash_dir, 0700);
+    t_assert(ret == 0);
+
+    char fake_path[CS_HASH_STR_MAX + 3];
+    snprintf(fake_path, sizeof(fake_path), "%s/1", hash_dir);
+    _drop_(close) int fake_fd = openat(cs.content_dir_fd, fake_path,
+                                       O_WRONLY | O_CREAT | O_TRUNC, 0600);
+    t_assert(fake_fd >= 0);
+    t_assert(write(fake_fd, "X", 1) == 1);
+
+    ret = cs_replace(&cs, CS_ITER_NEWEST_FIRST, 0, new_content, NULL);
+    t_assert(ret == -EFAULT);
+
+    _drop_(cs_content_unmap) struct cs_content old_after;
+    ret = cs_content_get(&cs, old_hash, &old_after);
+    t_assert(ret == 0);
+    t_assert((size_t)old_after.size == strlen(old_content));
+    t_assert(strncmp(old_after.data, old_content, (size_t)old_after.size) == 0);
+
+    _drop_(cs_unref) struct ref_guard guard = cs_ref(&cs);
+    struct cs_snip *snip = NULL;
+    t_assert(cs_snip_iter(&guard, CS_ITER_NEWEST_FIRST, &snip));
+    t_assert(snip->hash == old_hash);
+    t_assert(streq(snip->line, old_content));
+
+    return true;
+}
+
 static bool test__cs_snip__correct_nr_lines(void) {
     _drop_(teardown_test) struct clip_store cs = setup_test();
 
@@ -728,6 +769,7 @@ int main(void) {
     t_run(test__cs_remove___empty);
     t_run(test__cs_add__around_alloc_batch_threshold);
     t_run(test__cs_replace__out_of_bounds);
+    t_run(test__cs_replace__add_fail_keeps_old_entry);
     t_run(test__synchronisation);
     t_run(test__cs_trim__no_remove_when_still_referenced);
     t_run(test__cs_snip__correct_nr_lines);
