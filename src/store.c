@@ -806,18 +806,20 @@ int cs_replace(struct clip_store *cs, enum cs_iter_direction direction,
                      : age;
     struct cs_snip *snip = cs->snips + idx;
 
-    int ret = cs_content_remove(cs, snip->hash);
-    if (ret) {
-        return ret;
-    }
     char line[CS_SNIP_LINE_SIZE];
     size_t nr_lines = first_line(content, line);
+    uint64_t old_hash = snip->hash;
     uint64_t hash = fnv1a_64_hash(content);
-    cs_snip_update(snip, hash, line, nr_lines);
-    ret = cs_content_add(cs, hash, content, CS_DUPE_KEEP_ALL);
+
+    int ret = cs_content_add(cs, hash, content, CS_DUPE_KEEP_ALL);
     if (ret) {
         return ret;
     }
+    ret = cs_content_remove(cs, old_hash);
+    if (ret) {
+        return ret;
+    }
+    cs_snip_update(snip, hash, line, nr_lines);
     if (out_hash) {
         *out_hash = hash;
     }
