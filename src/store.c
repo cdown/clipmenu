@@ -542,6 +542,7 @@ int cs_content_get(struct clip_store *cs, uint64_t hash,
     content->data = data;
     content->fd = fd;
     content->size = st.st_size;
+    fd = -1; // Disarm the _drop_, this will be handled by cs_content_unmap()
 
     return 0;
 }
