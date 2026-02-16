@@ -339,23 +339,6 @@ static void _nonnull_ cs_snip_update(struct cs_snip *snip, uint64_t hash,
 }
 
 /**
- * Computes a 64-bit FNV-1a hash for a given buffer.
- *
- * @buf: The input buffer to hash.
- */
-static uint64_t fnv1a_64_hash(const char *buf) {
-    const uint64_t fnv_offset_basis = 0xcbf29ce484222325ULL;
-    const uint64_t fnv_prime = 0x100000001b3ULL;
-    uint64_t hash = fnv_offset_basis;
-    const uint8_t *src = (const uint8_t *)buf;
-    while (*src) {
-        hash ^= *src++;
-        hash *= fnv_prime;
-    }
-    return hash;
-}
-
-/**
  * Extracts the first non-empty line from a given text buffer and copies it to
  * the output buffer. Returns the total number of lines. A final line with no
  * newline is considered a line for accounting purposes.
