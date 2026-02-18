@@ -677,12 +677,11 @@ static int _noreturn_ run(int evt_base) {
 
 #ifndef UNIT_TEST
 int main(int argc, char *argv[]) {
-    (void)argv;
-    die_on(argc != 1, "clipmenud doesn't accept any arguments\n");
     int evt_base;
 
     cfg = setup("clipmenud");
     exec_man_on_help(argc, argv);
+    die_on(argc != 1, "clipmenud doesn't accept any arguments\n");
 
     _drop_(close) int session_fd =
         open(get_session_lock_path(&cfg), O_RDWR | O_CREAT | O_CLOEXEC, 0600);
