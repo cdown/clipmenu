@@ -740,13 +740,13 @@ static bool test__cs_make_newest(void) {
     t_assert(ret == 0);
     t_assert(cs.header->nr_snips == 3);
 
-    uint64_t order_before[3] = { hash_c, hash_b, hash_a };
+    uint64_t order_before[3] = {hash_c, hash_b, hash_a};
     ret = check_order(&cs, order_before, 3);
     t_assert(ret == 0);
     /* Now the order should change to ["A", "C", "B"] */
     ret = cs_make_newest(&cs, hash_a);
     t_assert(ret == 0);
-    uint64_t order_after[3] = { hash_a, hash_c, hash_b };
+    uint64_t order_after[3] = {hash_a, hash_c, hash_b};
     ret = check_order(&cs, order_after, 3);
     t_assert(ret == 0);
 

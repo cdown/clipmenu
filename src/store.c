@@ -572,6 +572,11 @@ int cs_add(struct clip_store *cs, const char *content, uint64_t *out_hash,
         *out_hash = hash;
     }
 
+    _drop_(cs_unref) struct ref_guard guard = cs_ref(cs);
+    if (guard.status < 0) {
+        return guard.status;
+    }
+
     int ret = cs_content_add(cs, hash, content, dupe_policy);
     if (ret == -EEXIST && dupe_policy == CS_DUPE_KEEP_LAST) {
         return cs_make_newest(cs, hash);
