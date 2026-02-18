@@ -284,6 +284,19 @@ static void handle_xfixes_selection_notify(XFixesSelectionNotifyEvent *se) {
 
     dbg("Notified about selection update. Selection: %s, Owner: '%s' (0x%lx)\n",
         cfg.selections[sel].name, strnull(win_title), (unsigned long)se->owner);
+
+    struct incr_transfer *it = it_list;
+    while (it) {
+        struct incr_transfer *next = it->next;
+        if (it->property == sels[sel].storage) {
+            it_dbg(it, "Cleaning up stale INCR transfer\n");
+            free(it->data);
+            it_remove(&it_list, it);
+            free(it);
+        }
+        it = next;
+    }
+
     XConvertSelection(dpy, se->selection,
                       XInternAtom(dpy, "UTF8_STRING", False), sels[sel].storage,
                       win, CurrentTime);
