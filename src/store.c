@@ -308,9 +308,10 @@ static int _must_use_ _nonnull_ cs_file_resize(struct clip_store *cs,
     }
 
     if (grow) {
-        int ret =
-            cs_remap(cs, cs_file_size(cs->header->nr_snips_alloc), new_size);
+        size_t old_size = cs_file_size(cs->header->nr_snips_alloc);
+        int ret = cs_remap(cs, old_size, new_size);
         if (ret < 0) {
+            ftruncate(cs->snip_fd, (off_t)old_size);
             return ret;
         }
     }
