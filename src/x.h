@@ -7,6 +7,7 @@
 
 DEFINE_DROP_FUNC_VOID(XFree)
 
+size_t _nonnull_ get_incr_threshold(Display *dpy);
 size_t _nonnull_ get_chunk_size(Display *dpy);
 char _nonnull_ *get_window_title(Display *dpy, Window owner);
 int xerror_handler(Display *dpy _unused_, XErrorEvent *ee);

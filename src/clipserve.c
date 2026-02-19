@@ -16,6 +16,7 @@ static struct incr_transfer *it_list = NULL;
 static Display *dpy;
 static Atom incr_atom;
 
+static size_t incr_threshold;
 static size_t chunk_size;
 
 static enum selection_type selection_name_to_type(const char *name) {
@@ -121,6 +122,10 @@ static void _nonnull_ serve_clipboard(uint64_t hash, struct cs_content *content,
     dpy = XOpenDisplay(NULL);
     expect(dpy);
 
+    // Threshold and payload size are intentionally different: the server's
+    // max request size is a reasonable INCR cutoff, but too aggressive as an
+    // outbound chunk size for some requestors.
+    incr_threshold = get_incr_threshold(dpy);
     chunk_size = get_chunk_size(dpy);
 
     win = XCreateSimpleWindow(dpy, DefaultRootWindow(dpy), 0, 0, 1, 1, 0, 0, 0);
@@ -190,7 +195,7 @@ static void _nonnull_ serve_clipboard(uint64_t hash, struct cs_content *content,
                                     arrlen(available_targets));
                 } else if (req->target == utf8_string ||
                            req->target == XA_STRING) {
-                    if (content->size < (off_t)chunk_size) {
+                    if (content->size < (off_t)incr_threshold) {
                         // Data size is small enough, send directly
                         XChangeProperty(dpy, req->requestor, req->property,
                                         req->target, 8, PropModeReplace,

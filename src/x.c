@@ -57,19 +57,41 @@ int xerror_handler(Display *dpy _unused_, XErrorEvent *ee) {
 #define FALLBACK_CHUNK_BYTES 4 * 1024
 
 /**
- * Calculate and cache an appropriate INCR chunk size.
+ * Return a quarter of the maximum request size in bytes.
  *
- * We consider selections larger than a quarter of the maximum request size to
- * be "large". That's what others (like xclip) do, so it's clearly ok in
- * practice.
+ * XMaxRequestSize and XExtendedMaxRequestSize return units of 4-byte words, so
+ * the word count already equals 1/4 of the maximum request size in bytes.
+ */
+size_t get_incr_threshold(Display *dpy) {
+    size_t max_request_words = XExtendedMaxRequestSize(dpy);
+    if (max_request_words == 0) {
+        max_request_words = XMaxRequestSize(dpy);
+    }
+    return max_request_words ? max_request_words : FALLBACK_CHUNK_BYTES;
+}
+
+/**
+ * Calculate an appropriate INCR payload size.
+ *
+ * The request size word count is a sensible threshold for deciding when to use
+ * INCR at all, but using that same value as the payload of each
+ * XChangeProperty request is too aggressive in practice.
+ *
+ * This is an interoperability constraint, not a protocol-limit one, because:
+ *
+ * - XMaxRequestSize/XExtendedMaxRequestSize only tell us what request size the
+ *   X server will accept.
+ * - INCR has no chunk-size negotiation, so if a requestor dislikes large
+ *   payloads it can simply stop deleting the property, leaving the sender
+ *   waiting forever.
+ *
+ * Other implementations do not agree on a single rule here either: xclip uses
+ * a heuristic, some clipboard managers use a fixed cap, and Emacs couples
+ * large chunks with a timeout.
  */
 size_t get_chunk_size(Display *dpy) {
-    // Units are 4-byte words, so this is 1/4 in bytes
-    size_t chunk_size = XExtendedMaxRequestSize(dpy);
-    if (chunk_size == 0) {
-        chunk_size = XMaxRequestSize(dpy);
-    }
-    return chunk_size ? chunk_size / 4 : FALLBACK_CHUNK_BYTES;
+    size_t incr_threshold = get_incr_threshold(dpy);
+    return incr_threshold / 4 ? incr_threshold / 4 : FALLBACK_CHUNK_BYTES;
 }
 
 /**
