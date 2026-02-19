@@ -137,6 +137,10 @@ int main(int argc, char *argv[]) {
         delay_ms *= 2;
     }
 
+    if (is_enabled(&cfg) == want_enable) {
+        return 0;
+    }
+
     die("Failed to %s clipmenud within %u ms\n",
         want_enable ? "enable" : "disable", max_wait_ms);
 }
