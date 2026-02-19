@@ -555,6 +555,9 @@ int cs_make_newest(struct clip_store *cs, uint64_t hash) {
     die("unreachable");
 }
 
+static int _must_use_ _nonnull_ cs_content_remove(struct clip_store *cs,
+                                                  uint64_t hash);
+
 /**
  * Add a new content entry to the clip store and content directory.
  *
@@ -582,7 +585,20 @@ int cs_add(struct clip_store *cs, const char *content, uint64_t *out_hash,
     if (ret == -EEXIST && dupe_policy == CS_DUPE_KEEP_LAST) {
         return cs_make_newest(cs, hash);
     }
-    return ret ? ret : cs_snip_add(cs, hash, line, nr_lines);
+    if (ret) {
+        return ret;
+    }
+    ret = cs_snip_add(cs, hash, line, nr_lines);
+    if (ret) {
+        int rm_ret = cs_content_remove(cs, hash);
+        if (rm_ret) {
+            warn("Failed to roll back leaked content for hash " PRI_HASH
+                 " after cs_snip_add failed (%s): %s\n",
+                 hash, strerror(-ret), strerror(-rm_ret));
+            return rm_ret;
+        }
+    }
+    return ret;
 }
 
 /**

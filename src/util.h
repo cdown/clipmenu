@@ -35,9 +35,11 @@ struct selection;
         !__builtin_types_compatible_p(typeof(x), typeof(&*(x))),               \
         sizeof(x) / sizeof((x)[0]), (void)0 /* decayed, compile error */))
 
+#define _msg(level, fmt, ...) fprintf(stderr, level ": " fmt, ##__VA_ARGS__)
+#define warn(fmt, ...) _msg("WARN", fmt, ##__VA_ARGS__)
 #define _die(dump, fmt, ...)                                                   \
     do {                                                                       \
-        fprintf(stderr, "FATAL: " fmt, ##__VA_ARGS__);                         \
+        _msg("FATAL", fmt, ##__VA_ARGS__);                                     \
         if (dump) {                                                            \
             abort();                                                           \
         }                                                                      \
