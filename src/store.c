@@ -552,7 +552,7 @@ int cs_make_newest(struct clip_store *cs, uint64_t hash) {
             return 0;
         }
     }
-    die("unreachable");
+    return -ENOENT;
 }
 
 static int _must_use_ _nonnull_ cs_content_remove(struct clip_store *cs,

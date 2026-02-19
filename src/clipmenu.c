@@ -1,5 +1,8 @@
+#include <errno.h>
 #include <fcntl.h>
 #include <stdint.h>
+#include <stdio.h>
+#include <string.h>
 #include <unistd.h>
 
 #include "config.h"
@@ -17,7 +20,12 @@ static int _nonnull_ clipmenu_action(struct config *cfg, uint64_t hash) {
 
         _drop_(cs_destroy) struct clip_store cs;
         expect(cs_init(&cs, snip_fd, content_dir_fd) == 0);
-        expect(cs_make_newest(&cs, hash) == 0);
+        int ret = cs_make_newest(&cs, hash);
+        if (ret == -ENOENT) {
+            fprintf(stderr, "Selected clip no longer exists\n");
+            return EXIT_FAILURE;
+        }
+        expect(ret == 0);
     }
 
     run_clipserve(hash, NULL);
