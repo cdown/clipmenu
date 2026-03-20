@@ -1,5 +1,7 @@
 #include <errno.h>
 #include <fcntl.h>
+#include <signal.h>
+#include <stdarg.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -83,12 +85,53 @@ static int dprintf_ellipsise_long_snip_line(int fd, const char *line) {
     }
 }
 
+static int launcher_vdprintf(int fd, const char *fmt, va_list args) {
+    if (vdprintf(fd, fmt, args) < 0) {
+        return negative_errno();
+    }
+    return 0;
+}
+
+static int launcher_dprintf(int fd, const char *fmt, ...) {
+    va_list args;
+    va_start(args, fmt);
+    int ret = launcher_vdprintf(fd, fmt, args);
+    va_end(args);
+    return ret;
+}
+
+static int launcher_write_all(int fd, const char *buf, size_t count) {
+    while (count > 0) {
+        ssize_t written = write(fd, buf, count);
+        if (written < 0) {
+            if (errno == EINTR) {
+                continue;
+            }
+            return negative_errno();
+        }
+        buf += written;
+        count -= (size_t)written;
+    }
+    return 0;
+}
+
+static int wait_for_pid(pid_t pid, int *status) {
+    while (waitpid(pid, status, 0) < 0) {
+        if (errno == EINTR) {
+            continue;
+        }
+        return negative_errno();
+    }
+    return 0;
+}
+
 /**
  * Writes the available clips to the launcher and reads back the user's
  * selection.
  */
 static int _nonnull_ interact_with_dmenu(struct config *cfg, int *input_pipe,
-                                         int *output_pipe, uint64_t *out_hash) {
+                                         int *output_pipe, pid_t launcher_pid,
+                                         uint64_t *out_hash) {
     close(input_pipe[0]);
     close(output_pipe[1]);
 
@@ -107,22 +150,74 @@ static int _nonnull_ interact_with_dmenu(struct config *cfg, int *input_pipe,
     expect(idx_to_hash);
     int pad = get_padding_length(cur_clips);
     size_t clip_idx = cur_clips;
+    bool launcher_closed_stdin = false;
+    int forced_ret = 0;
+
+    struct sigaction ignore_sa = {0};
+    ignore_sa.sa_handler = SIG_IGN;
+    sigemptyset(&ignore_sa.sa_mask);
+    struct sigaction old_sa;
+    expect(sigaction(SIGPIPE, &ignore_sa, &old_sa) == 0);
 
     struct cs_snip *snip = NULL;
     while (cs_snip_iter(&guard, CS_ITER_NEWEST_FIRST, &snip)) {
-        expect(dprintf(input_pipe[1], "[%*zu] ", pad, clip_idx--) > 0);
-        expect(dprintf_ellipsise_long_snip_line(input_pipe[1], snip->line) > 0);
-        if (snip->nr_lines > 1) {
-            expect(dprintf(input_pipe[1], " (%zu lines)", snip->nr_lines) > 0);
+        size_t idx = --clip_idx;
+        idx_to_hash[idx] = snip->hash;
+
+        if (launcher_closed_stdin) {
+            continue;
         }
-        write_safe(input_pipe[1], "\n", 1);
-        idx_to_hash[clip_idx] = snip->hash;
+
+        int write_ret =
+            launcher_dprintf(input_pipe[1], "[%*zu] ", pad, idx + 1);
+        if (write_ret == -EPIPE) {
+            launcher_closed_stdin = true;
+            continue;
+        }
+        if (write_ret < 0) {
+            forced_ret = EXIT_FAILURE;
+            break;
+        }
+
+        write_ret = dprintf_ellipsise_long_snip_line(input_pipe[1], snip->line);
+        if (write_ret < 0 && errno == EPIPE) {
+            launcher_closed_stdin = true;
+            continue;
+        }
+        if (write_ret < 0) {
+            forced_ret = EXIT_FAILURE;
+            break;
+        }
+
+        if (snip->nr_lines > 1) {
+            write_ret =
+                launcher_dprintf(input_pipe[1], " (%zu lines)", snip->nr_lines);
+            if (write_ret == -EPIPE) {
+                launcher_closed_stdin = true;
+                continue;
+            }
+            if (write_ret < 0) {
+                forced_ret = EXIT_FAILURE;
+                break;
+            }
+        }
+
+        write_ret = launcher_write_all(input_pipe[1], "\n", 1);
+        if (write_ret == -EPIPE) {
+            launcher_closed_stdin = true;
+            continue;
+        }
+        if (write_ret < 0) {
+            forced_ret = EXIT_FAILURE;
+            break;
+        }
     }
 
     // We've written everything and have our own map, no need to hold any more
     cs_unref(guard.cs);
 
     close(input_pipe[1]);
+    expect(sigaction(SIGPIPE, &old_sa, NULL) == 0);
 
     char sel_idx_str[UINT64_MAX_STRLEN + 1];
     read_safe(output_pipe[0], sel_idx_str, 1); // Discard the leading "["
@@ -134,7 +229,6 @@ static int _nonnull_ interact_with_dmenu(struct config *cfg, int *input_pipe,
     }
 
     uint64_t sel_idx;
-    int forced_ret = 0;
     if (str_to_uint64(sel_idx_str, &sel_idx) < 0 || sel_idx == 0 ||
         sel_idx > cur_clips) {
         forced_ret = EXIT_FAILURE;
@@ -143,11 +237,10 @@ static int _nonnull_ interact_with_dmenu(struct config *cfg, int *input_pipe,
     }
 
     int dmenu_status;
-    while (wait(&dmenu_status) < 0 && errno == EINTR)
-        ;
+    int wait_ret = wait_for_pid(launcher_pid, &dmenu_status);
     close(output_pipe[0]);
 
-    if (forced_ret || !WIFEXITED(dmenu_status)) {
+    if (forced_ret || wait_ret < 0 || !WIFEXITED(dmenu_status)) {
         return EXIT_FAILURE;
     }
 
@@ -170,7 +263,7 @@ static int _nonnull_ prompt_user_for_hash(struct config *cfg,
         exec_launcher(cfg, prompt, input_pipe, output_pipe);
     }
 
-    return interact_with_dmenu(cfg, input_pipe, output_pipe, hash);
+    return interact_with_dmenu(cfg, input_pipe, output_pipe, pid, hash);
 }
 
 /**
