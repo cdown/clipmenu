@@ -11,11 +11,13 @@ struct delete_state {
     uint64_t hash_to_delete;
 };
 
+// cppcheck-suppress-begin constParameterCallback
 static enum cs_remove_action _nonnull_
 remove_if_hash_match(uint64_t hash, const char *line _unused_, void *private) {
     const struct delete_state *state = private;
     return hash == state->hash_to_delete ? CS_ACTION_REMOVE : CS_ACTION_KEEP;
 }
+// cppcheck-suppress-end constParameterCallback
 
 static int _nonnull_ clipdelmenu_action(struct config *cfg, uint64_t hash) {
     _drop_(close) int content_dir_fd = open(get_cache_dir(cfg), O_RDONLY);
