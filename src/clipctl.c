@@ -39,7 +39,13 @@ static pid_t get_clipmenud_pid(struct config *cfg) {
         close(fd);
         return -ENOENT;
     }
-    if (errno != EWOULDBLOCK && errno != EAGAIN) {
+    bool would_block;
+#if EWOULDBLOCK == EAGAIN
+    would_block = errno == EWOULDBLOCK;
+#else
+    would_block = errno == EWOULDBLOCK || errno == EAGAIN;
+#endif
+    if (!would_block) {
         close(fd);
         return -ENOENT;
     }

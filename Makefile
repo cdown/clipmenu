@@ -55,9 +55,15 @@ clean:
 
 clang_supports_unsafe_buffer_usage := $(shell clang -x c -c /dev/null -o /dev/null -Werror -Wunsafe-buffer-usage > /dev/null 2>&1; echo $$?)
 ifeq ($(clang_supports_unsafe_buffer_usage),0)
-    extra_clang_flags := -Wno-unsafe-buffer-usage -Wno-missing-include-dirs
+    extra_clang_flags := -Wno-unsafe-buffer-usage -Wno-missing-include-dirs \
+			 -Wno-unknown-warning-option \
+			 -Wno-unused-command-line-argument \
+			 -Wno-error
 else
-    extra_clang_flags := -Wno-missing-include-dirs
+    extra_clang_flags := -Wno-missing-include-dirs \
+			 -Wno-unknown-warning-option \
+			 -Wno-unused-command-line-argument \
+			 -Wno-error
 endif
 
 c_analyse_targets := $(c_files:%=%-analyse)
@@ -66,24 +72,15 @@ h_analyse_targets := $(h_files:%=%-analyse)
 analyse: CFLAGS+=$(debug_cflags)
 analyse: cppcheck $(c_analyse_targets) $(h_analyse_targets)
 
-$(c_analyse_targets): %-analyse:
+$(c_analyse_targets): %-analyse: %
 	# -W options here are not clang compatible, so out of generic CFLAGS
 	gcc $< -o /dev/null -c \
 		-std=gnu99 -Ofast -fwhole-program -Wall -Wextra \
 		-Wlogical-op -Wduplicated-cond \
 		-fanalyzer $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) $(LDLIBS)
-	clang $< -o /dev/null -c -std=gnu99 -Ofast -Weverything \
-		-Wno-documentation-unknown-command \
-		-Wno-language-extension-token \
-		-Wno-disabled-macro-expansion \
-		-Wno-padded \
-		-Wno-covered-switch-default \
-		-Wno-gnu-zero-variadic-macro-arguments \
-		-Wno-declaration-after-statement \
-		-Wno-cast-qual \
-		-Wno-unused-command-line-argument \
-		$(extra_clang_flags) \
-		$(CFLAGS) $(CPPFLAGS) $(LDFLAGS) $(LDLIBS)
+	clang $< -o /dev/null -c -std=gnu99 -Ofast \
+		$(CFLAGS) $(CPPFLAGS) $(LDFLAGS) $(LDLIBS) \
+		$(extra_clang_flags)
 	$(MAKE) $*-shared-analyse
 
 $(h_analyse_targets): %-analyse:

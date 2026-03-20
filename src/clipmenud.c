@@ -101,8 +101,9 @@ static bool within_partial_merge_window(struct timespec current_time,
 // cppcheck-suppress [constParameterCallback,unmatchedSuppression]
 static Bool is_timestamp_event(Display *display _unused_, XEvent *event,
                                XPointer arg) {
+    const void *argp = arg;
     return event->type == PropertyNotify &&
-           event->xproperty.atom == *(Atom *)arg;
+           event->xproperty.atom == *(const Atom *)argp;
 }
 
 /**
