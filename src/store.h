@@ -63,6 +63,7 @@ static_assert(sizeof(struct cs_snip) == sizeof(struct cs_header),
  * @refcount: The reference count for the fd flock
  * @local_nr_snips: Our last known header->nr_snips
  * @local_nr_snips_alloc: Our last known header->nr_snips_alloc
+ * @mapped_file_size: The actual size of our current mmap() in bytes
  */
 struct clip_store {
     /* FDs */
@@ -77,6 +78,7 @@ struct clip_store {
     size_t refcount;
     size_t local_nr_snips;
     size_t local_nr_snips_alloc;
+    size_t mapped_file_size;
     bool ready;
 };
 

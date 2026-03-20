@@ -94,6 +94,7 @@ static int _must_use_ _nonnull_ cs_remap(struct clip_store *cs, size_t old_size,
     }
     cs->header = new_header;
     cs->snips = (struct cs_snip *)(cs->header + 1);
+    cs->mapped_file_size = new_size;
     return 0;
 }
 
@@ -162,7 +163,7 @@ struct ref_guard cs_ref(struct clip_store *cs) {
 
         // If we shrank, no need to remap, since we'll just use the new bounds.
         if (cs->local_nr_snips_alloc < cs->header->nr_snips_alloc) {
-            int remap_ret = cs_remap(cs, cs_file_size(cs->local_nr_snips_alloc),
+            int remap_ret = cs_remap(cs, cs->mapped_file_size,
                                      cs_file_size(cs->header->nr_snips_alloc));
             if (remap_ret < 0) {
                 guard.status = remap_ret;
@@ -194,9 +195,7 @@ void drop_cs_unref(struct ref_guard *guard) {
  */
 int cs_destroy(struct clip_store *cs) {
     cs->ready = false;
-    // Don't use the value from the header: if it's out of date, we haven't
-    // done mremap() with the new size yet
-    if (munmap(cs->header, cs_file_size(cs->local_nr_snips_alloc))) {
+    if (munmap(cs->header, cs->mapped_file_size)) {
         return negative_errno();
     }
     return 0;
@@ -258,6 +257,7 @@ int cs_init(struct clip_store *cs, int snip_fd, int content_dir_fd) {
     cs->snips = (struct cs_snip *)(cs->header + 1);
     cs->local_nr_snips = cs->header->nr_snips;
     cs->local_nr_snips_alloc = cs->header->nr_snips_alloc;
+    cs->mapped_file_size = file_size;
     cs->ready = true;
 
     (void)guard; // Old clang will complain guard is unused, despite cleanup
@@ -308,10 +308,10 @@ static int _must_use_ _nonnull_ cs_file_resize(struct clip_store *cs,
     }
 
     if (grow) {
-        size_t old_size = cs_file_size(cs->header->nr_snips_alloc);
-        int ret = cs_remap(cs, old_size, new_size);
+        size_t old_file_size = cs_file_size(cs->header->nr_snips_alloc);
+        int ret = cs_remap(cs, cs->mapped_file_size, new_size);
         if (ret < 0) {
-            ftruncate(cs->snip_fd, (off_t)old_size);
+            expect(ftruncate(cs->snip_fd, (off_t)old_file_size) == 0);
             return ret;
         }
     }

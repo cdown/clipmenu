@@ -112,6 +112,25 @@ static int create_test_content_dir_fd(void) {
     return dir_fd;
 }
 
+static int count_test_snip_maps(void) {
+#ifdef __linux__
+    _drop_(fclose) FILE *maps = fopen("/proc/self/maps", "r");
+    assert(maps != NULL);
+
+    char line[4096];
+    int count = 0;
+    while (fgets(line, sizeof(line), maps) != NULL) {
+        if (strstr(line, TEST_SNIP_FILE) != NULL) {
+            count++;
+        }
+    }
+
+    return count;
+#else
+    return -1;
+#endif
+}
+
 /* Test callables */
 static enum cs_remove_action remove_if_five(uint64_t hash, const char *line,
                                             void *private) {
@@ -646,6 +665,46 @@ static bool test__synchronisation(void) {
     return true;
 }
 
+static bool test__cs_trim__regrow_does_not_leak_mapping(void) {
+    struct clip_store cs = setup_test();
+
+    bool added = true;
+    for (int i = 0; i < 1500; i++) {
+        char buf[32];
+        snprintf(buf, sizeof(buf), "clip-%d", i);
+        if (cs_add(&cs, buf, NULL, CS_DUPE_KEEP_ALL) != 0) {
+            added = false;
+            break;
+        }
+    }
+    t_assert(added);
+
+    int maps_after_growth = count_test_snip_maps();
+    if (maps_after_growth < 0) {
+        drop_teardown_test(&cs);
+        return true;
+    }
+    t_assert(maps_after_growth == 1);
+
+    t_assert(cs_trim(&cs, CS_ITER_NEWEST_FIRST, 0) == 0);
+    t_assert(count_test_snip_maps() == 1);
+
+    t_assert(cs_add(&cs, "regrow", NULL, CS_DUPE_KEEP_ALL) == 0);
+    t_assert(count_test_snip_maps() == 1);
+
+    int snip_fd = cs.snip_fd;
+    int content_dir_fd = cs.content_dir_fd;
+    t_assert(cs_destroy(&cs) == 0);
+    t_assert(count_test_snip_maps() == 0);
+
+    close(snip_fd);
+    shm_unlink(TEST_SNIP_FILE);
+    close(content_dir_fd);
+    remove_test_content_dir(TEST_CONTENT_DIR);
+
+    return true;
+}
+
 static bool test__cs_add__dupe_keep_all(void) {
     _drop_(teardown_test) struct clip_store cs = setup_test();
 
@@ -771,6 +830,7 @@ int main(void) {
     t_run(test__cs_replace__out_of_bounds);
     t_run(test__cs_replace__add_fail_keeps_old_entry);
     t_run(test__synchronisation);
+    t_run(test__cs_trim__regrow_does_not_leak_mapping);
     t_run(test__cs_trim__no_remove_when_still_referenced);
     t_run(test__cs_snip__correct_nr_lines);
     t_run(test__first_line__empty);
