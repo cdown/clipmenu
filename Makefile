@@ -49,6 +49,8 @@ install: all
 uninstall:
 	rm -f $(addprefix $(DESTDIR)$(PREFIX)/bin/,$(bins))
 	rm -f "$(DESTDIR)${PREFIX}/lib/systemd/user/clipmenud.service"
+	rm -f $(addprefix $(DESTDIR)$(mandir)/man1/,$(man1_files))
+	rm -f $(addprefix $(DESTDIR)$(mandir)/man5/,$(man5_files))
 
 clean:
 	rm -f src/*.o src/*~ $(addprefix src/,$(bins))
