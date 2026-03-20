@@ -106,6 +106,20 @@ check_nr_clips() {
     (( $(wc -l < "$l_out") == "${1?}" ))
 }
 
+wait_nr_clips() {
+    local want=${1?}
+    local deadline=$((SECONDS + 5))
+
+    while (( SECONDS < deadline )); do
+        if check_nr_clips "$want"; then
+            return 0
+        fi
+        sleep 0.1
+    done
+
+    check_nr_clips "$want"
+}
+
 if ! (( USE_CURRENT_DISPLAY )); then
     export DISPLAY=:1911
     Xvfb "$DISPLAY" &
@@ -282,9 +296,7 @@ check_nr_clips 5
 
 # Large selection (INCR)
 printf '%.0sa' {1..4001} | xsel -b
-long_settle
-
-check_nr_clips 6
+wait_nr_clips 6
 
 # After large selection is stored, put something small that's a possible #
 # partial (non-INCR)

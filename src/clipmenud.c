@@ -62,7 +62,7 @@ static struct clip_text last_text[CM_SEL_MAX] = {
     {NULL, CLIP_TEXT_SOURCE_MALLOC},
     {NULL, CLIP_TEXT_SOURCE_MALLOC},
 };
-static time_t last_text_time[CM_SEL_MAX];
+static struct timespec last_text_time[CM_SEL_MAX];
 
 static void free_clip_text(struct clip_text *ct) {
     expect(ct->source != CLIP_TEXT_SOURCE_INVALID);
@@ -77,6 +77,25 @@ static void free_clip_text(struct clip_text *ct) {
     }
 
     ct->source = CLIP_TEXT_SOURCE_INVALID;
+}
+
+static struct timespec get_monotonic_time(void) {
+    struct timespec ts;
+    expect(clock_gettime(CLOCK_MONOTONIC, &ts) == 0);
+    return ts;
+}
+
+static bool within_partial_merge_window(struct timespec current_time,
+                                        struct timespec last_time) {
+    time_t elapsed_secs = current_time.tv_sec - last_time.tv_sec;
+
+    if (elapsed_secs < cfg.partial_merge_secs) {
+        return true;
+    }
+    if (elapsed_secs > cfg.partial_merge_secs) {
+        return false;
+    }
+    return current_time.tv_nsec <= last_time.tv_nsec;
 }
 
 // cppcheck-suppress [constParameterCallback,unmatchedSuppression]
@@ -351,11 +370,11 @@ static void maybe_trim(void) {
  */
 static uint64_t store_clip(enum selection_type sel, struct clip_text *ct) {
     dbg("Clipboard text is considered salient, storing\n");
-    time_t current_time = time(NULL);
+    struct timespec current_time = get_monotonic_time();
     uint64_t hash;
 
     if (cfg.partial_merge_secs > 0 && last_text[sel].data &&
-        difftime(current_time, last_text_time[sel]) <= cfg.partial_merge_secs &&
+        within_partial_merge_window(current_time, last_text_time[sel]) &&
         is_possible_partial(last_text[sel].data, ct->data)) {
         dbg("Possible partial of last clip on %s, replacing\n",
             cfg.selections[sel].name);
