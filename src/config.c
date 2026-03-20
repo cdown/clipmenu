@@ -1,5 +1,6 @@
 #include <X11/Xatom.h>
 #include <X11/Xlib.h>
+#include <ctype.h>
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
@@ -158,6 +159,14 @@ static int _nonnull_ convert_launcher(const char *str, void *output) {
 #define DEFAULT_SELECTION_STATE(name)                                          \
     (struct selection) { name, 0, NULL }
 
+static char *skip_whitespace(char *str) {
+    while (*str != '\0' && isspace((unsigned char)*str)) {
+        str++;
+    }
+
+    return str;
+}
+
 static int convert_selections(const char *str, void *output) {
     struct selection *sels = malloc(3 * sizeof(struct selection));
     expect(sels);
@@ -167,12 +176,19 @@ static int convert_selections(const char *str, void *output) {
 
     _drop_(free) char *inner_str = strdup(str);
     expect(inner_str);
-    const char *token = strtok(inner_str, " ");
-    size_t i;
+    char *next = skip_whitespace(inner_str);
+    while (*next != '\0') {
+        const char *token = next;
+        while (*next != '\0' && !isspace((unsigned char)*next)) {
+            next++;
+        }
+        if (*next != '\0') {
+            *next++ = '\0';
+            next = skip_whitespace(next);
+        }
 
-    while (token) {
         bool found = false;
-        for (i = 0; i < CM_SEL_MAX; i++) {
+        for (size_t i = 0; i < CM_SEL_MAX; i++) {
             if (streq(token, sels[i].name)) {
                 sels[i].active = true;
                 found = true;
@@ -182,7 +198,6 @@ static int convert_selections(const char *str, void *output) {
         if (!found) {
             return -EINVAL;
         }
-        token = strtok(NULL, " ");
     }
 
     *(struct selection **)output = sels;
@@ -269,13 +284,24 @@ static int config_parse_file(FILE *file, struct config_entry entries[],
 
     char line[256];
     while (fgets(line, sizeof(line), file)) {
-        const char *key = strtok(line, " ");
-        char *value = strtok(NULL, "\n");
-        if (!key || !value) {
+        char *key = skip_whitespace(line);
+        if (*key == '\0' || *key == '#') {
             continue;
         }
-        while (*value == ' ' || *value == '\t') {
+
+        char *value = key;
+        while (*value != '\0' && !isspace((unsigned char)*value)) {
             value++;
+        }
+        if (*value == '\0') {
+            continue;
+        }
+        *value++ = '\0';
+        value = skip_whitespace(value);
+
+        char *newline = strpbrk(value, "\r\n");
+        if (newline) {
+            *newline = '\0';
         }
 
         for (size_t i = 0; i < entries_len; ++i) {
