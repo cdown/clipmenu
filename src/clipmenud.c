@@ -57,6 +57,13 @@ struct clip_text {
     enum clip_text_source source;
 };
 
+static struct clip_text last_text[CM_SEL_MAX] = {
+    {NULL, CLIP_TEXT_SOURCE_MALLOC},
+    {NULL, CLIP_TEXT_SOURCE_MALLOC},
+    {NULL, CLIP_TEXT_SOURCE_MALLOC},
+};
+static time_t last_text_time[CM_SEL_MAX];
+
 static void free_clip_text(struct clip_text *ct) {
     expect(ct->source != CLIP_TEXT_SOURCE_INVALID);
 
@@ -338,21 +345,20 @@ static void maybe_trim(void) {
 }
 
 /**
- * Store the clipboard text. If the text is a possible partial of the last clip
- * and it was received shortly afterwards, replace instead of adding.
+ * Store the clipboard text for a selection. If the text is a possible partial
+ * of the last clip on the same selection and it was received shortly
+ * afterwards, replace instead of adding.
  */
-static uint64_t store_clip(struct clip_text *ct) {
-    static struct clip_text last_text = {NULL, CLIP_TEXT_SOURCE_MALLOC};
-    static time_t last_text_time;
-
+static uint64_t store_clip(enum selection_type sel, struct clip_text *ct) {
     dbg("Clipboard text is considered salient, storing\n");
     time_t current_time = time(NULL);
     uint64_t hash;
 
-    if (cfg.partial_merge_secs > 0 && last_text.data &&
-        difftime(current_time, last_text_time) <= cfg.partial_merge_secs &&
-        is_possible_partial(last_text.data, ct->data)) {
-        dbg("Possible partial of last clip, replacing\n");
+    if (cfg.partial_merge_secs > 0 && last_text[sel].data &&
+        difftime(current_time, last_text_time[sel]) <= cfg.partial_merge_secs &&
+        is_possible_partial(last_text[sel].data, ct->data)) {
+        dbg("Possible partial of last clip on %s, replacing\n",
+            cfg.selections[sel].name);
         expect(cs_replace(&cs, CS_ITER_NEWEST_FIRST, 0, ct->data, &hash) == 0);
     } else {
         expect(cs_add(&cs, ct->data, &hash,
@@ -360,9 +366,9 @@ static uint64_t store_clip(struct clip_text *ct) {
                0);
     }
 
-    free_clip_text(&last_text);
-    last_text = *ct;
-    last_text_time = current_time;
+    free_clip_text(&last_text[sel]);
+    last_text[sel] = *ct;
+    last_text_time[sel] = current_time;
 
     // The caller no longer owns this data.
     ct->data = NULL;
@@ -395,7 +401,7 @@ static void incr_receive_finish(struct incr_transfer *it) {
     it_dbg(it, "First line: %s\n", line);
 
     if (is_salient_text(ct.data)) {
-        uint64_t hash = store_clip(&ct);
+        uint64_t hash = store_clip(sel, &ct);
         maybe_trim();
         if (cfg.own_clipboard && has_owned_selections()) {
             run_clipserve(hash, cfg.owned_selections);
@@ -532,7 +538,7 @@ static int handle_property_notify(const XPropertyEvent *pe) {
         dbg("First line: %s\n", line);
 
         if (is_salient_text(ct.data)) {
-            uint64_t hash = store_clip(&ct);
+            uint64_t hash = store_clip(sel, &ct);
             maybe_trim();
             /* We only own CLIPBOARD because otherwise the behaviour is wonky:
              *
