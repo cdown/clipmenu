@@ -1,7 +1,6 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <signal.h>
-#include <stdarg.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -85,21 +84,6 @@ static int dprintf_ellipsise_long_snip_line(int fd, const char *line) {
     }
 }
 
-static int launcher_vdprintf(int fd, const char *fmt, va_list args) {
-    if (vdprintf(fd, fmt, args) < 0) {
-        return negative_errno();
-    }
-    return 0;
-}
-
-static int launcher_dprintf(int fd, const char *fmt, ...) {
-    va_list args;
-    va_start(args, fmt);
-    int ret = launcher_vdprintf(fd, fmt, args);
-    va_end(args);
-    return ret;
-}
-
 static int launcher_write_all(int fd, const char *buf, size_t count) {
     while (count > 0) {
         ssize_t written = write(fd, buf, count);
@@ -168,8 +152,10 @@ static int _nonnull_ interact_with_dmenu(struct config *cfg, int *input_pipe,
             continue;
         }
 
-        int write_ret =
-            launcher_dprintf(input_pipe[1], "[%*zu] ", pad, idx + 1);
+        char prefix[64];
+        size_t prefix_len =
+            snprintf_safe(prefix, sizeof(prefix), "[%*zu] ", pad, idx + 1);
+        int write_ret = launcher_write_all(input_pipe[1], prefix, prefix_len);
         if (write_ret == -EPIPE) {
             launcher_closed_stdin = true;
             continue;
@@ -190,8 +176,12 @@ static int _nonnull_ interact_with_dmenu(struct config *cfg, int *input_pipe,
         }
 
         if (snip->nr_lines > 1) {
-            write_ret =
-                launcher_dprintf(input_pipe[1], " (%zu lines)", snip->nr_lines);
+            char lines_suffix[64];
+            size_t lines_suffix_len =
+                snprintf_safe(lines_suffix, sizeof(lines_suffix),
+                              " (%zu lines)", snip->nr_lines);
+            write_ret = launcher_write_all(input_pipe[1], lines_suffix,
+                                           lines_suffix_len);
             if (write_ret == -EPIPE) {
                 launcher_closed_stdin = true;
                 continue;
