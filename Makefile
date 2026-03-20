@@ -53,7 +53,7 @@ uninstall:
 	rm -f $(addprefix $(DESTDIR)$(mandir)/man5/,$(man5_files))
 
 clean:
-	rm -f src/*.o src/*~ $(addprefix src/,$(bins))
+	rm -f src/*.o src/*~ $(addprefix src/,$(bins)) tests/test_store
 
 clang_supports_unsafe_buffer_usage := $(shell clang -x c -c /dev/null -o /dev/null -Werror -Wunsafe-buffer-usage > /dev/null 2>&1; echo $$?)
 ifeq ($(clang_supports_unsafe_buffer_usage),0)
