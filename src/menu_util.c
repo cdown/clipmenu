@@ -14,6 +14,10 @@
 #include "util.h"
 
 #define MAX_ARGS 32
+/* "[N] " prefix + snip line + " (N lines)\n" suffix + NUL */
+#define LAUNCHER_LINE_MAX                                                      \
+    (1 + UINT64_MAX_STRLEN + 2 + (CS_SNIP_LINE_SIZE - 1) + 2 +                 \
+     UINT64_MAX_STRLEN + 7 + 1 + 1)
 
 static int dmenu_user_argc;
 static char **dmenu_user_argv;
@@ -109,13 +113,38 @@ static int wait_for_pid(pid_t pid, int *status) {
     return 0;
 }
 
+static int parse_sel_idx(const char *line, size_t cur_clips, size_t *out_idx) {
+    if (line[0] != '[') {
+        return -1;
+    }
+    const char *start = line + 1;
+    const char *end = strchr(start, ']');
+    if (!end) {
+        return -1;
+    }
+    char idx_str[UINT64_MAX_STRLEN + 1];
+    size_t len = (size_t)(end - start);
+    if (len >= sizeof(idx_str)) {
+        return -1;
+    }
+    memcpy(idx_str, start, len);
+    idx_str[len] = '\0';
+    uint64_t sel_idx;
+    if (str_to_uint64(idx_str, &sel_idx) < 0 || sel_idx == 0 ||
+        sel_idx > cur_clips) {
+        return -1;
+    }
+    *out_idx = (size_t)(sel_idx - 1);
+    return 0;
+}
+
 /**
  * Writes the available clips to the launcher and reads back the user's
- * selection.
+ * selection(s), calling action for each selected clip.
  */
 static int _nonnull_ interact_with_dmenu(struct config *cfg, int *input_pipe,
                                          int *output_pipe, pid_t launcher_pid,
-                                         uint64_t *out_hash) {
+                                         clip_action_fn action) {
     close(input_pipe[0]);
     close(output_pipe[1]);
 
@@ -209,26 +238,31 @@ static int _nonnull_ interact_with_dmenu(struct config *cfg, int *input_pipe,
     close(input_pipe[1]);
     expect(sigaction(SIGPIPE, &old_sa, NULL) == 0);
 
-    char sel_idx_str[UINT64_MAX_STRLEN + 1];
-    read_safe(output_pipe[0], sel_idx_str, 1); // Discard the leading "["
-    size_t read_sz = read_safe(output_pipe[0], sel_idx_str, UINT64_MAX_STRLEN);
-    sel_idx_str[read_sz] = '\0';
-    char *end_ptr = strchr(sel_idx_str, ']');
-    if (end_ptr) {
-        *end_ptr = '\0';
-    }
-
-    uint64_t sel_idx;
-    if (str_to_uint64(sel_idx_str, &sel_idx) < 0 || sel_idx == 0 ||
-        sel_idx > cur_clips) {
-        forced_ret = EXIT_FAILURE;
-    } else {
-        *out_hash = idx_to_hash[sel_idx - 1];
+    _drop_(fclose) FILE *output = fdopen(output_pipe[0], "r");
+    expect(output != NULL);
+    char line[LAUNCHER_LINE_MAX];
+    while (!forced_ret && fgets(line, sizeof(line), output) != NULL) {
+        size_t len = strlen(line);
+        if (len > 0 && line[len - 1] == '\n') {
+            line[len - 1] = '\0';
+            len--;
+        }
+        if (len == 0) {
+            continue;
+        }
+        size_t idx;
+        if (parse_sel_idx(line, cur_clips, &idx) == 0) {
+            int ret = action(cfg, idx_to_hash[idx]);
+            if (ret != 0) {
+                forced_ret = ret;
+            }
+        } else {
+            forced_ret = EXIT_FAILURE;
+        }
     }
 
     int dmenu_status;
     int wait_ret = wait_for_pid(launcher_pid, &dmenu_status);
-    close(output_pipe[0]);
 
     if (forced_ret || wait_ret < 0 || !WIFEXITED(dmenu_status)) {
         return EXIT_FAILURE;
@@ -238,11 +272,11 @@ static int _nonnull_ interact_with_dmenu(struct config *cfg, int *input_pipe,
 }
 
 /**
- * Prompts the user to select a clip via their launcher, and executes
- * the provided action on the selected clip.
+ * Prompts the user to select clip(s) via their configured launcher, and
+ * executes the provided action on each selected clip.
  */
-static int _nonnull_ prompt_user_for_hash(struct config *cfg,
-                                          const char *prompt, uint64_t *hash) {
+int _nonnull_ menu_prompt_and_act(struct config *cfg, const char *prompt,
+                                  clip_action_fn action) {
     int input_pipe[2], output_pipe[2];
     expect(pipe(input_pipe) == 0 && pipe(output_pipe) == 0);
 
@@ -253,23 +287,7 @@ static int _nonnull_ prompt_user_for_hash(struct config *cfg,
         exec_launcher(cfg, prompt, input_pipe, output_pipe);
     }
 
-    return interact_with_dmenu(cfg, input_pipe, output_pipe, pid, hash);
-}
-
-/**
- * Prompts the user to select a clip via their configured launcher, and
- * executes the provided action on the selected clip.
- */
-int _nonnull_ menu_prompt_and_act(struct config *cfg, const char *prompt,
-                                  clip_action_fn action) {
-    uint64_t hash;
-    int dmenu_exit_code = prompt_user_for_hash(cfg, prompt, &hash);
-
-    if (dmenu_exit_code == EXIT_SUCCESS) {
-        return action(cfg, hash);
-    }
-
-    return dmenu_exit_code;
+    return interact_with_dmenu(cfg, input_pipe, output_pipe, pid, action);
 }
 
 /**

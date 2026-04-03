@@ -240,6 +240,15 @@ clipmenu || true
 SELECT='[3] test1' clipdelmenu
 SELECT='[3] test3' clipdelmenu
 
+# Test multi-select deletion
+primary multi1
+primary multi2
+settle
+check_nr_clips 4
+
+SELECT=$'[3] multi1\n[4] multi2' clipdelmenu
+check_nr_clips 2
+
 # Check selecting starts serving
 xsel -pc
 
