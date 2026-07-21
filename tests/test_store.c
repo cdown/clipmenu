@@ -14,6 +14,8 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+#include <string.h>
+
 #include "../src/store.h"
 #include "../src/util.h"
 
@@ -174,7 +176,8 @@ static void add_ten_snips(struct clip_store *cs) {
     for (char i = 0; i < 10; i++) {
         char num[8];
         snprintf(num, sizeof(num), "%d", i);
-        int ret = cs_add(cs, num, NULL, CS_DUPE_KEEP_ALL);
+        int ret = cs_add(cs, num, strlen(num), NULL, CS_DUPE_KEEP_ALL,
+                         CS_TYPE_TEXT);
         assert(ret == 0);
     }
 }
@@ -226,7 +229,8 @@ static bool test__cs_add(void) {
         snprintf(num, sizeof(num), "%d", i);
 
         uint64_t hash;
-        int ret = cs_add(&cs, num, &hash, CS_DUPE_KEEP_ALL);
+        int ret = cs_add(&cs, num, strlen(num), &hash, CS_DUPE_KEEP_ALL,
+                         CS_TYPE_TEXT);
         t_assert(ret == 0);
 
         _drop_(cs_content_unmap) struct cs_content content;
@@ -244,7 +248,8 @@ static bool test__cs_content_get__keeps_fd_open(void) {
     _drop_(teardown_test) struct clip_store cs = setup_test();
 
     uint64_t hash;
-    int ret = cs_add(&cs, "fd lifecycle", &hash, CS_DUPE_KEEP_ALL);
+    int ret = cs_add(&cs, "fd lifecycle", strlen("fd lifecycle"), &hash,
+                     CS_DUPE_KEEP_ALL, CS_TYPE_TEXT);
     t_assert(ret == 0);
 
     struct cs_content content;
@@ -354,7 +359,8 @@ static bool test__cs_replace(void) {
 
     const char *new = "new";
 
-    int ret = cs_replace(&cs, CS_ITER_NEWEST_FIRST, 1, new, NULL);
+    int ret = cs_replace(&cs, CS_ITER_NEWEST_FIRST, 1, new, strlen(new), NULL,
+                         CS_TYPE_TEXT);
     t_assert(ret == 0);
 
     struct cs_snip *snip = NULL;
@@ -404,7 +410,8 @@ static bool test__cs_add__exceeds_snip_line_size(void) {
     memset(long_content, 'A', sizeof(long_content));
     long_content[sizeof(long_content) - 1] = '\0';
 
-    int ret = cs_add(&cs, long_content, NULL, CS_DUPE_KEEP_ALL);
+    int ret = cs_add(&cs, long_content, strlen(long_content), NULL,
+                     CS_DUPE_KEEP_ALL, CS_TYPE_TEXT);
     t_assert(ret == 0);
 
     struct cs_snip *snip = NULL;
@@ -442,13 +449,15 @@ static bool test__cs_add__around_alloc_batch_threshold(void) {
     _drop_(teardown_test) struct clip_store cs = setup_test();
 
     for (size_t i = 0; i < CS_SNIP_ALLOC_BATCH - 1; i++) {
-        int ret = cs_add(&cs, "test content", NULL, CS_DUPE_KEEP_ALL);
+        int ret = cs_add(&cs, "test content", strlen("test content"), NULL,
+                         CS_DUPE_KEEP_ALL, CS_TYPE_TEXT);
         assert(ret == 0);
     }
     t_assert(cs.header->nr_snips == CS_SNIP_ALLOC_BATCH - 1);
 
     /* Add one more entry to exceed the batch threshold */
-    t_assert(cs_add(&cs, "test content", NULL, CS_DUPE_KEEP_ALL) == 0);
+    t_assert(cs_add(&cs, "test content", strlen("test content"), NULL,
+                    CS_DUPE_KEEP_ALL, CS_TYPE_TEXT) == 0);
     t_assert(cs.header->nr_snips == CS_SNIP_ALLOC_BATCH);
     t_assert(cs.header->nr_snips_alloc >= CS_SNIP_ALLOC_BATCH);
 
@@ -460,7 +469,8 @@ static bool test__cs_trim__no_remove_when_still_referenced(void) {
 
     uint64_t hash;
     for (size_t i = 0; i < 2; i++) {
-        int ret = cs_add(&cs, "test content", &hash, CS_DUPE_KEEP_ALL);
+        int ret = cs_add(&cs, "test content", strlen("test content"), &hash,
+                         CS_DUPE_KEEP_ALL, CS_TYPE_TEXT);
         t_assert(ret == 0);
     }
 
@@ -485,7 +495,8 @@ static bool test__cs_replace__out_of_bounds(void) {
 
     add_ten_snips(&cs);
 
-    int ret = cs_replace(&cs, CS_ITER_NEWEST_FIRST, 10, "test content", NULL);
+    int ret = cs_replace(&cs, CS_ITER_NEWEST_FIRST, 10, "test content",
+                         strlen("test content"), NULL, CS_TYPE_TEXT);
     t_assert(ret == -ERANGE);
 
     return true;
@@ -496,7 +507,8 @@ static bool test__cs_replace__add_fail_keeps_old_entry(void) {
 
     const char *old_content = "OLD_CONTENT";
     uint64_t old_hash;
-    int ret = cs_add(&cs, old_content, &old_hash, CS_DUPE_KEEP_ALL);
+    int ret = cs_add(&cs, old_content, strlen(old_content), &old_hash,
+                     CS_DUPE_KEEP_ALL, CS_TYPE_TEXT);
     t_assert(ret == 0);
 
     const char *new_content = "new";
@@ -514,7 +526,8 @@ static bool test__cs_replace__add_fail_keeps_old_entry(void) {
     t_assert(fake_fd >= 0);
     t_assert(write(fake_fd, "X", 1) == 1);
 
-    ret = cs_replace(&cs, CS_ITER_NEWEST_FIRST, 0, new_content, NULL);
+    ret = cs_replace(&cs, CS_ITER_NEWEST_FIRST, 0, new_content,
+                     strlen(new_content), NULL, CS_TYPE_TEXT);
     t_assert(ret == -EFAULT);
 
     _drop_(cs_content_unmap) struct cs_content old_after;
@@ -540,8 +553,8 @@ static bool test__cs_snip__correct_nr_lines(void) {
     /* No need to do exhaustive ones, they're done in test__first_line_* */
     uint64_t hash;
     struct cs_snip *snip = NULL;
-    int ret =
-        cs_replace(&cs, CS_ITER_NEWEST_FIRST, 0, "one\ntwo\nthree", &hash);
+    int ret = cs_replace(&cs, CS_ITER_NEWEST_FIRST, 0, "one\ntwo\nthree",
+                         strlen("one\ntwo\nthree"), &hash, CS_TYPE_TEXT);
 
     t_assert(ret == 0);
     _drop_(cs_unref) struct ref_guard guard = cs_ref(&cs);
@@ -634,7 +647,8 @@ static bool test__synchronisation(void) {
     t_assert(ret == 0);
 
     uint64_t hash;
-    ret = cs_add(&cs1, "test content", &hash, CS_DUPE_KEEP_ALL);
+    ret = cs_add(&cs1, "test content", strlen("test content"), &hash,
+                 CS_DUPE_KEEP_ALL, CS_TYPE_TEXT);
     t_assert(ret == 0);
 
     bool found = false;
@@ -672,7 +686,8 @@ static bool test__cs_trim__regrow_does_not_leak_mapping(void) {
     for (int i = 0; i < 1500; i++) {
         char buf[32];
         snprintf(buf, sizeof(buf), "clip-%d", i);
-        if (cs_add(&cs, buf, NULL, CS_DUPE_KEEP_ALL) != 0) {
+        if (cs_add(&cs, buf, strlen(buf), NULL, CS_DUPE_KEEP_ALL,
+                    CS_TYPE_TEXT) != 0) {
             added = false;
             break;
         }
@@ -689,7 +704,8 @@ static bool test__cs_trim__regrow_does_not_leak_mapping(void) {
     t_assert(cs_trim(&cs, CS_ITER_NEWEST_FIRST, 0) == 0);
     t_assert(count_test_snip_maps() == 1);
 
-    t_assert(cs_add(&cs, "regrow", NULL, CS_DUPE_KEEP_ALL) == 0);
+    t_assert(cs_add(&cs, "regrow", strlen("regrow"), NULL, CS_DUPE_KEEP_ALL,
+                    CS_TYPE_TEXT) == 0);
     t_assert(count_test_snip_maps() == 1);
 
     int snip_fd = cs.snip_fd;
@@ -709,9 +725,11 @@ static bool test__cs_add__dupe_keep_all(void) {
     _drop_(teardown_test) struct clip_store cs = setup_test();
 
     uint64_t hash1, hash2;
-    int ret = cs_add(&cs, "duplicate", &hash1, CS_DUPE_KEEP_ALL);
+    int ret = cs_add(&cs, "duplicate", strlen("duplicate"), &hash1,
+                     CS_DUPE_KEEP_ALL, CS_TYPE_TEXT);
     t_assert(ret == 0);
-    ret = cs_add(&cs, "duplicate", &hash2, CS_DUPE_KEEP_ALL);
+    ret = cs_add(&cs, "duplicate", strlen("duplicate"), &hash2,
+                 CS_DUPE_KEEP_ALL, CS_TYPE_TEXT);
     t_assert(ret == 0);
     t_assert(hash1 == hash2);
     t_assert(cs.header->nr_snips == 2);
@@ -732,13 +750,16 @@ static bool test__cs_add__dupe_keep_last(void) {
     _drop_(teardown_test) struct clip_store cs = setup_test();
 
     uint64_t hash1, hash2, hash3;
-    int ret = cs_add(&cs, "duplicate", &hash1, CS_DUPE_KEEP_LAST);
+    int ret = cs_add(&cs, "duplicate", strlen("duplicate"), &hash1,
+                     CS_DUPE_KEEP_LAST, CS_TYPE_TEXT);
     t_assert(ret == 0);
     t_assert(cs.header->nr_snips == 1);
-    ret = cs_add(&cs, "duplicate", &hash2, CS_DUPE_KEEP_LAST);
+    ret = cs_add(&cs, "duplicate", strlen("duplicate"), &hash2,
+                 CS_DUPE_KEEP_LAST, CS_TYPE_TEXT);
     t_assert(ret == 0);
     t_assert(cs.header->nr_snips == 1);
-    ret = cs_add(&cs, "duplicate", &hash3, CS_DUPE_KEEP_LAST);
+    ret = cs_add(&cs, "duplicate", strlen("duplicate"), &hash3,
+                 CS_DUPE_KEEP_LAST, CS_TYPE_TEXT);
     t_assert(ret == 0);
     t_assert(cs.header->nr_snips == 1);
     t_assert(hash1 == hash2);
@@ -753,16 +774,19 @@ static bool test__cs_add__dupe_keep_last_with_multiple_entries(void) {
     _drop_(teardown_test) struct clip_store cs = setup_test();
 
     uint64_t hash_a, hash_dup;
-    int ret = cs_add(&cs, "A", &hash_a, CS_DUPE_KEEP_ALL);
+    int ret = cs_add(&cs, "A", strlen("A"), &hash_a, CS_DUPE_KEEP_ALL,
+                     CS_TYPE_TEXT);
     t_assert(ret == 0);
-    ret = cs_add(&cs, "duplicate", &hash_dup, CS_DUPE_KEEP_ALL);
+    ret = cs_add(&cs, "duplicate", strlen("duplicate"), &hash_dup,
+                 CS_DUPE_KEEP_ALL, CS_TYPE_TEXT);
     t_assert(ret == 0);
-    ret = cs_add(&cs, "B", NULL, CS_DUPE_KEEP_ALL);
+    ret = cs_add(&cs, "B", strlen("B"), NULL, CS_DUPE_KEEP_ALL, CS_TYPE_TEXT);
     t_assert(ret == 0);
     t_assert(cs.header->nr_snips == 3);
     /* Now add a duplicate entry with KEEP_LAST which should move the duplicate
      * to the newest slot */
-    ret = cs_add(&cs, "duplicate", NULL, CS_DUPE_KEEP_LAST);
+    ret = cs_add(&cs, "duplicate", strlen("duplicate"), NULL, CS_DUPE_KEEP_LAST,
+                 CS_TYPE_TEXT);
     t_assert(ret == 0);
     t_assert(cs.header->nr_snips == 3);
     _drop_(cs_unref) struct ref_guard guard = cs_ref(&cs);
@@ -791,11 +815,14 @@ static bool test__cs_make_newest(void) {
     _drop_(teardown_test) struct clip_store cs = setup_test();
 
     uint64_t hash_a, hash_b, hash_c;
-    int ret = cs_add(&cs, "A", &hash_a, CS_DUPE_KEEP_ALL);
+    int ret = cs_add(&cs, "A", strlen("A"), &hash_a, CS_DUPE_KEEP_ALL,
+                     CS_TYPE_TEXT);
     t_assert(ret == 0);
-    ret = cs_add(&cs, "B", &hash_b, CS_DUPE_KEEP_ALL);
+    ret = cs_add(&cs, "B", strlen("B"), &hash_b, CS_DUPE_KEEP_ALL,
+                 CS_TYPE_TEXT);
     t_assert(ret == 0);
-    ret = cs_add(&cs, "C", &hash_c, CS_DUPE_KEEP_ALL);
+    ret = cs_add(&cs, "C", strlen("C"), &hash_c, CS_DUPE_KEEP_ALL,
+                 CS_TYPE_TEXT);
     t_assert(ret == 0);
     t_assert(cs.header->nr_snips == 3);
 
@@ -808,6 +835,88 @@ static bool test__cs_make_newest(void) {
     uint64_t order_after[3] = {hash_a, hash_c, hash_b};
     ret = check_order(&cs, order_after, 3);
     t_assert(ret == 0);
+
+    return true;
+}
+
+static bool test__cs_add__image_types(void) {
+    _drop_(teardown_test) struct clip_store cs = setup_test();
+
+    const unsigned char fake_png[] = {0x89, 'P', 'N', 'G', 0x0d, 0x0a, 0x1a, 0x0a};
+    uint64_t hash_png;
+    int ret = cs_add(&cs, fake_png, sizeof(fake_png), &hash_png,
+                     CS_DUPE_KEEP_ALL, CS_TYPE_IMAGE_PNG);
+    t_assert(ret == 0);
+
+    enum cs_content_type retrieved_type;
+    t_assert(cs_get_type(&cs, hash_png, &retrieved_type) == 0);
+    t_assert(retrieved_type == CS_TYPE_IMAGE_PNG);
+
+    _drop_(cs_unref) struct ref_guard guard = cs_ref(&cs);
+    struct cs_snip *snip = NULL;
+    t_assert(cs_snip_iter(&guard, CS_ITER_NEWEST_FIRST, &snip));
+    t_assert(snip->hash == hash_png);
+    t_assert(snip->nr_lines == 0);
+    t_assert(streq(snip->line, "[PNG image] 8B"));
+    t_assert(snip->content_type == (uint8_t)CS_TYPE_IMAGE_PNG);
+
+    _drop_(cs_content_unmap) struct cs_content content;
+    t_assert(cs_content_get(&cs, hash_png, &content) == 0);
+    t_assert((size_t)content.size == sizeof(fake_png));
+    t_assert(memcmp(content.data, fake_png, sizeof(fake_png)) == 0);
+
+    return true;
+}
+
+static bool test__content_type_label(void) {
+    t_assert(streq(content_type_label(CS_TYPE_TEXT), "text"));
+    t_assert(streq(content_type_label(CS_TYPE_IMAGE_PNG), "[PNG image]"));
+    t_assert(streq(content_type_label(CS_TYPE_IMAGE_BMP), "[BMP image]"));
+    t_assert(streq(content_type_label(CS_TYPE_IMAGE_JPEG), "[JPEG image]"));
+    t_assert(streq(content_type_label(CS_TYPE_IMAGE_TIFF), "[TIFF image]"));
+    t_assert(streq(content_type_label(CS_TYPE_IMAGE_GIF), "[GIF image]"));
+    t_assert(streq(content_type_label(CS_TYPE_IMAGE_WEBP), "[WEBP image]"));
+    t_assert(streq(content_type_label((enum cs_content_type)99), "[image]"));
+    return true;
+}
+
+static bool test__format_human_size(void) {
+    char buf[32];
+    format_human_size(buf, sizeof(buf), 8);
+    t_assert(streq(buf, "8B"));
+
+    format_human_size(buf, sizeof(buf), 1024);
+    t_assert(streq(buf, "1K"));
+
+    format_human_size(buf, sizeof(buf), 1536);
+    t_assert(streq(buf, "1.5K"));
+
+    format_human_size(buf, sizeof(buf), 1048576);
+    t_assert(streq(buf, "1M"));
+
+    format_human_size(buf, sizeof(buf), 2621440);
+    t_assert(streq(buf, "2.5M"));
+
+    format_human_size(buf, sizeof(buf), 1073741824);
+    t_assert(streq(buf, "1G"));
+
+    return true;
+}
+
+static bool test__detect_image_type(void) {
+    const unsigned char png[] = {0x89, 'P', 'N', 'G', 0x0d, 0x0a, 0x1a, 0x0a};
+    const unsigned char jpeg[] = {0xff, 0xd8, 0xff, 0xe0};
+    const unsigned char gif[] = {'G', 'I', 'F', '8', '9', 'a'};
+    const unsigned char bmp[] = {'B', 'M', 0x00, 0x00};
+    const unsigned char tiff[] = {'I', 'I', 0x2a, 0x00};
+    const unsigned char webp[] = {'R', 'I', 'F', 'F', 0, 0, 0, 0, 'W', 'E', 'B', 'P'};
+
+    t_assert(detect_image_type(png, sizeof(png)) == CS_TYPE_IMAGE_PNG);
+    t_assert(detect_image_type(jpeg, sizeof(jpeg)) == CS_TYPE_IMAGE_JPEG);
+    t_assert(detect_image_type(gif, sizeof(gif)) == CS_TYPE_IMAGE_GIF);
+    t_assert(detect_image_type(bmp, sizeof(bmp)) == CS_TYPE_IMAGE_BMP);
+    t_assert(detect_image_type(tiff, sizeof(tiff)) == CS_TYPE_IMAGE_TIFF);
+    t_assert(detect_image_type(webp, sizeof(webp)) == CS_TYPE_IMAGE_WEBP);
 
     return true;
 }
@@ -843,6 +952,10 @@ int main(void) {
     t_run(test__cs_add__dupe_keep_last);
     t_run(test__cs_add__dupe_keep_last_with_multiple_entries);
     t_run(test__cs_make_newest);
+    t_run(test__cs_add__image_types);
+    t_run(test__content_type_label);
+    t_run(test__format_human_size);
+    t_run(test__detect_image_type);
 
     return 0;
 }

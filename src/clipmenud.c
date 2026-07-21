@@ -30,7 +30,12 @@ static int sig_pipe[2];
 
 static Atom timestamp_atom;
 static Atom incr_atom;
+static Atom targets_atom;
 static struct incr_transfer *it_list;
+
+/* Image target atoms in priority order */
+static Atom image_target_atoms[6];
+static int nr_image_targets;
 
 static struct cm_selections sels[CM_SEL_MAX];
 
@@ -54,15 +59,47 @@ enum clip_text_source {
 
 struct clip_text {
     char *data;
+    size_t size;
     enum clip_text_source source;
 };
 
 static struct clip_text last_text[CM_SEL_MAX] = {
-    {NULL, CLIP_TEXT_SOURCE_MALLOC},
-    {NULL, CLIP_TEXT_SOURCE_MALLOC},
-    {NULL, CLIP_TEXT_SOURCE_MALLOC},
+    {NULL, 0, CLIP_TEXT_SOURCE_MALLOC},
+    {NULL, 0, CLIP_TEXT_SOURCE_MALLOC},
+    {NULL, 0, CLIP_TEXT_SOURCE_MALLOC},
 };
 static struct timespec last_text_time[CM_SEL_MAX];
+static enum cs_content_type last_content_type[CM_SEL_MAX];
+
+#define PENDING_TYPE_QUEUE_SIZE 4
+static enum cs_content_type pending_type_queue[CM_SEL_MAX][PENDING_TYPE_QUEUE_SIZE];
+static int pending_type_head[CM_SEL_MAX];
+static int pending_type_tail[CM_SEL_MAX];
+
+static void pending_type_push(enum selection_type sel, enum cs_content_type type) {
+    int next = (pending_type_tail[sel] + 1) % PENDING_TYPE_QUEUE_SIZE;
+    if (next == pending_type_head[sel]) {
+        pending_type_head[sel] = (pending_type_head[sel] + 1) % PENDING_TYPE_QUEUE_SIZE;
+    }
+    pending_type_queue[sel][pending_type_tail[sel]] = type;
+    pending_type_tail[sel] = next;
+}
+
+static void pending_type_clear(enum selection_type sel) {
+    pending_type_head[sel] = 0;
+    pending_type_tail[sel] = 0;
+}
+
+static enum cs_content_type pending_type_pop(enum selection_type sel) {
+    expect(pending_type_head[sel] != pending_type_tail[sel]);
+    enum cs_content_type type = pending_type_queue[sel][pending_type_head[sel]];
+    pending_type_head[sel] = (pending_type_head[sel] + 1) % PENDING_TYPE_QUEUE_SIZE;
+    return type;
+}
+
+static bool pending_type_has(enum selection_type sel) {
+    return pending_type_head[sel] != pending_type_tail[sel];
+}
 
 static void free_clip_text(struct clip_text *ct) {
     expect(ct->source != CLIP_TEXT_SOURCE_INVALID);
@@ -150,7 +187,7 @@ static bool is_possible_partial(const char *s1, const char *s2) {
  * XConvertSelection.
  */
 static struct clip_text get_clipboard_text(Atom clip_atom) {
-    struct clip_text ct = {NULL, CLIP_TEXT_SOURCE_X};
+    struct clip_text ct = {NULL, 0, CLIP_TEXT_SOURCE_X};
     unsigned char *cur_text;
     Atom actual_type;
     int actual_format;
@@ -170,6 +207,11 @@ static struct clip_text get_clipboard_text(Atom clip_atom) {
     }
 
     ct.data = (char *)cur_text;
+    ct.size = actual_format == 32 ? nitems * 4 : actual_format == 16
+                                           ? nitems * 2
+                                           : actual_format == 8
+                                       ? nitems
+                                       : 0;
 
     return ct;
 }
@@ -324,11 +366,70 @@ static void handle_xfixes_selection_notify(XFixesSelectionNotifyEvent *se) {
         it = next;
     }
 
-    XConvertSelection(dpy, se->selection,
-                      XInternAtom(dpy, "UTF8_STRING", False), sels[sel].storage,
-                      win, CurrentTime);
+    pending_type_clear(sel);
+    XConvertSelection(dpy, se->selection, targets_atom,
+                      sels[sel].targets_storage, win, CurrentTime);
 
     return;
+}
+
+static enum cs_content_type content_type_for_target(Atom target) {
+    if (target == image_target_atoms[0]) return CS_TYPE_IMAGE_PNG;
+    if (target == image_target_atoms[1]) return CS_TYPE_IMAGE_BMP;
+    if (target == image_target_atoms[2]) return CS_TYPE_IMAGE_JPEG;
+    if (target == image_target_atoms[3]) return CS_TYPE_IMAGE_TIFF;
+    if (target == image_target_atoms[4]) return CS_TYPE_IMAGE_GIF;
+    if (target == image_target_atoms[5]) return CS_TYPE_IMAGE_WEBP;
+    return CS_TYPE_TEXT;
+}
+
+static int handle_targets_property(const XPropertyEvent *pe) {
+    enum selection_type sel =
+        storage_atom_to_selection_type(pe->atom, sels);
+    if (sel == CM_SEL_INVALID) {
+        return -EINVAL;
+    }
+
+    Atom actual_type;
+    int actual_format;
+    unsigned long nitems, bytes_after;
+    _drop_(XFree) unsigned char *prop = NULL;
+
+    XGetWindowProperty(dpy, win, pe->atom, 0, (~0L), False, XA_ATOM,
+                       &actual_type, &actual_format, &nitems, &bytes_after,
+                       &prop);
+
+    if (actual_type != XA_ATOM || actual_format != 32 || !prop) {
+        return -EINVAL;
+    }
+
+    Atom best_target = None;
+    Atom *atoms = (Atom *)prop;
+
+    for (unsigned long j = 0; j < nitems; j++) {
+        for (int i = 0; i < nr_image_targets; i++) {
+            if (atoms[j] == image_target_atoms[i]) {
+                best_target = image_target_atoms[i];
+                goto target_found;
+            }
+        }
+    }
+target_found:
+
+    XDeleteProperty(dpy, win, pe->atom);
+
+    if (best_target != None) {
+        pending_type_push(sel, content_type_for_target(best_target));
+        XConvertSelection(dpy, sels[sel].selection, best_target,
+                          sels[sel].storage, win, CurrentTime);
+    } else {
+        pending_type_push(sel, CS_TYPE_TEXT);
+        XConvertSelection(dpy, sels[sel].selection,
+                          XInternAtom(dpy, "UTF8_STRING", False),
+                          sels[sel].storage, win, CurrentTime);
+    }
+
+    return -EINPROGRESS;
 }
 
 /**
@@ -347,6 +448,9 @@ static int handle_selection_notify(const XSelectionEvent *se) {
         }
         dbg("X reports that %s has no current owner\n",
             cfg.selections[sel].name);
+        if (pending_type_has(sel)) {
+            pending_type_pop(sel);
+        }
         return -ENOENT;
     }
     return 0;
@@ -369,26 +473,31 @@ static void maybe_trim(void) {
  * of the last clip on the same selection and it was received shortly
  * afterwards, replace instead of adding.
  */
-static uint64_t store_clip(enum selection_type sel, struct clip_text *ct) {
+static uint64_t store_clip(enum selection_type sel, struct clip_text *ct,
+                           enum cs_content_type content_type) {
     dbg("Clipboard text is considered salient, storing\n");
     struct timespec current_time = get_monotonic_time();
     uint64_t hash;
+    size_t content_len = ct->size;
 
-    if (cfg.partial_merge_secs > 0 && last_text[sel].data &&
+    if (content_type == CS_TYPE_TEXT && cfg.partial_merge_secs > 0 &&
+        last_text[sel].data && last_content_type[sel] == CS_TYPE_TEXT &&
         within_partial_merge_window(current_time, last_text_time[sel]) &&
         is_possible_partial(last_text[sel].data, ct->data)) {
         dbg("Possible partial of last clip on %s, replacing\n",
             cfg.selections[sel].name);
-        expect(cs_replace(&cs, CS_ITER_NEWEST_FIRST, 0, ct->data, &hash) == 0);
+        expect(cs_replace(&cs, CS_ITER_NEWEST_FIRST, 0, ct->data, content_len,
+                          &hash, content_type) == 0);
     } else {
-        expect(cs_add(&cs, ct->data, &hash,
-                      cfg.deduplicate ? CS_DUPE_KEEP_LAST : CS_DUPE_KEEP_ALL) ==
-               0);
+        expect(cs_add(&cs, ct->data, content_len, &hash,
+                       cfg.deduplicate ? CS_DUPE_KEEP_LAST : CS_DUPE_KEEP_ALL,
+                       content_type) == 0);
     }
 
     free_clip_text(&last_text[sel]);
     last_text[sel] = *ct;
     last_text_time[sel] = current_time;
+    last_content_type[sel] = content_type;
 
     // The caller no longer owns this data.
     ct->data = NULL;
@@ -409,26 +518,40 @@ static void incr_receive_finish(struct incr_transfer *it) {
     }
 
     it_dbg(it, "Finished (bytes buffered: %zu)\n", it->data_size);
-    char *text = malloc(it->data_size + 1);
-    expect(text);
-    memcpy(text, it->data, it->data_size);
-    text[it->data_size] = '\0';
 
-    struct clip_text ct = {text, CLIP_TEXT_SOURCE_MALLOC};
+    enum cs_content_type content_type = it->content_type;
 
-    char line[CS_SNIP_LINE_SIZE];
-    first_line(ct.data, line);
-    it_dbg(it, "First line: %s\n", line);
+    if (content_type == CS_TYPE_TEXT) {
+        char *text = malloc(it->data_size + 1);
+        expect(text);
+        memcpy(text, it->data, it->data_size);
+        text[it->data_size] = '\0';
 
-    if (is_salient_text(ct.data)) {
-        uint64_t hash = store_clip(sel, &ct);
+        struct clip_text ct = {text, it->data_size, CLIP_TEXT_SOURCE_MALLOC};
+
+        char line[CS_SNIP_LINE_SIZE];
+        first_line(ct.data, line);
+        it_dbg(it, "First line: %s\n", line);
+
+        bool should_store = is_salient_text(ct.data);
+        if (should_store) {
+            uint64_t hash = store_clip(sel, &ct, content_type);
+            maybe_trim();
+            if (cfg.own_clipboard && has_owned_selections()) {
+                run_clipserve(hash, cfg.owned_selections);
+            }
+        } else {
+            it_dbg(it, "Clipboard text is whitespace only, ignoring\n");
+            free_clip_text(&ct);
+        }
+    } else {
+        struct clip_text ct = {it->data, it->data_size, CLIP_TEXT_SOURCE_MALLOC};
+        uint64_t hash = store_clip(sel, &ct, content_type);
         maybe_trim();
         if (cfg.own_clipboard && has_owned_selections()) {
             run_clipserve(hash, cfg.owned_selections);
         }
-    } else {
-        it_dbg(it, "Clipboard text is whitespace only, ignoring\n");
-        free_clip_text(&ct);
+        it->data = NULL;
     }
 
     free(it->data);
@@ -444,12 +567,18 @@ static void incr_receive_finish(struct incr_transfer *it) {
 static void incr_receive_start(const XPropertyEvent *pe) {
     struct incr_transfer *it = malloc(sizeof(struct incr_transfer));
     expect(it);
+    enum selection_type sel = storage_atom_to_selection_type(pe->atom, sels);
+    enum cs_content_type content_type = CS_TYPE_TEXT;
+    if (sel != CM_SEL_INVALID && pending_type_has(sel)) {
+        content_type = pending_type_pop(sel);
+    }
     *it = (struct incr_transfer){
         .property = pe->atom,
         .requestor = pe->window,
         .data_size = 0,
         .data_capacity = INCR_DATA_START_BYTES,
         .data = malloc(INCR_DATA_START_BYTES),
+        .content_type = content_type,
     };
     expect(it->data);
 
@@ -516,6 +645,13 @@ static int handle_property_notify(const XPropertyEvent *pe) {
         return -EINVAL;
     }
 
+    if (pe->atom == sels[sel].targets_storage) {
+        if (pe->state == PropertyNewValue) {
+            return handle_targets_property(pe);
+        }
+        return 0;
+    }
+
     // Check if this property corresponds to an INCR transfer in progress
     struct incr_transfer *it = it_list;
     while (it) {
@@ -553,26 +689,38 @@ static int handle_property_notify(const XPropertyEvent *pe) {
             dbg("Failed to get clipboard text\n");
             return -EINVAL;
         }
-        char line[CS_SNIP_LINE_SIZE];
-        first_line(ct.data, line);
-        dbg("First line: %s\n", line);
 
-        if (is_salient_text(ct.data)) {
-            uint64_t hash = store_clip(sel, &ct);
+        enum cs_content_type ctype =
+            pending_type_has(sel) ? pending_type_pop(sel) : CS_TYPE_TEXT;
+
+        if (ctype == CS_TYPE_TEXT) {
+            char line[CS_SNIP_LINE_SIZE];
+            first_line(ct.data, line);
+            dbg("First line: %s\n", line);
+
+            if (is_salient_text(ct.data)) {
+                uint64_t hash = store_clip(sel, &ct, ctype);
+                maybe_trim();
+                /* We only own CLIPBOARD because otherwise the behaviour is wonky:
+                 *
+                 *  1. When you select in a browser and press ^V, it repastes what
+                 *     you have selected instead of the previous content
+                 *  2. urxvt and some other terminal emulators will unhilight on
+                 *     PRIMARY ownership being taken away from them
+                 */
+                if (cfg.own_clipboard && has_owned_selections()) {
+                    run_clipserve(hash, cfg.owned_selections);
+                }
+            } else {
+                dbg("Clipboard text is whitespace only, ignoring\n");
+                free_clip_text(&ct);
+            }
+        } else {
+            uint64_t hash = store_clip(sel, &ct, ctype);
             maybe_trim();
-            /* We only own CLIPBOARD because otherwise the behaviour is wonky:
-             *
-             *  1. When you select in a browser and press ^V, it repastes what
-             *     you have selected instead of the previous content
-             *  2. urxvt and some other terminal emulators will unhilight on
-             *     PRIMARY ownership being taken away from them
-             */
             if (cfg.own_clipboard && has_owned_selections()) {
                 run_clipserve(hash, cfg.owned_selections);
             }
-        } else {
-            dbg("Clipboard text is whitespace only, ignoring\n");
-            free_clip_text(&ct);
         }
     }
 
@@ -687,8 +835,8 @@ static int setup_watches(int evt_base) {
         XFixesSelectSelectionInput(dpy, win, sel_atom,
                                    XFixesSetSelectionOwnerNotifyMask);
         dbg("Getting initial value for selection %s\n", sel.name);
-        XConvertSelection(dpy, sel_atom, XInternAtom(dpy, "UTF8_STRING", False),
-                          sels[i].storage, win, CurrentTime);
+        XConvertSelection(dpy, sel_atom, targets_atom, sels[i].targets_storage,
+                          win, CurrentTime);
         get_one_clip(evt_base);
     }
 
@@ -735,6 +883,17 @@ int main(int argc, char *argv[]) {
 
     incr_atom = XInternAtom(dpy, "INCR", False);
     timestamp_atom = XInternAtom(dpy, "CLIPMENUD_TIMESTAMP", False);
+    targets_atom = XInternAtom(dpy, "TARGETS", False);
+
+    const char *image_target_names[] = {
+        "image/png", "image/bmp", "image/jpeg",
+        "image/tiff", "image/gif", "image/webp",
+    };
+    nr_image_targets = 0;
+    for (size_t i = 0; i < arrlen(image_target_names); i++) {
+        image_target_atoms[nr_image_targets++] =
+            XInternAtom(dpy, image_target_names[i], False);
+    }
 
     expect(pipe(sig_pipe) == 0);
     set_fd_flags(sig_pipe[0]);

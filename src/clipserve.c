@@ -110,10 +110,12 @@ static void incr_send_chunk(const XPropertyEvent *pe) {
  * have been claimed by another application.
  */
 static void _nonnull_ serve_clipboard(uint64_t hash, struct cs_content *content,
-                                      const bool selection_active[CM_SEL_MAX]) {
+                                       const bool selection_active[CM_SEL_MAX],
+                                       enum cs_content_type content_type) {
     bool running = true;
     XEvent evt;
-    Atom targets, utf8_string;
+    Atom targets_atom, utf8_string;
+    Atom image_target_atom = None;
     Atom selection_atoms[CM_SEL_MAX];
     Window win;
     int remaining_selections;
@@ -130,9 +132,21 @@ static void _nonnull_ serve_clipboard(uint64_t hash, struct cs_content *content,
 
     win = XCreateSimpleWindow(dpy, DefaultRootWindow(dpy), 0, 0, 1, 1, 0, 0, 0);
     XStoreName(dpy, win, "clipserve");
-    targets = XInternAtom(dpy, "TARGETS", False);
+    targets_atom = XInternAtom(dpy, "TARGETS", False);
     utf8_string = XInternAtom(dpy, "UTF8_STRING", False);
     incr_atom = XInternAtom(dpy, "INCR", False);
+    if (content_type == CS_TYPE_IMAGE_PNG)
+        image_target_atom = XInternAtom(dpy, "image/png", False);
+    else if (content_type == CS_TYPE_IMAGE_BMP)
+        image_target_atom = XInternAtom(dpy, "image/bmp", False);
+    else if (content_type == CS_TYPE_IMAGE_JPEG)
+        image_target_atom = XInternAtom(dpy, "image/jpeg", False);
+    else if (content_type == CS_TYPE_IMAGE_TIFF)
+        image_target_atom = XInternAtom(dpy, "image/tiff", False);
+    else if (content_type == CS_TYPE_IMAGE_GIF)
+        image_target_atom = XInternAtom(dpy, "image/gif", False);
+    else if (content_type == CS_TYPE_IMAGE_WEBP)
+        image_target_atom = XInternAtom(dpy, "image/webp", False);
 
     if (selection_active[CM_SEL_PRIMARY]) {
         selection_atoms[selection_atoms_len++] = XA_PRIMARY;
@@ -187,22 +201,37 @@ static void _nonnull_ serve_clipboard(uint64_t hash, struct cs_content *content,
                     "\n",
                     strnull(window_title), (unsigned long)req->requestor, hash);
 
-                if (req->target == targets) {
-                    Atom available_targets[] = {utf8_string, XA_STRING};
+                if (req->target == targets_atom) {
+                    Atom available_targets[4];
+                    int ntarg = 0;
+                    available_targets[ntarg++] = targets_atom;
+                    if (image_target_atom == None) {
+                        available_targets[ntarg++] = utf8_string;
+                        available_targets[ntarg++] = XA_STRING;
+                    } else {
+                        available_targets[ntarg++] = image_target_atom;
+                    }
                     XChangeProperty(dpy, req->requestor, req->property, XA_ATOM,
                                     32, PropModeReplace,
-                                    (unsigned char *)&available_targets,
-                                    arrlen(available_targets));
+                                    (unsigned char *)available_targets, ntarg);
                 } else if (req->target == utf8_string ||
                            req->target == XA_STRING) {
                     if (content->size < (off_t)incr_threshold) {
-                        // Data size is small enough, send directly
                         XChangeProperty(dpy, req->requestor, req->property,
                                         req->target, 8, PropModeReplace,
                                         (unsigned char *)content->data,
                                         (int)content->size);
                     } else {
-                        // Initiate INCR transfer
+                        incr_send_start(req, content);
+                    }
+                } else if (image_target_atom != None &&
+                           req->target == image_target_atom) {
+                    if (content->size < (off_t)incr_threshold) {
+                        XChangeProperty(dpy, req->requestor, req->property,
+                                        req->target, 8, PropModeReplace,
+                                        (unsigned char *)content->data,
+                                        (int)content->size);
+                    } else {
                         incr_send_start(req, content);
                     }
                 } else {
@@ -280,7 +309,14 @@ int main(int argc, char *argv[]) {
     die_on(cs_content_get(&cs, hash, &content) < 0,
            "Hash " PRI_HASH " inaccessible\n", hash);
 
-    serve_clipboard(hash, &content, selection_active);
+    enum cs_content_type content_type = CS_TYPE_TEXT;
+    int type_ret = cs_get_type(&cs, hash, &content_type);
+    if (type_ret < 0) {
+        dbg("Could not determine content type for hash " PRI_HASH
+            ", assuming text\n", hash);
+    }
+
+    serve_clipboard(hash, &content, selection_active, content_type);
 
     return 0;
 }

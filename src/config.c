@@ -443,12 +443,18 @@ void setup_selections(Display *dpy, struct cm_selections *sels) {
     sels[CM_SEL_CLIPBOARD].selection = XInternAtom(dpy, "CLIPBOARD", False);
     sels[CM_SEL_CLIPBOARD].storage =
         XInternAtom(dpy, "CLIPMENUD_CUR_CLIPBOARD", False);
+    sels[CM_SEL_CLIPBOARD].targets_storage =
+        XInternAtom(dpy, "CLIPMENUD_TARGETS_CLIPBOARD", False);
     sels[CM_SEL_PRIMARY].selection = XA_PRIMARY;
     sels[CM_SEL_PRIMARY].storage =
         XInternAtom(dpy, "CLIPMENUD_CUR_PRIMARY", False);
+    sels[CM_SEL_PRIMARY].targets_storage =
+        XInternAtom(dpy, "CLIPMENUD_TARGETS_PRIMARY", False);
     sels[CM_SEL_SECONDARY].selection = XA_SECONDARY;
     sels[CM_SEL_SECONDARY].storage =
         XInternAtom(dpy, "CLIPMENUD_CUR_SECONDARY", False);
+    sels[CM_SEL_SECONDARY].targets_storage =
+        XInternAtom(dpy, "CLIPMENUD_TARGETS_SECONDARY", False);
 }
 
 /**
@@ -474,7 +480,7 @@ selection_atom_to_selection_type(Atom atom, const struct cm_selections *sels) {
 enum selection_type
 storage_atom_to_selection_type(Atom atom, const struct cm_selections *sels) {
     for (size_t i = 0; i < CM_SEL_MAX; ++i) {
-        if (sels[i].storage == atom) {
+        if (sels[i].storage == atom || sels[i].targets_storage == atom) {
             return i;
         }
     }
