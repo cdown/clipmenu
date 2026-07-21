@@ -3,6 +3,7 @@
 
 #include <X11/Xlib.h>
 
+#include "store.h"
 #include "util.h"
 
 DEFINE_DROP_FUNC_VOID(XFree)
@@ -23,6 +24,7 @@ struct incr_transfer {
     size_t data_size;
     size_t data_capacity;
     size_t offset;
+    enum cs_content_type content_type;
 };
 
 #define it_dbg(it, fmt, ...)                                                   \

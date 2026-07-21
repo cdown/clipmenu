@@ -331,9 +331,11 @@ static int _must_use_ _nonnull_ cs_file_resize(struct clip_store *cs,
  * @nr_lines: The number of lines in the line content
  */
 static void _nonnull_ cs_snip_update(struct cs_snip *snip, uint64_t hash,
-                                     const char *line, uint64_t nr_lines) {
+                                     const char *line, uint64_t nr_lines,
+                                     enum cs_content_type content_type) {
     snip->hash = hash;
     snip->doomed = false;
+    snip->content_type = (uint8_t)content_type;
     snip->nr_lines = nr_lines;
     strncpy(snip->line, line, CS_SNIP_LINE_SIZE - 1);
     snip->line[CS_SNIP_LINE_SIZE - 1] = '\0';
@@ -378,7 +380,8 @@ size_t first_line(const char *text, char *out) {
  */
 static int _must_use_ _nonnull_ cs_snip_add(struct clip_store *cs,
                                             uint64_t hash, const char *line,
-                                            uint64_t nr_lines) {
+                                            uint64_t nr_lines,
+                                            enum cs_content_type content_type) {
     _drop_(cs_unref) struct ref_guard guard = cs_ref(cs);
     if (guard.status < 0) {
         return guard.status;
@@ -387,7 +390,8 @@ static int _must_use_ _nonnull_ cs_snip_add(struct clip_store *cs,
     if (ret < 0) {
         return ret;
     }
-    cs_snip_update(cs->snips + cs->header->nr_snips - 1, hash, line, nr_lines);
+    cs_snip_update(cs->snips + cs->header->nr_snips - 1, hash, line, nr_lines,
+                   content_type);
     return 0;
 }
 
@@ -402,9 +406,8 @@ static int _must_use_ _nonnull_ cs_snip_add(struct clip_store *cs,
  */
 static int _must_use_ _nonnull_
 cs_content_add(struct clip_store *cs, uint64_t hash, const char *content,
-               enum cs_dupe_policy dupe_policy) {
+               size_t content_len, enum cs_dupe_policy dupe_policy) {
     bool dupe = false;
-    size_t content_len = strlen(content);
 
     char dir_path[CS_HASH_STR_MAX];
     snprintf(dir_path, sizeof(dir_path), PRI_HASH, hash);
@@ -537,6 +540,22 @@ int cs_content_get(struct clip_store *cs, uint64_t hash,
  * @cs: The clip store to operate on
  * @hash: The hash of the entry to move
  */
+int cs_get_type(struct clip_store *cs, uint64_t hash,
+                enum cs_content_type *out_type) {
+    _drop_(cs_unref) struct ref_guard guard = cs_ref(cs);
+    if (guard.status < 0) {
+        return guard.status;
+    }
+
+    for (size_t i = 0; i < cs->local_nr_snips; i++) {
+        if (cs->snips[i].hash == hash) {
+            *out_type = (enum cs_content_type)cs->snips[i].content_type;
+            return 0;
+        }
+    }
+    return -ENOENT;
+}
+
 int cs_make_newest(struct clip_store *cs, uint64_t hash) {
     _drop_(cs_unref) struct ref_guard guard = cs_ref(cs);
     if (guard.status < 0) {
@@ -566,11 +585,29 @@ static int _must_use_ _nonnull_ cs_content_remove(struct clip_store *cs,
  * @out_hash: Output for the generated hash, or NULL
  * @dupe_policy: Policy to use for duplicate entries
  */
-int cs_add(struct clip_store *cs, const char *content, uint64_t *out_hash,
-           enum cs_dupe_policy dupe_policy) {
-    uint64_t hash = fnv1a_64_hash(content);
+int cs_add(struct clip_store *cs, const void *content, size_t content_len,
+           uint64_t *out_hash, enum cs_dupe_policy dupe_policy,
+           enum cs_content_type content_type) {
+    if (content_type != CS_TYPE_TEXT) {
+        enum cs_content_type detected = detect_image_type(content, content_len);
+        if (detected != CS_TYPE_TEXT) {
+            content_type = detected;
+        }
+    }
+
+    uint64_t hash = fnv1a_64_hash_buf(content, content_len);
     char line[CS_SNIP_LINE_SIZE];
-    size_t nr_lines = first_line(content, line);
+    size_t nr_lines;
+
+    if (content_type == CS_TYPE_TEXT) {
+        nr_lines = first_line(content, line);
+    } else {
+        nr_lines = 0;
+        char size_buf[32];
+        format_human_size(size_buf, sizeof(size_buf), content_len);
+        snprintf(line, CS_SNIP_LINE_SIZE, "%s %s",
+                 content_type_label(content_type), size_buf);
+    }
 
     if (out_hash) {
         *out_hash = hash;
@@ -581,14 +618,14 @@ int cs_add(struct clip_store *cs, const char *content, uint64_t *out_hash,
         return guard.status;
     }
 
-    int ret = cs_content_add(cs, hash, content, dupe_policy);
+    int ret = cs_content_add(cs, hash, content, content_len, dupe_policy);
     if (ret == -EEXIST && dupe_policy == CS_DUPE_KEEP_LAST) {
         return cs_make_newest(cs, hash);
     }
     if (ret) {
         return ret;
     }
-    ret = cs_snip_add(cs, hash, line, nr_lines);
+    ret = cs_snip_add(cs, hash, line, nr_lines, content_type);
     if (ret) {
         int rm_ret = cs_content_remove(cs, hash);
         if (rm_ret) {
@@ -796,7 +833,8 @@ int cs_trim(struct clip_store *cs, enum cs_iter_direction direction,
  * @out_hash: Output for the generated hash, or NULL
  */
 int cs_replace(struct clip_store *cs, enum cs_iter_direction direction,
-               size_t age, const char *content, uint64_t *out_hash) {
+               size_t age, const void *content, size_t content_len,
+               uint64_t *out_hash, enum cs_content_type content_type) {
     _drop_(cs_unref) struct ref_guard guard = cs_ref(cs);
     if (guard.status < 0) {
         return guard.status;
@@ -811,12 +849,28 @@ int cs_replace(struct clip_store *cs, enum cs_iter_direction direction,
                      : age;
     struct cs_snip *snip = cs->snips + idx;
 
-    char line[CS_SNIP_LINE_SIZE];
-    size_t nr_lines = first_line(content, line);
-    uint64_t old_hash = snip->hash;
-    uint64_t hash = fnv1a_64_hash(content);
+    if (content_type != CS_TYPE_TEXT) {
+        enum cs_content_type detected = detect_image_type(content, content_len);
+        if (detected != CS_TYPE_TEXT) {
+            content_type = detected;
+        }
+    }
 
-    int ret = cs_content_add(cs, hash, content, CS_DUPE_KEEP_ALL);
+    char line[CS_SNIP_LINE_SIZE];
+    size_t nr_lines;
+    if (content_type == CS_TYPE_TEXT) {
+        nr_lines = first_line(content, line);
+    } else {
+        nr_lines = 0;
+        char size_buf[32];
+        format_human_size(size_buf, sizeof(size_buf), content_len);
+        snprintf(line, CS_SNIP_LINE_SIZE, "%s %s",
+                 content_type_label(content_type), size_buf);
+    }
+    uint64_t old_hash = snip->hash;
+    uint64_t hash = fnv1a_64_hash_buf(content, content_len);
+
+    int ret = cs_content_add(cs, hash, content, content_len, CS_DUPE_KEEP_ALL);
     if (ret) {
         return ret;
     }
@@ -824,7 +878,7 @@ int cs_replace(struct clip_store *cs, enum cs_iter_direction direction,
     if (ret) {
         return ret;
     }
-    cs_snip_update(snip, hash, line, nr_lines);
+    cs_snip_update(snip, hash, line, nr_lines, content_type);
     if (out_hash) {
         *out_hash = hash;
     }
@@ -844,4 +898,93 @@ int cs_len(struct clip_store *cs, size_t *out_len) {
     }
     *out_len = cs->header->nr_snips;
     return 0;
+}
+
+uint64_t fnv1a_64_hash_buf(const void *buf, size_t len) {
+    const uint64_t fnv_offset_basis = 0xcbf29ce484222325ULL;
+    const uint64_t fnv_prime = 0x100000001b3ULL;
+    uint64_t hash = fnv_offset_basis;
+    const uint8_t *src = (const uint8_t *)buf;
+    for (size_t i = 0; i < len; i++) {
+        hash ^= src[i];
+        hash *= fnv_prime;
+    }
+    return hash;
+}
+
+const char *content_type_label(enum cs_content_type type) {
+    switch (type) {
+        case CS_TYPE_TEXT:
+            return "text";
+        case CS_TYPE_IMAGE_PNG:
+            return "[PNG image]";
+        case CS_TYPE_IMAGE_BMP:
+            return "[BMP image]";
+        case CS_TYPE_IMAGE_JPEG:
+            return "[JPEG image]";
+        case CS_TYPE_IMAGE_TIFF:
+            return "[TIFF image]";
+        case CS_TYPE_IMAGE_GIF:
+            return "[GIF image]";
+        case CS_TYPE_IMAGE_WEBP:
+            return "[WEBP image]";
+        default:
+            return "[image]";
+    }
+}
+
+enum cs_content_type detect_image_type(const void *buf, size_t len) {
+    const unsigned char *b = (const unsigned char *)buf;
+    if (!b || len == 0) {
+        return CS_TYPE_TEXT;
+    }
+    if (len >= 8 && b[0] == 0x89 && b[1] == 'P' && b[2] == 'N' && b[3] == 'G' &&
+        b[4] == 0x0d && b[5] == 0x0a && b[6] == 0x1a && b[7] == 0x0a) {
+        return CS_TYPE_IMAGE_PNG;
+    }
+    if (len >= 3 && b[0] == 0xff && b[1] == 0xd8 && b[2] == 0xff) {
+        return CS_TYPE_IMAGE_JPEG;
+    }
+    if (len >= 6 && b[0] == 'G' && b[1] == 'I' && b[2] == 'F' &&
+        b[3] == '8' && (b[4] == '7' || b[4] == '9') && b[5] == 'a') {
+        return CS_TYPE_IMAGE_GIF;
+    }
+    if (len >= 2 && b[0] == 'B' && b[1] == 'M') {
+        return CS_TYPE_IMAGE_BMP;
+    }
+    if (len >= 4 && ((b[0] == 0x49 && b[1] == 0x49 && b[2] == 0x2a && b[3] == 0x00) ||
+                    (b[0] == 0x4d && b[1] == 0x4d && b[2] == 0x00 && b[3] == 0x2a))) {
+        return CS_TYPE_IMAGE_TIFF;
+    }
+    if (len >= 12 && memcmp(b, "RIFF", 4) == 0 && memcmp(b + 8, "WEBP", 4) == 0) {
+        return CS_TYPE_IMAGE_WEBP;
+    }
+    return CS_TYPE_TEXT;
+}
+
+void format_human_size(char *buf, size_t buf_len, size_t size) {
+    if (size < 1024) {
+        snprintf(buf, buf_len, "%zuB", size);
+        return;
+    }
+
+    double val;
+    char unit;
+    if (size < 1024 * 1024) {
+        val = (double)size / 1024.0;
+        unit = 'K';
+    } else if (size < 1024ULL * 1024ULL * 1024ULL) {
+        val = (double)size / (1024.0 * 1024.0);
+        unit = 'M';
+    } else {
+        val = (double)size / (1024.0 * 1024.0 * 1024.0);
+        unit = 'G';
+    }
+
+    snprintf(buf, buf_len, "%.1f%c", val, unit);
+    size_t len = strlen(buf);
+    if (len >= 3 && buf[len - 3] == '.' && buf[len - 2] == '0') {
+        buf[len - 3] = unit;
+        buf[len - 2] = '\0';
+    }
 }

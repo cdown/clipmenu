@@ -12,21 +12,39 @@
 #define CS_HASH_STR_MAX 17       /* String length of 64bit hex + \0 */
 #define PRI_HASH "%016" PRIX64
 
+enum cs_content_type {
+    CS_TYPE_TEXT = 0,
+    CS_TYPE_IMAGE_PNG,
+    CS_TYPE_IMAGE_BMP,
+    CS_TYPE_IMAGE_JPEG,
+    CS_TYPE_IMAGE_TIFF,
+    CS_TYPE_IMAGE_GIF,
+    CS_TYPE_IMAGE_WEBP,
+};
+
 /**
  * A single snip within the clip store.
  *
  * @hash: A 64-bit hash value associated with the content entry
  * @doomed: Used during cs_remove to batch mark entries for removal
- * @nr_lines: The number of lines in the content entry
+ * @nr_lines: The number of lines in the content entry (for text)
  * @line: A character array containing the first salient line, terminated by a
- *        null byte
+ *        null byte; for images, contains a descriptive label
+ * @content_type: The type of content (text, image/png, etc.)
+ *
+ * content_type is deliberately placed at the end to avoid breaking reads of
+ * existing on-disk snip files where the line field was 1 byte larger and
+ * content_type did not exist. Old entries will have a garbage content_type
+ * (read from the last byte of the old line) and lose the final byte of their
+ * first line, but all other fields (hash, doomed, nr_lines) remain valid.
  */
-#define CS_SNIP_LINE_SIZE CS_SNIP_SIZE - (sizeof(uint64_t) * 2) - sizeof(bool)
+#define CS_SNIP_LINE_SIZE CS_SNIP_SIZE - (sizeof(uint64_t) * 2) - sizeof(bool) - sizeof(uint8_t)
 struct _packed_ cs_snip {
     uint64_t hash;
     bool doomed;
     uint64_t nr_lines;
     char line[CS_SNIP_LINE_SIZE];
+    uint8_t content_type;
 };
 
 /**
@@ -167,11 +185,14 @@ void drop_cs_content_unmap(struct cs_content *content);
 void drop_cs_destroy(struct clip_store *cs);
 int _must_use_ _nonnull_ cs_content_get(struct clip_store *cs, uint64_t hash,
                                         struct cs_content *content);
+int _must_use_ _nonnull_ cs_get_type(struct clip_store *cs, uint64_t hash,
+                                    enum cs_content_type *out_type);
 int _must_use_ _nonnull_n_(1)
     cs_make_newest(struct clip_store *cs, uint64_t hash);
 int _must_use_ _nonnull_n_(1)
-    cs_add(struct clip_store *cs, const char *content, uint64_t *out_hash,
-           enum cs_dupe_policy dupe_policy);
+    cs_add(struct clip_store *cs, const void *content, size_t content_len,
+           uint64_t *out_hash, enum cs_dupe_policy dupe_policy,
+           enum cs_content_type content_type);
 bool _must_use_ _nonnull_ cs_snip_iter(struct ref_guard *guard,
                                        enum cs_iter_direction direction,
                                        struct cs_snip **snip);
@@ -184,9 +205,14 @@ int _must_use_ _nonnull_ cs_trim(struct clip_store *cs,
                                  size_t nr_keep);
 int _must_use_ _nonnull_n_(1, 4)
     cs_replace(struct clip_store *cs, enum cs_iter_direction direction,
-               size_t age, const char *content, uint64_t *out_hash);
+               size_t age, const void *content, size_t content_len,
+               uint64_t *out_hash, enum cs_content_type content_type);
 int _nonnull_ cs_len(struct clip_store *cs, size_t *out_len);
 
 size_t _nonnull_ first_line(const char *text, char *out);
+uint64_t _nonnull_ fnv1a_64_hash_buf(const void *buf, size_t len);
+const char *_nonnull_ content_type_label(enum cs_content_type type);
+enum cs_content_type detect_image_type(const void *buf, size_t len);
+void _nonnull_ format_human_size(char *buf, size_t buf_len, size_t size);
 
 #endif

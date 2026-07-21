@@ -26,6 +26,7 @@ enum selection_type {
 struct cm_selections {
     Atom selection;
     Atom storage;
+    Atom targets_storage;
 };
 struct ignore_window {
     bool set;
