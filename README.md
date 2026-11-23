@@ -63,7 +63,7 @@ Any dmenu-compliant application will work, but here are `CM_LAUNCHER`
 configurations that are known to work:
 
 - `dmenu` (the default)
-- `fzf`
+- `fzf`, with `launcher_pass_dmenu_args` set to 0
 - `rofi`
 
 # Installation
@@ -75,6 +75,16 @@ package called `clipmenu`.
 
 If your distribution doesn't provide a package, you can manually install using
 `make install` (or better yet, create a package for your distribution!).
+
+To build clipmenu you need a C compiler, GNU make, and the headers for libX11
+and libXfixes. Those two libraries are also all that is needed at runtime,
+other than the launcher itself and `man` if you want `--help` to work.
+
+`make install` installs to `/usr/local` by default. `PREFIX` and `DESTDIR` are
+both respected, so a package would typically use something like:
+
+    make
+    make install PREFIX=/usr DESTDIR="$pkgdir"
 
 # How does it work?
 
