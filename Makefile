@@ -1,9 +1,10 @@
 CFLAGS := -std=gnu11 -O2 -Wall -Wextra -Wshadow -Wpointer-arith \
 	  -Wcast-align -Wmissing-prototypes -Wstrict-overflow -Wformat=2 \
 	  -Wwrite-strings -Warray-bounds -Wstrict-prototypes \
-	  -Wno-maybe-uninitialized \
+	  -Wno-maybe-uninitialized -Wno-unknown-warning-option \
 	  -Werror $(CFLAGS)
-CPPFLAGS += -I/usr/X11R6/include -L/usr/X11R6/lib
+CPPFLAGS += -I/usr/X11R6/include
+LDFLAGS += -L/usr/X11R6/lib
 LDLIBS += -lX11 -lXfixes
 PREFIX ?= /usr/local
 bindir := $(PREFIX)/bin
@@ -129,7 +130,7 @@ integration_tests:
 	tests/x_integration_tests
 
 tests/test_store: tests/test_store.c src/store.o src/util.o
-	$(CC) $(CFLAGS) $(CPPFLAGS) -I./src -o $@ $^ $(LDLIBS)
+	$(CC) $(CFLAGS) $(CPPFLAGS) -I./src -o $@ $^ $(LDFLAGS) $(LDLIBS)
 
 .PHONY: all debug install uninstall clean analyse tests integration_tests \
 	cppcheck
