@@ -400,6 +400,22 @@ check_nr_clips "$(( nr_before + 1 ))"
 kill -CONT "$owner_pid"
 kill "$owner_pid"
 
+# ignore_window also applies to what is already there at startup. xsel has
+# named its window since 1.2.1.
+printf 'from_ignored_window' | xsel -b
+settle
+CM_IGNORE_WINDOW='^xsel$' CM_ONESHOT=1 timeout 10 clipmenud
+clipmenu || true
+[[ "$(< "$l_out")" != *from_ignored_window* ]]
+CM_IGNORE_WINDOW='^xsel$' clipmenud &
+clipmenud_pid=$!
+settle
+clipmenu || true
+[[ "$(< "$l_out")" != *from_ignored_window* ]]
+restart_clipmenud
+clipmenu || true
+[[ "$(< "$l_out")" == *from_ignored_window* ]]
+
 if (( _UNSHARED )); then
     umount -l /tmp
 fi
