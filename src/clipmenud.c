@@ -706,6 +706,16 @@ static void setup_watches(void) {
         Atom sel_atom = sels[i].selection;
         XFixesSelectSelectionInput(dpy, win, sel_atom,
                                    XFixesSetSelectionOwnerNotifyMask);
+
+        // XFixes only tells us about new owners, so check the current one.
+        Window owner = XGetSelectionOwner(dpy, sel_atom);
+        _drop_(XFree) char *win_title =
+            owner == None ? NULL : get_window_title(dpy, owner);
+        if (is_clipserve(win_title) || is_ignored_window(win_title)) {
+            dbg("Ignoring initial value from window titled '%s'\n", win_title);
+            continue;
+        }
+
         dbg("Getting initial value for selection %s\n", sel.name);
         XConvertSelection(dpy, sel_atom, XInternAtom(dpy, "UTF8_STRING", False),
                           sels[i].storage, win, CurrentTime);
