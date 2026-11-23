@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
@@ -123,8 +124,25 @@ int main(int argc, char *argv[]) {
         }
     }
 
+    // The pattern can also come from standard input, which keeps it out of the
+    // process list. That matters when it is a secret.
+    _drop_(free) char *stdin_pattern = NULL;
+    const char *pattern = NULL;
+    if (optind < argc) {
+        pattern = argv[optind];
+    } else if (!isatty(STDIN_FILENO)) {
+        size_t cap = 0;
+        ssize_t len = getline(&stdin_pattern, &cap, stdin);
+        if (len > 0) {
+            if (stdin_pattern[len - 1] == '\n') {
+                stdin_pattern[len - 1] = '\0';
+            }
+            pattern = stdin_pattern;
+        }
+    }
+
     // An empty pattern would match every clip.
-    die_on(optind >= argc || !*argv[optind], "%s\n", usage);
+    die_on(!pattern || !*pattern, "%s\n", usage);
 
     _drop_(close) int content_dir_fd = open(get_cache_dir(&cfg), O_RDONLY);
     _drop_(close) int snip_fd =
@@ -137,16 +155,16 @@ int main(int argc, char *argv[]) {
     enum cs_iter_direction direction = CS_ITER_OLDEST_FIRST;
     switch (state.type) {
         case MATCH_REGEX:
-            die_on(regcomp(&state.rgx, argv[optind], REG_EXTENDED | REG_NOSUB),
+            die_on(regcomp(&state.rgx, pattern, REG_EXTENDED | REG_NOSUB),
                    "Could not compile regex\n");
             break;
         case MATCH_LITERAL:
-            state.needle = argv[optind];
+            state.needle = pattern;
             break;
         case MATCH_COUNT_NEWEST:
         case MATCH_COUNT_OLDEST:
-            die_on(str_to_uint64(argv[optind], &state.count.num_delete) < 0,
-                   "Bad argument, expected integer: %s\n", argv[optind]);
+            die_on(str_to_uint64(pattern, &state.count.num_delete) < 0,
+                   "Bad argument, expected integer: %s\n", pattern);
             state.count.current = 0;
             if (state.type == MATCH_COUNT_NEWEST) {
                 direction = CS_ITER_NEWEST_FIRST;

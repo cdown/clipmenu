@@ -3,12 +3,17 @@
 clipdel \- delete entries from the clip store
 .SH SYNOPSIS
 .B clipdel
-[OPTION...] PATTERN
+[OPTION...] [PATTERN]
 .SH DESCRIPTION
 .B clipdel
 removes clipboard entries from the clip store managed by clipmenu. By default,
 it performs a dry-run and prints any matching entries. With the -d flag,
 matching entries are permanently removed. An empty PATTERN is an error.
+
+If PATTERN is not given and standard input is not a terminal, the pattern is
+the first line of standard input. That keeps it out of the process list, which
+is useful when deleting a secret. Use \-F with a secret, so that any characters
+in it which are special in a regular expression are matched literally.
 .SH OPTIONS
 .TP
 .B \-d
