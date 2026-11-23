@@ -416,6 +416,13 @@ restart_clipmenud
 clipmenu || true
 [[ "$(< "$l_out")" == *from_ignored_window* ]]
 
+# An empty ignore_window ignores nothing
+restart_clipmenud CM_IGNORE_WINDOW=
+nr_before=$(nr_clips)
+primary not_ignored
+settle
+check_nr_clips "$(( nr_before + 1 ))"
+
 if (( _UNSHARED )); then
     umount -l /tmp
 fi
