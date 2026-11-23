@@ -14,7 +14,9 @@ jobs:
           version: 1.0
 
       - run: gcc --version
+      - run: clang --version
 
+      - run: make clean all CC=clang
       - run: make clean analyse
       - run: make tests
       - run: make integration_tests
