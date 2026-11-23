@@ -37,15 +37,6 @@ static struct cm_selections sels[CM_SEL_MAX];
 static Time last_disable_time = 0;
 static Time last_enable_time = 0;
 
-static bool has_owned_selections(void) {
-    for (size_t i = 0; i < CM_SEL_MAX; i++) {
-        if (cfg.owned_selections[i].active) {
-            return true;
-        }
-    }
-    return false;
-}
-
 enum clip_text_source {
     CLIP_TEXT_SOURCE_X,
     CLIP_TEXT_SOURCE_MALLOC,
@@ -423,7 +414,7 @@ static void incr_receive_finish(struct incr_transfer *it) {
     if (is_salient_text(ct.data)) {
         uint64_t hash = store_clip(sel, &ct);
         maybe_trim();
-        if (cfg.own_clipboard && has_owned_selections()) {
+        if (cfg.own_clipboard && cfg.owned_selections[sel].active) {
             run_clipserve(hash, cfg.owned_selections);
         }
     } else {
@@ -560,14 +551,15 @@ static int handle_property_notify(const XPropertyEvent *pe) {
         if (is_salient_text(ct.data)) {
             uint64_t hash = store_clip(sel, &ct);
             maybe_trim();
-            /* We only own CLIPBOARD because otherwise the behaviour is wonky:
+            /* Only clips from an owned selection are served, and by default
+             * we only own CLIPBOARD, because otherwise the behaviour is wonky:
              *
              *  1. When you select in a browser and press ^V, it repastes what
              *     you have selected instead of the previous content
              *  2. urxvt and some other terminal emulators will unhilight on
              *     PRIMARY ownership being taken away from them
              */
-            if (cfg.own_clipboard && has_owned_selections()) {
+            if (cfg.own_clipboard && cfg.owned_selections[sel].active) {
                 run_clipserve(hash, cfg.owned_selections);
             }
         } else {
