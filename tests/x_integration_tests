@@ -120,6 +120,20 @@ wait_nr_clips() {
     check_nr_clips "$want"
 }
 
+restart_clipmenud() {
+    kill "$clipmenud_pid"
+    wait "$clipmenud_pid" || true
+    pkill -x clipserve 2>/dev/null || true
+    env "$@" clipmenud &
+    clipmenud_pid=$!
+    settle
+}
+
+nr_clips() {
+    clipmenu || true
+    wc -l < "$l_out"
+}
+
 if ! (( USE_CURRENT_DISPLAY )); then
     export DISPLAY=:1911
     Xvfb "$DISPLAY" &
@@ -350,6 +364,17 @@ printf 'own_both' | xsel -b
 settle
 [[ "$(xsel -bo)" == own_both ]]
 [[ "$(xsel -po)" == own_both ]]
+
+# max_clips 0 means no limit, so nothing is ever trimmed
+restart_clipmenud CM_MAX_CLIPS=0 CM_MAX_CLIPS_BATCH=1
+nr_before=$(nr_clips)
+primary unlimited1
+settle
+primary unlimited2
+settle
+primary unlimited3
+settle
+check_nr_clips "$(( nr_before + 3 ))"
 
 if (( _UNSHARED )); then
     umount -l /tmp
