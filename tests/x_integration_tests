@@ -239,6 +239,17 @@ expect_fail clipdel -d '' < /dev/null
 expect_fail clipdel -dF '' < /dev/null
 check_nr_clips 2
 
+# The pattern can come from stdin, where an empty one is an error as well
+primary from_stdin
+settle
+check_nr_clips 3
+expect_fail clipdel -d < /dev/null
+expect_fail clipdel -d <<< ''
+expect_fail clipdel -d '' <<< 'from_stdin'
+check_nr_clips 3
+[[ $(clipdel -dF <<< 'from_stdin') == 'from_stdin' ]]
+check_nr_clips 2
+
 # Test clipdelmenu
 primary test1
 primary test2
