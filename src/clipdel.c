@@ -1,4 +1,5 @@
 #include <fcntl.h>
+#include <getopt.h>
 #include <regex.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -94,8 +95,10 @@ int main(int argc, char *argv[]) {
 
     struct clipdel_state state = {0};
 
+    const struct option long_opts[] = {{"help", no_argument, NULL, 'h'},
+                                       {NULL, 0, NULL, 0}};
     int opt;
-    while ((opt = getopt(argc, argv, "dFNnvh")) != -1) {
+    while ((opt = getopt_long(argc, argv, "dFNnvh", long_opts, NULL)) != -1) {
         switch (opt) {
             case 'd':
                 state.mode = DELETE_REAL;
