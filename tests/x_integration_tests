@@ -437,6 +437,10 @@ clipdelmenu -h 24 || true
 [[ "$(PATH=$fake_bin:$PATH clipmenu --help)" == 'man clipmenu' ]]
 [[ "$(PATH=$fake_bin:$PATH clipdelmenu --help)" == 'man clipdelmenu' ]]
 
+# clipdel takes both forms
+[[ "$(PATH=$fake_bin:$PATH clipdel --help)" == 'man clipdel' ]]
+[[ "$(PATH=$fake_bin:$PATH clipdel -h)" == 'man clipdel' ]]
+
 if (( _UNSHARED )); then
     umount -l /tmp
 fi
