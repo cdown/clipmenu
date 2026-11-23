@@ -26,7 +26,8 @@ Provides a buffer above max_clips; when the number of entries exceeds
 entries. Default: 100.
 .TP
 .B oneshot
-If set to 1, clipmenud processes clipboard selections only once before exiting.
+If set to 1, clipmenud stores what is currently on the monitored selections and
+then exits, without waiting more than a second for their owners to answer.
 Default: 0.
 .TP
 .B deduplicate
