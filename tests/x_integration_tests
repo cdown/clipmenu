@@ -376,6 +376,30 @@ primary unlimited3
 settle
 check_nr_clips "$(( nr_before + 3 ))"
 
+# A selection owner that does not answer must not hold up other selections
+xsel -bc
+xsel -pc
+printf 'unresponsive' | xsel -b -n -i &
+owner_pid=$!
+settle
+kill -STOP "$owner_pid"
+restart_clipmenud
+nr_before=$(nr_clips)
+primary responsive
+settle
+check_nr_clips "$(( nr_before + 1 ))"
+
+# oneshot stores what it can get and exits, even if an owner does not answer
+kill "$clipmenud_pid"
+wait "$clipmenud_pid" || true
+primary oneshot_clip
+nr_before=$(nr_clips)
+CM_ONESHOT=1 timeout 10 clipmenud
+check_nr_clips "$(( nr_before + 1 ))"
+
+kill -CONT "$owner_pid"
+kill "$owner_pid"
+
 if (( _UNSHARED )); then
     umount -l /tmp
 fi

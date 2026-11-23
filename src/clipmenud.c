@@ -37,6 +37,9 @@ static struct cm_selections sels[CM_SEL_MAX];
 static Time last_disable_time = 0;
 static Time last_enable_time = 0;
 
+// Selections whose initial request from setup_watches() is still unanswered.
+static bool initial_pending[CM_SEL_MAX];
+
 enum clip_text_source {
     CLIP_TEXT_SOURCE_X,
     CLIP_TEXT_SOURCE_MALLOC,
@@ -338,6 +341,7 @@ static int handle_selection_notify(const XSelectionEvent *se) {
         }
         dbg("X reports that %s has no current owner\n",
             cfg.selections[sel].name);
+        initial_pending[sel] = false;
         return -ENOENT;
     }
     return 0;
@@ -404,6 +408,7 @@ static void incr_receive_finish(struct incr_transfer *it) {
     }
 
     it_dbg(it, "Finished (bytes buffered: %zu)\n", it->data_size);
+    initial_pending[sel] = false;
     char *text = malloc(it->data_size + 1);
     expect(text);
     memcpy(text, it->data, it->data_size);
@@ -540,6 +545,7 @@ static int handle_property_notify(const XPropertyEvent *pe) {
         incr_receive_start(pe);
     } else {
         dbg("Received non-INCR PropertyNotify\n");
+        initial_pending[sel] = false;
 
         // store_clip will take care of freeing this later when it's gone from
         // last_text.
@@ -635,8 +641,11 @@ static int handle_x11_event(int evt_base) {
  * startup, is that we get a SelectionNotify even with owner == None, which
  * means the selection is unowned. At that point we also return, since it's
  * clear that an explicit request has been nacked.
+ *
+ * If timeout_ms is not negative, give up with -ETIMEDOUT if nothing happens
+ * for that long.
  */
-static int get_one_clip(int evt_base) {
+static int get_one_clip(int evt_base, int timeout_ms) {
     while (1) {
         // It's possible that we have more X events to process, but because of
         // the way the protocol works, we won't get told about them until we
@@ -653,12 +662,18 @@ static int get_one_clip(int evt_base) {
         FD_SET(x_fd, &fds);
 
         int max_fd = sig_pipe[0] > x_fd ? sig_pipe[0] : x_fd;
-        int ret = select(max_fd + 1, &fds, NULL, NULL, NULL);
+        struct timeval tv = {.tv_sec = timeout_ms / 1000,
+                             .tv_usec = (timeout_ms % 1000) * 1000};
+        int ret =
+            select(max_fd + 1, &fds, NULL, NULL, timeout_ms < 0 ? NULL : &tv);
         if (ret < 0) {
             if (errno == EINTR) {
                 return 0;
             }
             expect(ret > 0);
+        }
+        if (ret == 0) {
+            return -ETIMEDOUT;
         }
 
         if (FD_ISSET(sig_pipe[0], &fds)) {
@@ -671,7 +686,16 @@ static int get_one_clip(int evt_base) {
     }
 }
 
-static int setup_watches(int evt_base) {
+/**
+ * Start watching the configured selections, and ask for what is on them right
+ * now.
+ *
+ * The answers are processed later along with everything else. We must not
+ * wait for them here: an owner that refuses to convert to UTF8_STRING or that
+ * does not answer at all would then keep us from watching the remaining
+ * selections until some unrelated X event wakes us up.
+ */
+static void setup_watches(void) {
     XSelectInput(dpy, win, PropertyChangeMask);
 
     for (size_t i = 0; i < CM_SEL_MAX; i++) {
@@ -685,15 +709,47 @@ static int setup_watches(int evt_base) {
         dbg("Getting initial value for selection %s\n", sel.name);
         XConvertSelection(dpy, sel_atom, XInternAtom(dpy, "UTF8_STRING", False),
                           sels[i].storage, win, CurrentTime);
-        get_one_clip(evt_base);
+        initial_pending[i] = true;
     }
-
-    return 0;
 }
 
 static int _noreturn_ run(int evt_base) {
     while (1) {
-        get_one_clip(evt_base);
+        get_one_clip(evt_base, -1);
+    }
+}
+
+#define ONESHOT_TIMEOUT_MS 1000
+
+static bool has_initial_pending(void) {
+    for (size_t i = 0; i < CM_SEL_MAX; i++) {
+        if (initial_pending[i]) {
+            return true;
+        }
+    }
+    return false;
+}
+
+/**
+ * Process the answers to the initial requests from setup_watches(), then
+ * return.
+ *
+ * Our requestor is the root window, so we are never told when an owner
+ * refuses a request. Give up on whatever is still unanswered after
+ * ONESHOT_TIMEOUT_MS.
+ */
+static void run_oneshot(int evt_base) {
+    struct timespec start = get_monotonic_time();
+
+    while (has_initial_pending()) {
+        struct timespec now = get_monotonic_time();
+        int64_t elapsed_ms = (int64_t)(now.tv_sec - start.tv_sec) * 1000 +
+                             (now.tv_nsec - start.tv_nsec) / 1000000;
+        if (elapsed_ms >= ONESHOT_TIMEOUT_MS) {
+            dbg("Gave up waiting for the remaining selections\n");
+            break;
+        }
+        get_one_clip(evt_base, (int)(ONESHOT_TIMEOUT_MS - elapsed_ms));
     }
 }
 
@@ -747,11 +803,13 @@ int main(int argc, char *argv[]) {
     int unused;
     die_on(!XFixesQueryExtension(dpy, &evt_base, &unused), "XFixes missing\n");
 
-    setup_watches(evt_base);
+    setup_watches();
 
     if (!cfg.oneshot) {
         run(evt_base);
     }
+
+    run_oneshot(evt_base);
 
     expect(cs_destroy(&cs) == 0);
     config_free(&cfg);
