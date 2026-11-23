@@ -234,6 +234,11 @@ check_nr_clips 4
 [[ $(clipdel -dvN 2) == $'wibble\nwobble' ]]
 check_nr_clips 2
 
+# An empty pattern is an error, it must not match everything
+expect_fail clipdel -d '' < /dev/null
+expect_fail clipdel -dF '' < /dev/null
+check_nr_clips 2
+
 # Test clipdelmenu
 primary test1
 primary test2

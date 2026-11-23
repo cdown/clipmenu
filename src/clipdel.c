@@ -123,7 +123,8 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    die_on(optind >= argc, "%s\n", usage);
+    // An empty pattern would match every clip.
+    die_on(optind >= argc || !*argv[optind], "%s\n", usage);
 
     _drop_(close) int content_dir_fd = open(get_cache_dir(&cfg), O_RDONLY);
     _drop_(close) int snip_fd =
