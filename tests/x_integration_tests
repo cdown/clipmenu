@@ -330,6 +330,12 @@ settle
 primary_out=$(xsel -po 2>/dev/null || true)
 [[ "$primary_out" != clip_default ]]
 
+# own_selections: a clip from another selection does not replace CLIPBOARD
+printf 'primary_new' | xsel -p
+settle
+[[ "$(xsel -bo)" == clip_default ]]
+[[ "$(xsel -po)" == primary_new ]]
+
 # own_selections: owns all listed selections
 kill "$clipmenud_pid"
 wait "$clipmenud_pid" || true
