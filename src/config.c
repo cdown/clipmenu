@@ -124,7 +124,8 @@ static int convert_positive_int(const char *str, void *output) {
 
 static int convert_ignore_window(const char *str, void *output) {
     struct ignore_window *iw = output;
-    iw->set = (bool)str;
+    // An empty regex would match every title, so treat it as unset.
+    iw->set = str && *str;
     if (!iw->set) {
         return 0;
     }
