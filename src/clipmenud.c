@@ -345,9 +345,13 @@ static int handle_selection_notify(const XSelectionEvent *se) {
 
 /**
  * Trims the clip store if the number of clips exceeds the configured batch
- * size.
+ * size. A max_clips of 0 means that there is no limit.
  */
 static void maybe_trim(void) {
+    if (cfg.max_clips == 0) {
+        return;
+    }
+
     size_t cur_clips;
     expect(cs_len(&cs, &cur_clips) == 0);
     if (cur_clips > (size_t)cfg.max_clips + (size_t)cfg.max_clips_batch) {
