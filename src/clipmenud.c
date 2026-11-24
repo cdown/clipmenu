@@ -36,6 +36,7 @@ static struct cm_selections sels[CM_SEL_MAX];
 
 static Time last_disable_time = 0;
 static Time last_enable_time = 0;
+static Time selection_time[CM_SEL_MAX];
 
 // Selections whose initial request from setup_watches() is still unanswered.
 static bool initial_pending[CM_SEL_MAX];
@@ -297,6 +298,10 @@ static void handle_xfixes_selection_notify(XFixesSelectionNotifyEvent *se) {
         return;
     }
 
+    if (se->owner != XGetSelectionOwner(dpy, se->selection)) {
+        return;
+    }
+
     _drop_(XFree) char *win_title = get_window_title(dpy, se->owner);
     if (is_clipserve(win_title) || is_ignored_window(win_title)) {
         dbg("Ignoring clip from window titled '%s'\n", win_title);
@@ -318,6 +323,7 @@ static void handle_xfixes_selection_notify(XFixesSelectionNotifyEvent *se) {
         it = next;
     }
 
+    selection_time[sel] = se->timestamp;
     XConvertSelection(dpy, se->selection,
                       XInternAtom(dpy, "UTF8_STRING", False), sels[sel].storage,
                       win, CurrentTime);
@@ -424,7 +430,7 @@ static void incr_receive_finish(struct incr_transfer *it) {
         uint64_t hash = store_clip(sel, &ct);
         maybe_trim();
         if (cfg.own_clipboard && cfg.owned_selections[sel].active) {
-            run_clipserve(hash, cfg.owned_selections);
+            run_clipserve(hash, cfg.owned_selections, selection_time[sel]);
         }
     } else {
         it_dbg(it, "Clipboard text is whitespace only, ignoring\n");
@@ -570,7 +576,7 @@ static int handle_property_notify(const XPropertyEvent *pe) {
              *     PRIMARY ownership being taken away from them
              */
             if (cfg.own_clipboard && cfg.owned_selections[sel].active) {
-                run_clipserve(hash, cfg.owned_selections);
+                run_clipserve(hash, cfg.owned_selections, selection_time[sel]);
             }
         } else {
             dbg("Clipboard text is whitespace only, ignoring\n");
@@ -717,6 +723,9 @@ static void setup_watches(void) {
         }
 
         dbg("Getting initial value for selection %s\n", sel.name);
+        if (cfg.own_clipboard && cfg.owned_selections[i].active) {
+            selection_time[i] = get_current_server_time();
+        }
         XConvertSelection(dpy, sel_atom, XInternAtom(dpy, "UTF8_STRING", False),
                           sels[i].storage, win, CurrentTime);
         initial_pending[i] = true;

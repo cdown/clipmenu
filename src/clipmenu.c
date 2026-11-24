@@ -28,7 +28,7 @@ static int _nonnull_ clipmenu_action(struct config *cfg, uint64_t hash) {
         expect(ret == 0);
     }
 
-    run_clipserve(hash, NULL);
+    run_clipserve(hash, NULL, CurrentTime);
     return 0;
 }
 

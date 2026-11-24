@@ -73,7 +73,8 @@ size_t _nonnull_ read_safe(int fd, char *buf, size_t count);
 size_t _printf_(3, 4)
     snprintf_safe(char *buf, size_t len, const char *fmt, ...);
 
-void run_clipserve(uint64_t hash, const struct selection *selections);
+void run_clipserve(uint64_t hash, const struct selection *selections,
+                   unsigned long time);
 uint64_t _nonnull_ fnv1a_64_hash(const char *buf);
 
 /**
