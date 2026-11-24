@@ -14,11 +14,12 @@ stored clips. Once a selection is made, clipmenu calls
 to set the chosen clip as the current X11 selections (PRIMARY and CLIPBOARD).
 .SH OPTIONS
 .TP
-.B \-h, \--help
+.B \--help
 Display the help message (invokes the manual page).
 
 Other than that, command-line arguments are passed directly to the underlying
-launcher.
+launcher. That includes \-h, which some launchers take as an option of their
+own.
 .SH CONFIGURATION
 See
 .BR clipmenu.conf (5).

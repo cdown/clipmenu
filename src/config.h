@@ -70,6 +70,7 @@ char *get_cache_dir(struct config *cfg);
 
 void exec_man(void);
 void exec_man_on_help(int argc, char *argv[]);
+void exec_man_on_long_help(int argc, char *argv[]);
 
 /**
  * Define a function that generates and caches a path within the application's

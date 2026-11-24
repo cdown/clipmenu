@@ -489,13 +489,26 @@ void exec_man(void) {
 
 // cppcheck doesn't know this comes from an outside type
 // cppcheck-suppress [constParameter,unmatchedSuppression]
-void exec_man_on_help(int argc, char *argv[]) {
+static void exec_man_on_arg(int argc, char *argv[], bool short_opt) {
     for (int i = 1; i < argc; i++) {
         if (streq(argv[i], "--")) {
             break;
         }
-        if (streq(argv[i], "-h") || streq(argv[i], "--help")) {
+        if (streq(argv[i], "--help") || (short_opt && streq(argv[i], "-h"))) {
             exec_man();
         }
     }
+}
+
+void exec_man_on_help(int argc, char *argv[]) {
+    exec_man_on_arg(argc, argv, true);
+}
+
+/**
+ * Like exec_man_on_help(), but leave -h alone. This is for programs which
+ * pass their arguments on to the launcher, where -h may be an option of the
+ * launcher's own, as with dmenu's line height patch.
+ */
+void exec_man_on_long_help(int argc, char *argv[]) {
+    exec_man_on_arg(argc, argv, false);
 }

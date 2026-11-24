@@ -45,12 +45,14 @@ uid=$(id -u)
 
 launcher=$(mktemp)
 l_out=$(mktemp)
+l_args=$(mktemp)
 
 trap dump_cache ERR
 
 cat > "$launcher" << EOF
 #!/bin/bash
 
+printf '%s\\n' "\$@" > "$l_args"
 cat > "$l_out"
 
 if [[ \$SELECT ]]; then
@@ -422,6 +424,18 @@ nr_before=$(nr_clips)
 primary not_ignored
 settle
 check_nr_clips "$(( nr_before + 1 ))"
+
+# -h belongs to the launcher, only --help shows our help
+fake_bin=$(mktemp -d)
+printf '#!/bin/sh\necho "man $*"\n' > "$fake_bin/man"
+chmod a+x "$fake_bin/man"
+clipmenu -h 24 || true
+[[ "$(tail -n 2 "$l_args" | tr '\n' ' ')" == '-h 24 ' ]]
+: > "$l_args"
+clipdelmenu -h 24 || true
+[[ "$(tail -n 2 "$l_args" | tr '\n' ' ')" == '-h 24 ' ]]
+[[ "$(PATH=$fake_bin:$PATH clipmenu --help)" == 'man clipmenu' ]]
+[[ "$(PATH=$fake_bin:$PATH clipdelmenu --help)" == 'man clipdelmenu' ]]
 
 if (( _UNSHARED )); then
     umount -l /tmp
