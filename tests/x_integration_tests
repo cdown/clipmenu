@@ -368,20 +368,48 @@ settle
 [[ "$(xsel -bo)" == clip_default ]]
 [[ "$(xsel -po)" == primary_new ]]
 
-# own_selections: owns all listed selections
+wait_both_selections() {
+    local want=${1?}
+    local deadline=$((SECONDS + 5))
+
+    until [[ "$(xsel -bo)" == "$want" && "$(xsel -po)" == "$want" ]]; do
+        (( SECONDS < deadline )) || return 1
+        sleep 0.05
+    done
+}
+
+# own_selections: finish each handoff before starting another copy.
 kill "$clipmenud_pid"
 wait "$clipmenud_pid" || true
 pkill -x clipserve 2>/dev/null || true
-CM_OWN_CLIPBOARD=1 CM_OWN_SELECTIONS='clipboard primary' clipmenud &
-clipmenud_pid=$!
-settle
 xsel -bc
 xsel -pc
-printf 'primary_stale' | xsel -p
-printf 'own_both' | xsel -b
+serve_dir=$(mktemp -d)
+cat > "$serve_dir/clipserve" <<'EOF'
+#!/usr/bin/env bash
+printf '%s\n' "$@" > "$CLIPSERVE_ARGS"
+exec "$CLIPSERVE_BIN" "$@"
+EOF
+chmod +x "$serve_dir/clipserve"
+
+PATH="$serve_dir:$PATH" CLIPSERVE_ARGS="$serve_dir/args" CLIPSERVE_BIN="$PWD/clipserve" \
+    CM_OWN_CLIPBOARD=1 CM_OWN_SELECTIONS='clipboard primary' clipmenud &
+clipmenud_pid=$!
 settle
-[[ "$(xsel -bo)" == own_both ]]
-[[ "$(xsel -po)" == own_both ]]
+nr_before=$(nr_clips)
+primary primary_older
+wait_both_selections primary_older
+readarray -t older_serve < "$serve_dir/args"
+
+# Use different X server timestamps, even if the first handoff was instant.
+sleep 0.01
+printf 'own_both' | xsel -b
+wait_both_selections own_both
+
+# Replay the older handoff after the newer one has taken ownership.
+timeout 5 ./clipserve "${older_serve[@]}"
+wait_both_selections own_both
+check_nr_clips "$(( nr_before + 2 ))"
 
 # max_clips 0 means no limit, so nothing is ever trimmed
 restart_clipmenud CM_MAX_CLIPS=0 CM_MAX_CLIPS_BATCH=1

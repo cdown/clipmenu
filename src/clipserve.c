@@ -110,13 +110,13 @@ static void incr_send_chunk(const XPropertyEvent *pe) {
  * have been claimed by another application.
  */
 static void _nonnull_ serve_clipboard(uint64_t hash, struct cs_content *content,
-                                      const bool selection_active[CM_SEL_MAX]) {
-    bool running = true;
+                                      const bool selection_active[CM_SEL_MAX],
+                                      Time time) {
     XEvent evt;
     Atom targets, utf8_string;
     Atom selection_atoms[CM_SEL_MAX];
     Window win;
-    int remaining_selections;
+    int remaining_selections = 0;
     size_t selection_atoms_len = 0;
 
     dpy = XOpenDisplay(NULL);
@@ -149,8 +149,9 @@ static void _nonnull_ serve_clipboard(uint64_t hash, struct cs_content *content,
 
     for (size_t i = 0; i < selection_atoms_len; i++) {
         bool success = false;
-        for (int attempts = 0; attempts < 5; attempts++) {
-            XSetSelectionOwner(dpy, selection_atoms[i], win, CurrentTime);
+        int attempts = time == CurrentTime ? 5 : 1;
+        for (int j = 0; j < attempts; j++) {
+            XSetSelectionOwner(dpy, selection_atoms[i], win, time);
 
             // According to ICCCM 2.1, a client acquiring a selection should
             // confirm success by verifying with GetSelectionOwner.
@@ -159,14 +160,16 @@ static void _nonnull_ serve_clipboard(uint64_t hash, struct cs_content *content,
                 break;
             }
         }
-        if (!success) {
-            die("Failed to set selection for %s\n",
-                XGetAtomName(dpy, selection_atoms[i]));
+        if (success) {
+            remaining_selections++;
+        } else {
+            die_on(time == CurrentTime, "Failed to set selection for %s\n",
+                   XGetAtomName(dpy, selection_atoms[i]));
+            selection_atoms[i] = None;
         }
     }
-    remaining_selections = (int)selection_atoms_len;
 
-    while (running) {
+    while (remaining_selections > 0) {
         XNextEvent(dpy, &evt);
         switch (evt.type) {
             case SelectionRequest: {
@@ -213,9 +216,15 @@ static void _nonnull_ serve_clipboard(uint64_t hash, struct cs_content *content,
                 break;
             }
             case SelectionClear: {
-                if (--remaining_selections == 0) {
+                for (size_t i = 0; i < selection_atoms_len; i++) {
+                    if (selection_atoms[i] == evt.xselectionclear.selection) {
+                        selection_atoms[i] = None;
+                        remaining_selections--;
+                        break;
+                    }
+                }
+                if (remaining_selections == 0) {
                     dbg("Finished serving clip " PRI_HASH "\n", hash);
-                    running = false;
                 } else {
                     dbg("%d selections remaining to serve for clip " PRI_HASH
                         "\n",
@@ -239,6 +248,7 @@ int main(int argc, char *argv[]) {
 
     bool selection_active[CM_SEL_MAX] = {0};
     bool selection_set = false;
+    Time time = CurrentTime;
     int argi = 1;
     for (; argi < argc; argi++) {
         if (streq(argv[argi], "--")) {
@@ -253,6 +263,14 @@ int main(int argc, char *argv[]) {
                    argv[argi]);
             selection_active[sel] = true;
             selection_set = true;
+            continue;
+        }
+        if (streq(argv[argi], "--selection-time")) {
+            uint64_t value;
+            die_on(++argi >= argc || str_to_uint64(argv[argi], &value) < 0 ||
+                       value > UINT32_MAX,
+                   "Invalid selection timestamp\n");
+            time = (Time)value;
             continue;
         }
         break;
@@ -280,7 +298,7 @@ int main(int argc, char *argv[]) {
     die_on(cs_content_get(&cs, hash, &content) < 0,
            "Hash " PRI_HASH " inaccessible\n", hash);
 
-    serve_clipboard(hash, &content, selection_active);
+    serve_clipboard(hash, &content, selection_active, time);
 
     return 0;
 }

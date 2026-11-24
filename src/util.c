@@ -55,9 +55,10 @@ size_t snprintf_safe(char *buf, size_t len, const char *fmt, ...) {
 /**
  * Runs clipserve to handle selection requests for a hash in the clip store.
  */
-#define CLIPSERVE_MAX_ARGS (CM_SEL_MAX * 2 + 3)
+#define CLIPSERVE_MAX_ARGS (CM_SEL_MAX * 2 + 5)
 
-void run_clipserve(uint64_t hash, const struct selection *selections) {
+void run_clipserve(uint64_t hash, const struct selection *selections,
+                   unsigned long time) {
     char hash_str[CS_HASH_STR_MAX];
     snprintf(hash_str, sizeof(hash_str), PRI_HASH, hash);
 
@@ -73,6 +74,12 @@ void run_clipserve(uint64_t hash, const struct selection *selections) {
             cmd[cmd_idx++] = "--selection";
             cmd[cmd_idx++] = selections[i].name;
         }
+    }
+    char time_str[UINT64_MAX_STRLEN + 1];
+    if (time != CurrentTime) {
+        snprintf_safe(time_str, sizeof(time_str), "%lu", time);
+        cmd[cmd_idx++] = "--selection-time";
+        cmd[cmd_idx++] = time_str;
     }
     cmd[cmd_idx++] = hash_str;
     cmd[cmd_idx++] = NULL;
