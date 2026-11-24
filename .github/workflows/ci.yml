@@ -6,12 +6,11 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - run: sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
       - run: sudo apt-get update
 
       - uses: awalsh128/cache-apt-pkgs-action@v1
         with:
-          packages: gcc-10 clang clang-format clang-tidy cppcheck xvfb xsel libxfixes-dev libx11-dev
+          packages: clang clang-format clang-tidy cppcheck xvfb xsel libxfixes-dev libx11-dev
           version: 1.0
 
       - run: gcc --version
