@@ -39,7 +39,7 @@ int main(int argc, char *argv[]) {
     menu_set_user_args(argc, argv);
 
     _drop_(config_free) struct config cfg = setup("clipdelmenu");
-    exec_man_on_help(argc, argv);
+    exec_man_on_long_help(argc, argv);
 
     return menu_prompt_and_act(&cfg, "clipdelmenu", clipdelmenu_action);
 }
